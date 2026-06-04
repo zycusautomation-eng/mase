@@ -1,0 +1,556 @@
+{
+  "generated_from": "closed-won new business, last 24 months",
+  "as_of": "2026-06-04",
+  "win_count": 41,
+  "plays": [
+    {
+      "id": "author-the-rfp-on-your-template",
+      "title": "Author the RFP before competitors enter",
+      "guidance": "When the buyer is about to launch a tender, hand the champion your own RFP question template and run pre-RFP 'to-be' process workshops so the eventual RFP scores your differentiators. Get this done before any competitor is engaged so rivals respond to criteria framed around your strengths.",
+      "lever": "champion",
+      "stage": ["Qualified"],
+      "competitor": ["Coupa", "SAP Ariba", "GEP", "Ivalua", "JAGGAER"],
+      "vertical": ["Telecom and Communication", "Federal", "Chemical, Pharma & Biotech Mfg"],
+      "motion": ["direct"],
+      "proof": [
+        { "account": "Spark NZ", "fact": "Gave champion Marina an RFP question template on first demo; deal qualified same week and rivals responded to a Zycus-framed tender", "date": "2024-07" },
+        { "account": "NTUC Enterprise (NTUC FairPrice Group)", "fact": "Buyer authored RFP off Zycus template after pre-RFP workshops, putting Coupa and Ariba on the back foot", "date": "2024-05" },
+        { "account": "WSAudiology", "fact": "Zycus helped create the RFP; Coupa and Ariba responded to requirements written around Zycus capability", "date": "2023-10" }
+      ]
+    },
+    {
+      "id": "reframe-tool-swap-to-transformation",
+      "title": "Reframe a tool swap as a transformation",
+      "guidance": "Run deep discovery to surface the buyer's real operating pain (lean teams, manual offline work, board-level themes) and reframe the conversation from feature comparison to a multi-year transformation narrative tied to their corporate strategy. This earns the right to a strategic, multi-product story instead of a price fight, and makes the internal owner the seller.",
+      "lever": "champion",
+      "stage": ["Qualified"],
+      "competitor": ["JAGGAER"],
+      "vertical": ["Electronics", "BFSI", "any"],
+      "motion": ["direct"],
+      "proof": [
+        { "account": "Fortive Corporation", "fact": "Discovery surfaced JAGGAER was used only as a passive repository and AI/transformation was a board theme; reframed from tool-swap to transformation", "date": "2025-07" },
+        { "account": "Confie Holding II Co", "fact": "Mapped VP Reengineering's stated modules to an end-to-end S2P transformation story so she became the internal seller", "date": "2024-11" },
+        { "account": "ELEMENTIS PLC", "fact": "Tied the suite to named corporate strategy (improve margins, cash conversion, deleverage) for CEO sign-off", "date": "2024-09" }
+      ]
+    },
+    {
+      "id": "run-real-user-poc-on-named-pain",
+      "title": "Anchor proof on the buyer's named pain with a real-user POC",
+      "guidance": "Build the demo around the buyer's explicitly stated gaps (usability, integration, adoption fear) rather than a feature tour, then stand up a free, time-boxed, hands-on POC on their own data and users with success criteria agreed up front. Let risk-averse buyers de-risk the decision themselves and convert abstract claims into observed, defensible proof.",
+      "lever": "proof",
+      "stage": ["Qualified", "Formal Evaluation"],
+      "competitor": ["Coupa"],
+      "vertical": ["BFSI", "Healthcare & Hospitals Services", "Manufacturing & Engineering", "Food, Bev & FMCG", "any"],
+      "motion": ["direct", "partner"],
+      "proof": [
+        { "account": "Swift SC", "fact": "Free 2.5-week POC with ~30 real users in a live sandbox; answered Coupa SpendGuard on the buyer's own turf", "date": "2025-10" },
+        { "account": "Avance Care", "fact": "Binary go/no-go pilot (adoption = yes); 7 of 7 pilot respondents unanimously chose to keep e-signature", "date": "2026-02" },
+        { "account": "CONSTELLIUM FRANCE", "fact": "Live Drive Test on real MRO data, anchored on the buyer's prior failed eProc project, beat a rival head-to-head on usability", "date": "2025-09" }
+      ]
+    },
+    {
+      "id": "embed-proof-in-existing-workflow",
+      "title": "Prove value inside the tool they already use",
+      "guidance": "Embed the pilot or demo directly in the buyer's existing system (Teams/Slack intake, EHR chart, ERP) so users experience the product without leaving their workflow. In-flow proof removes the change-management objection and makes adoption feel low-effort.",
+      "lever": "proof",
+      "stage": ["Formal Evaluation", "Shortlisted"],
+      "competitor": [],
+      "vertical": ["Healthcare & Hospitals Services", "Business Services", "any"],
+      "motion": ["direct"],
+      "proof": [
+        { "account": "Avance Care", "fact": "Certinal e-signature embedded in Epic EHR chart review; clinicians signed without leaving workflow", "date": "2026-01" },
+        { "account": "Paul Hastings, LLP", "fact": "Microsoft Teams-native intake via the firm's own supplier form was cited as the adoption edge over the remaining finalist", "date": "2025-09" }
+      ]
+    },
+    {
+      "id": "industry-twin-references",
+      "title": "Supply industry-twin references as an award gate",
+      "guidance": "Line up reference customers that match the buyer's vertical, scale, and architecture (same industry, same incumbent, same integration), plus analyst proof, timed to the shortlist or award gate. Peer proof answers 'has anyone like us done this' far more credibly than vendor claims and can be made an explicit award criterion.",
+      "lever": "proof",
+      "stage": ["Shortlisted", "Vendor Selected"],
+      "competitor": ["Coupa", "iValua", "JAGGAER"],
+      "vertical": ["Auto & Transport", "Manufacturing & Engineering", "Real Estate & Infra", "Telecom and Communication", "any"],
+      "motion": ["direct", "partner"],
+      "proof": [
+        { "account": "African Marine Solutions (AMSOL)", "fact": "Shared Hapag-Lloyd marine case study and three reference letters to a maritime buyer", "date": "2026-03" },
+        { "account": "Balfour Beatty, LLC", "fact": "Benchmark Senior Living reference chosen specifically because they run Zycus integrated with Yardi", "date": "2024-08" },
+        { "account": "NTUC Enterprise (NTUC FairPrice Group)", "fact": "Made reference calls a requirement to award; two references attended Horizon to validate live", "date": "2025-02" }
+      ]
+    },
+    {
+      "id": "lead-with-embedded-ai",
+      "title": "Lead with working, embedded AI as the tie-breaker",
+      "guidance": "Position productised AI (Merlin intake in Teams/Slack, GenAI extraction, Negogenie redlining, autonomous negotiation) as a live differentiator tied to the buyer's actual processes, sequenced after core fit is satisfied so AI is the tie-breaker. Absorb token costs to remove the adoption objection.",
+      "lever": "proof",
+      "stage": ["Formal Evaluation", "Shortlisted"],
+      "competitor": ["Coupa", "SAP Ariba", "iValua", "GEP"],
+      "vertical": ["BFSI", "Auto & Transport", "Manufacturing & Engineering", "Utilities", "any"],
+      "motion": ["direct"],
+      "proof": [
+        { "account": "Swift SC", "fact": "GenAI on GPT-4o and Claude, Negogenie redlining, AP SmartDesk; Zycus absorbed LLM token costs", "date": "2026-03" },
+        { "account": "NTUC Enterprise (NTUC FairPrice Group)", "fact": "AI/Merlin sessions sequenced after Finance was satisfied became the reason to pick Zycus over Coupa", "date": "2025-02" },
+        { "account": "Stanmore", "fact": "Led with Merlin Teams intake and an autonomous negotiation agent against incumbent SAP Ariba", "date": "2025-06" }
+      ]
+    },
+    {
+      "id": "expose-incumbent-as-repository",
+      "title": "Expose the incumbent as repository-grade / never-adopted",
+      "guidance": "Surface evidence that the incumbent is delivering only partial or repository-grade value and was never fully adopted, so the switching-cost objection collapses before it is raised. Frame the purchase as recovering unrealised value rather than a like-for-like swap.",
+      "lever": "displacement",
+      "stage": ["Qualified", "Formal Evaluation"],
+      "competitor": ["JAGGAER", "iValua", "SAP Ariba", "Oracle"],
+      "vertical": ["Electronics", "Utilities", "any"],
+      "motion": ["direct"],
+      "proof": [
+        { "account": "Fortive Corporation", "fact": "Showed JAGGAER delivered only repository value despite being incumbent S2P", "date": "2025-07" },
+        { "account": "Aboitiz Power Corporation", "fact": "Anchored the case on Ivalua signed 2018 but never fully live; positioned as recovering unrealised value", "date": "2024-07" }
+      ]
+    },
+    {
+      "id": "foot-in-the-door-modular-scope",
+      "title": "Scope a modular foot-in-the-door the incumbent cannot match",
+      "guidance": "When the incumbent refuses to unbundle or the buyer cannot afford a full suite, deliberately scope a standalone, affordable, low-risk entry module with the larger displacement as the follow-on. Match the buyer's decentralised or cost-pressured reality with something the incumbent structurally will not sell.",
+      "lever": "displacement",
+      "stage": ["Formal Evaluation", "Vendor Selected"],
+      "competitor": ["JAGGAER"],
+      "vertical": ["Electronics", "Utilities", "any"],
+      "motion": ["direct"],
+      "proof": [
+        { "account": "Fortive Corporation", "fact": "Scoped standalone eProc at ~200k after JAGGAER refused to unbundle; S2P displacement as follow-on", "date": "2026-01" },
+        { "account": "Victoria Police", "fact": "De-scoped to a right-sized standalone S2C for a near-greenfield, cash-constrained gov buyer", "date": "2024-06" }
+      ]
+    },
+    {
+      "id": "coexist-dont-rip-and-replace",
+      "title": "Coexist with the incumbent instead of fighting it",
+      "guidance": "When the buyer has a sunk ERP/P2P investment and no appetite to rip-and-replace, position as an integration layer that complements the incumbent (win S2C, leave their P2P) with consistent data flow. This removes the switching-cost and political risk that favours the entrenched vendor.",
+      "lever": "displacement",
+      "stage": ["Formal Evaluation"],
+      "competitor": ["SAP Ariba"],
+      "vertical": ["Oil & Gas", "Manufacturing & Engineering", "any"],
+      "motion": ["direct"],
+      "proof": [
+        { "account": "Stanmore", "fact": "Framed as complement-not-replace to SAP Ariba, removing the 'we already have Ariba' blocker", "date": "2025-07" },
+        { "account": "Panasonic Corporation of North America", "fact": "Won S2C while Ariba stayed for P2P; validated with a Dow reference running the same hybrid", "date": "2024-02" }
+      ]
+    },
+    {
+      "id": "displace-docusign-with-native-esign",
+      "title": "Displace DocuSign with native, embedded e-signature",
+      "guidance": "Position Certinal as a drop-in DocuSign replacement scoped one-to-one to the buyer's exact signing workflow, or embed it inside CLM/iContract so the standalone signing tool becomes redundant. Win on switching economics, consolidation, and capability (envelope size, NPS, compliance), not just features.",
+      "lever": "displacement",
+      "stage": ["Qualified", "Shortlisted", "Close"],
+      "competitor": ["DocuSign", "Adobe Sign"],
+      "vertical": ["Real Estate & Infra", "Business Services", "Auto & Transport", "any"],
+      "motion": ["direct"],
+      "proof": [
+        { "account": "UNIBAIL-RODAMCO-WESTFIELD", "fact": "Replaced DocuSign on cost and switching economics with a first-year price concession to avoid double-pay", "date": "2025-07" },
+        { "account": "ZUO Zestful Urban Office", "fact": "Drop-in Certinal replacement after the buyer discontinued DocuSign, matching the existing workflow one-to-one", "date": "2026-03" },
+        { "account": "Bolt", "fact": "Embedded Certinal e-sign inside iContract CLM so standalone DocuSign became redundant", "date": "2025-12" }
+      ]
+    },
+    {
+      "id": "head-to-head-comparison-deck",
+      "title": "Arm the champion with a head-to-head comparison",
+      "guidance": "Hand the buyer a tailored Zycus-vs-competitor comparison deck (and FUD slides where price-led rivals attack) right before the shortlist or award, so the internal advocate carries your differentiation narrative into rooms you are not in. Re-anchor the decision on capability and TCO when a competitor competes on price.",
+      "lever": "displacement",
+      "stage": ["Shortlisted"],
+      "competitor": ["Coupa", "GEP", "Oracle", "iValua"],
+      "vertical": ["Auto & Transport", "Telecom and Communication", "Chemical, Pharma & Biotech Mfg", "any"],
+      "motion": ["direct", "partner"],
+      "proof": [
+        { "account": "African Marine Solutions (AMSOL)", "fact": "Shared a Zycus-vs-Coupa comparison deck with the revised BAFO before the award", "date": "2025-12" },
+        { "account": "NTUC Enterprise (NTUC FairPrice Group)", "fact": "Sent Coupa FUD slides and went 'on Coupa attack vs AI' to neutralise aggressive Coupa pricing", "date": "2025-02" },
+        { "account": "WSAudiology", "fact": "Countered Coupa Gartner-position FUD with a stronger TCO model and Forrester position as committee ammo", "date": "2024-09" }
+      ]
+    },
+    {
+      "id": "co-design-product-gaps",
+      "title": "Turn a product gap into a co-designed roadmap commitment",
+      "guidance": "When a real gap surfaces (UX, a discontinued feature, a missing comparison capability), do not deflect: run a live wireframe/scoping session, co-design the enhancement with the champion, and make a dated contractual commitment. Turning a weakness into a partnership removes the main reason to pick a specialist competitor.",
+      "lever": "displacement",
+      "stage": ["Formal Evaluation", "Shortlisted"],
+      "competitor": ["Sirion Labs"],
+      "vertical": ["Business Services", "Manufacturing & Engineering", "any"],
+      "motion": ["direct"],
+      "proof": [
+        { "account": "Bolt", "fact": "Ran a live wireframe session on Negogenie inline editing, neutralising CLM specialist Sirion Labs", "date": "2025-02" },
+        { "account": "CONSTELLIUM FRANCE", "fact": "Committed contractually to deliver catalog-vs-PO comparison the buyer had elevated to a decision criterion", "date": "2025-09" }
+      ]
+    },
+    {
+      "id": "build-the-roi-business-case-with-finance",
+      "title": "Co-build the ROI business case with finance",
+      "guidance": "When budget is the named blocker, build the savings/TCO model jointly with the buyer's finance lead off their own spend data, with realistic high-confidence targets, so the numbers become the buyer's own artefact. A co-owned business case converts a budget objection into a funded, CFO-defensible project.",
+      "lever": "exec-sponsor",
+      "stage": ["Qualified", "Formal Evaluation"],
+      "competitor": ["iValua"],
+      "vertical": ["Oil & Gas", "BFSI", "Chemical, Pharma & Biotech Mfg", "Utilities", "any"],
+      "motion": ["direct", "gov"],
+      "proof": [
+        { "account": "Stanmore", "fact": "Met the CFO and ran a value-engineering/ROI workstream to turn budget from a blocker into a funded project", "date": "2025-06" },
+        { "account": "Confie Holding II Co", "fact": "Co-built a $59M addressable-spend model with the finance lead so the case was the buyer's own", "date": "2025-03" },
+        { "account": "Tenaga Nasional Berhad", "fact": "Value-engineering/TCO workshop gave champions the ROI artefact to win CEO budget approval", "date": "2024-07" }
+      ]
+    },
+    {
+      "id": "anchor-to-budget-holding-exec",
+      "title": "Anchor early to the budget-holding exec",
+      "guidance": "Engage the economic buyer (CPO/CFO/SVP who signs and owns the pain) from qualification, confirm budget authority and any HQ mandate up front, and tie the pitch to their stated corporate financial strategy. The deal never stalls waiting for budget authority or sign-off.",
+      "lever": "exec-sponsor",
+      "stage": ["Qualified", "Vendor Selected"],
+      "competitor": [],
+      "vertical": ["Manufacturing & Engineering", "Conglomerate", "any"],
+      "motion": ["direct"],
+      "proof": [
+        { "account": "Outokumpu", "fact": "Anchored to Stuart Holmes (SVP Finance + CFO of US entity) with confirmed HQ permission to proceed", "date": "2025-03" },
+        { "account": "ELEMENTIS PLC", "fact": "Anchored on a CEO-reporting CPO who personally drove scheduling, data, and signature", "date": "2024-09" },
+        { "account": "PerkinElmer, Inc.", "fact": "Brought a VP value-engineering sponsor into the early business case alongside the champion hired to build it", "date": "2024-01" }
+      ]
+    },
+    {
+      "id": "exec-to-exec-to-unblock-stall",
+      "title": "Run exec-to-exec air cover to unblock a stall",
+      "guidance": "When a non-champion evaluator or procurement silence stalls a deal, escalate VP/CRO-to-economic-buyer to unblock the commercial track, and use a transparency-forcing ask ('tell us if we are out') to force a commit-or-disqualify. Senior in-region presence at the close signals commitment and clears legal/signatory friction.",
+      "lever": "exec-sponsor",
+      "stage": ["Shortlisted", "Vendor Selected", "Close"],
+      "competitor": [],
+      "vertical": ["Manufacturing & Engineering", "Healthcare & Hospitals Services", "Real Estate & Infra", "any"],
+      "motion": ["direct"],
+      "proof": [
+        { "account": "CONSTELLIUM FRANCE", "fact": "VP ran a 1:1 with the economic buyer to unblock the minimum-commitment blocker when the SPOC was not a champion", "date": "2026-01" },
+        { "account": "Apollo Hospitals Group", "fact": "Escalated through the CIO to the Head of Procurement with a transparency ask to re-energise a stalled deal", "date": "2025-08" },
+        { "account": "Balfour Beatty, LLC", "fact": "Connected CRO Denise Miller to the CFO to align contract finalisation against the DOJ deadline", "date": "2024-12" }
+      ]
+    },
+    {
+      "id": "multi-thread-every-veto-function",
+      "title": "Multi-thread across every veto-holding function",
+      "guidance": "Map and engage the full buying committee (procurement, finance, IT/integration, legal, compliance/privacy, security, tax, ESG) with role-specific sessions so no single gatekeeper can stall or veto. Run dedicated tracks per function so each board can be satisfied in parallel.",
+      "lever": "multi-thread",
+      "stage": ["Formal Evaluation", "Shortlisted", "Vendor Selected"],
+      "competitor": [],
+      "vertical": ["BFSI", "Manufacturing & Engineering", "Conglomerate", "Real Estate & Infra", "any"],
+      "motion": ["direct", "gov"],
+      "proof": [
+        { "account": "Swift SC", "fact": "Engaged 50+ contacts across procurement, IT/SAP, legal, compliance, security, treasury and tax with dedicated tracks", "date": "2026-03" },
+        { "account": "Outokumpu", "fact": "Widened to a 20-contact group with a separate Mexico compliance call and AP-focused CVT call", "date": "2025-11" },
+        { "account": "Health Alliance Plan of Michigan", "fact": "Worked a 23-contact committee across Finance, IT and Legal so no Coupa-friendly stakeholder could steer it", "date": "2024-07" }
+      ]
+    },
+    {
+      "id": "dual-champion-it-and-procurement",
+      "title": "Build a dual champion and enable them to self-validate",
+      "guidance": "Pair the IT/technical buyer with the procurement/process owner so the business case carries both technical credibility and procurement ownership, and let the champion reach their own verdict through neutral third parties (Gartner/Forrester, peer references). Arm them with the materials to sell upward themselves; a self-validated champion sells internally far harder than any vendor.",
+      "lever": "champion",
+      "stage": ["Shortlisted", "Formal Evaluation"],
+      "competitor": ["iValua", "Medius", "Coupa"],
+      "vertical": ["Telecom and Communication", "Conglomerate", "Electronics", "Chemical, Pharma & Biotech Mfg", "any"],
+      "motion": ["direct"],
+      "proof": [
+        { "account": "Millicom", "fact": "Armed a dual champion (IT Category Manager + Director of Procurement) who secured board approval to replace iValua", "date": "2025-05" },
+        { "account": "Fortive Corporation", "fact": "Champion reached his own Gartner 'gold standard' verdict, then co-built a mutual close plan", "date": "2025-11" },
+        { "account": "Inotiv", "fact": "Enabled CPO Kristi Allen with the full-suite business case to present to CFO and CEO and beat the internal Medius push", "date": "2024-08" }
+      ]
+    },
+    {
+      "id": "drive-customer-side-adoption-engine",
+      "title": "Stand up a customer-side adoption / quarterback engine",
+      "guidance": "Where adoption is fragile or the org is decentralised, enable a credible internal owner to run awareness emails, tip sheets, drop-in sessions, scheduling, and pre-work routing, while you supply the artefacts. An internal owner driving enablement turns a shaky early-adoption curve into a decisive keep decision and keeps a multi-department buyer moving.",
+      "lever": "champion",
+      "stage": ["Formal Evaluation", "Close"],
+      "competitor": [],
+      "vertical": ["Healthcare & Hospitals Services", "Food, Bev & FMCG", "any"],
+      "motion": ["direct"],
+      "proof": [
+        { "account": "Avance Care", "fact": "Program owner John Tuman ran provider emails, tip sheets and drop-ins; usage recovered to a unanimous keep vote", "date": "2026-02" },
+        { "account": "Trinity Services Group, Inc.", "fact": "Converted a procurement contact into project lead Ben Cutting who quarterbacked scheduling and pre-work across departments", "date": "2024-11" }
+      ]
+    },
+    {
+      "id": "compress-the-funnel-with-compelling-event",
+      "title": "Compress the funnel and anchor to a compelling event",
+      "guidance": "Drive fast, decisive stage advances while pain is fresh to deny incumbents time to re-entrench, and anchor late-stage cadence to a real external compelling event (incumbent expiry, fiscal year-end, regulatory deadline) to force a go/no-go and compress legal/security review. A real deadline removes 'no decision' as an option.",
+      "lever": "speed",
+      "stage": ["Qualified", "Formal Evaluation", "Vendor Selected", "Negotiation", "Close"],
+      "competitor": ["Coupa", "GEP", "JAGGAER", "SAP Ariba"],
+      "vertical": ["Food, Bev & FMCG", "Healthcare & Hospitals Services", "Manufacturing & Engineering", "Electronics", "any"],
+      "motion": ["direct"],
+      "proof": [
+        { "account": "Fortive Corporation", "fact": "Used JAGGAER June 28 expiry to force a mid-March go/no-go and a 90-day MVP go-live", "date": "2026-02" },
+        { "account": "The Central America Bottling Company (CBC)", "fact": "Formal Evaluation to Shortlisted in 20 days, locking Zycus in before alternatives could be sourced", "date": "2025-06" },
+        { "account": "Inotiv", "fact": "Used 30-Sep fiscal year-end as a forcing function with pricing valid only on a pre-deadline signature", "date": "2024-09" }
+      ]
+    },
+    {
+      "id": "land-paid-pilot-or-single-step-close",
+      "title": "Land a small paid pilot with an expansion trigger",
+      "guidance": "For low-maturity, slow-procurement, or pre-mandated buyers, land a small fixed-scope paid pilot that fits inside fast approval authority, with a quantified upsell trigger written into the order form; or for genuinely simple use cases run one full-journey demo straight to a lightweight close path. The buyer commits readily when the larger spend is conditional on demonstrated results.",
+      "lever": "speed",
+      "stage": ["Qualified", "Close"],
+      "competitor": [],
+      "vertical": ["Federal", "Real Estate & Infra", "Hospitality", "any"],
+      "motion": ["gov", "direct"],
+      "proof": [
+        { "account": "Ghana Water Company Ltd.", "fact": "Pilot order form (1000 transactions, 3 months) with a 10x expansion trigger; Qualified to Won in 9 days", "date": "2024-10" },
+        { "account": "UEM Sunrise Berhad", "fact": "Landed a 1,000 USD Certinal pilot to keep the decision inside IT/management authority", "date": "2024-06" },
+        { "account": "MMR", "fact": "Qualified as a satellite adopter of a URW mandate; jumped Initial Interest to Closed Won in one motion", "date": "2026-04" }
+      ]
+    },
+    {
+      "id": "lead-with-local-or-advisory-partner",
+      "title": "Run the deal through a trusted local or advisory partner",
+      "guidance": "In regions where geography and implementation risk are objections, run the evaluation, BAFO submissions, and board timeline through a trusted local implementation partner; or use a trusted advisory partner (KPMG) for a warm C-suite intro before the RFP exists. Partner coverage neutralises the offshore-vendor objection and gets you shaping scope early.",
+      "lever": "partner",
+      "stage": ["Qualified", "Formal Evaluation"],
+      "competitor": ["Coupa"],
+      "vertical": ["Auto & Transport", "Federal", "any"],
+      "motion": ["partner", "gov"],
+      "proof": [
+        { "account": "African Marine Solutions (AMSOL)", "fact": "Letsema carried BAFO submissions and managed the board timeline on the ground in South Africa", "date": "2026-01" },
+        { "account": "NTUC Enterprise (NTUC FairPrice Group)", "fact": "Used KPMG to get a warm intro to the Group CFO and Supply Chain VP before the RFP existed", "date": "2024-01" }
+      ]
+    },
+    {
+      "id": "bundle-change-management-partner",
+      "title": "De-risk adoption with a named change-management partner",
+      "guidance": "When the buyer names adoption or change management as the #1 risk, bring in a credible third-party change-management/implementation partner scoped to a tightly-defined engagement priced near the buyer's cost ceiling. Pairing a partner with a phased MVP rollout de-risks the internal sell and makes the number defensible.",
+      "lever": "partner",
+      "stage": ["Vendor Selected", "Negotiation", "Shortlisted"],
+      "competitor": ["SAP Ariba"],
+      "vertical": ["Electronics", "Manufacturing & Engineering", "BFSI", "Utilities", "any"],
+      "motion": ["direct"],
+      "proof": [
+        { "account": "Fortive Corporation", "fact": "Brought in Hackett Group as change-management partner priced to keep total cost near the ~300k ceiling", "date": "2026-02" },
+        { "account": "Confie Holding II Co", "fact": "Bundled Velocity Procurement (FS/insurance-experienced) while committing Zycus owned ~80% of integration", "date": "2025-01" },
+        { "account": "Seqwater", "fact": "Re-scoped to on-site 'boots on the ground' change management within 48 hours during BAFO", "date": "2025-04" }
+      ]
+    },
+    {
+      "id": "dual-si-tender-hedge",
+      "title": "Be the software inside multiple SI bids and cut their TCO",
+      "guidance": "Where the buyer mandates purchase through a System Integrator, position your software inside two or more competing SI bids and fine-tune commercials for each so you win regardless of which SI is selected, and actively coach the SI prime to cut its implementation quote since services cost (not software) blows the CFO budget. The vendor, not the buyer, should own the TCO narrative.",
+      "lever": "partner",
+      "stage": ["Vendor Selected", "Negotiation"],
+      "competitor": ["GEP", "SAP Ariba", "Coupa"],
+      "vertical": ["Utilities", "Federal", "Telecom and Communication", "any"],
+      "motion": ["gov", "partner", "direct"],
+      "proof": [
+        { "account": "Tenaga Nasional Berhad", "fact": "Positioned Zycus inside two of three SI bids (TCS and Impressive) and coached the SIs on differentiators", "date": "2025-05" },
+        { "account": "NTUC Enterprise (NTUC FairPrice Group)", "fact": "Coached TCS to submit under $3m implementation and ran a joint TCS+Zycus exec session with the CFO", "date": "2025-03" },
+        { "account": "Spark NZ", "fact": "Offered Zycus-led delivery to remove ~$900k SI TCO risk threatening the business case", "date": "2024-11" }
+      ]
+    },
+    {
+      "id": "structured-commercial-creativity",
+      "title": "Solve the buyer's real economic problem, do not just discount",
+      "guidance": "Trade non-cost flexibility (deferred deposits, milestone payments, free Year 1 in lieu of services, currency conversion, term length, configuration headroom, reference rights) for the things you value, so the price feels fair and future-proof. Deferred-deposit terms can specifically neutralise the cost of running two vendors in parallel during cutover.",
+      "lever": "commercial",
+      "stage": ["Negotiation", "Vendor Selected"],
+      "competitor": [],
+      "vertical": ["Electronics", "BFSI", "Business Services", "Manufacturing & Engineering", "any"],
+      "motion": ["direct"],
+      "proof": [
+        { "account": "Fortive Corporation", "fact": "20% deposit deferred 90 days to absorb JAGGAER overlap, plus phased scope, in exchange for reference rights", "date": "2026-03" },
+        { "account": "Bolt", "fact": "Offered free Year 1 in lieu of Zycus professional services rather than discounting the license", "date": "2025-12" },
+        { "account": "WEPA Hygieneprodukte GmbH", "fact": "Held first-year price on a 6-year volume rationale, cut bundle prices, and re-denominated USD to EUR", "date": "2024-10" }
+      ]
+    },
+    {
+      "id": "right-size-licensing-to-real-usage",
+      "title": "Right-size licensing and pricing to actual usage",
+      "guidance": "Re-quote around the buyer's true consumption profile (internal vs external transactions, power users vs low-frequency requestors, real invoice/contract volumes and page lengths) instead of a flat envelope. A defensible, consumption-based number removes the commercial objection without a race to the bottom, even when you are the priciest finalist.",
+      "lever": "commercial",
+      "stage": ["Negotiation", "Vendor Selected"],
+      "competitor": ["Basware", "Coupa", "GEP"],
+      "vertical": ["Chemical, Pharma & Biotech Mfg", "Business Services", "Miscellaneous", "any"],
+      "motion": ["direct"],
+      "proof": [
+        { "account": "Inotiv", "fact": "Re-quoted Certinal on the buyer's internal-vs-external transaction ratio", "date": "2025-03" },
+        { "account": "Markant Gruppe", "fact": "Reframed 1000 'users' as mostly low-frequency requestors to size eProc realistically and stay in scope as the priciest finalist", "date": "2023-05" },
+        { "account": "Paul Hastings, LLP", "fact": "Rebalanced to 45,000 real invoices and raised per-page thresholds to fit a law firm's long documents", "date": "2025-10" }
+      ]
+    },
+    {
+      "id": "upsell-term-at-the-moment-of-selection",
+      "title": "Upsell term and footprint at the moment of selection",
+      "guidance": "When the buyer has just chosen you for a multi-year strategic platform, raise the contract term (3 to 5 years) and expand committed users or countries while they are leaning in, growing TCV with no resistance. Trade concessions the buyer values (no tier penalties, dropped page count) for longer term and more committed users.",
+      "lever": "commercial",
+      "stage": ["Vendor Selected", "Negotiation"],
+      "competitor": [],
+      "vertical": ["Conglomerate", "BFSI", "Telecom and Communication", "any"],
+      "motion": ["direct"],
+      "proof": [
+        { "account": "ST Engineering", "fact": "Upsold the term from 3 to 5 years at the moment of selection, confirmed before MSA drafting", "date": "2025-07" },
+        { "account": "Swift SC", "fact": "Anchored 4+2, landed a 5-year deal, grew committed users off punitive tiering and dropped page metering", "date": "2026-02" },
+        { "account": "Millicom", "fact": "Standardised per-country expansion pricing to grow footprint across 8+2 operating countries", "date": "2025-08" }
+      ]
+    },
+    {
+      "id": "remove-close-friction-and-deadline-slippage",
+      "title": "Remove invoice/PO friction and put a cost on slippage",
+      "guidance": "Take the last objections off the table by aligning billing to actual go-live, invoicing on emailed finance confirmation without a PO, and dropping unneeded modules; and tie a dated commercial impact (a $0 TTVR, or a time-boxed no-regret best-and-final) to any delay. This clears the 'paying before we use it' and procurement-lead-time blockers and converts the buyer's internal delays into a shared deadline.",
+      "lever": "commercial",
+      "stage": ["Close", "Negotiation"],
+      "competitor": [],
+      "vertical": ["Telecom and Communication", "Healthcare & Hospitals Services", "Food, Bev & FMCG", "any"],
+      "motion": ["direct"],
+      "proof": [
+        { "account": "Millicom", "fact": "Dropped the unneeded compliance module and set start date to Feb 1 to align billing with go-live", "date": "2025-12" },
+        { "account": "Avance Care", "fact": "Allowed invoicing without a PO on emailed finance confirmation to hold the kickoff date", "date": "2026-02" },
+        { "account": "The Central America Bottling Company (CBC)", "fact": "Prepared a $0 TTVR documenting commercial impact for delays beyond the June 1 go-live", "date": "2026-05" }
+      ]
+    },
+    {
+      "id": "defend-the-commercial-floor-with-business-case",
+      "title": "Defend the commercial floor with a supporting business case",
+      "guidance": "Hold firm on the commercial floor (minimum user commitment, no itemised unbundling without higher commercials, no rate-card discount) while conceding on low-stakes terms, and bring in a business-case/cost-estimate to give procurement internal cover. Make the buyer reveal their target number first, and pause negotiation to reset unreasonable demands.",
+      "lever": "commercial",
+      "stage": ["Negotiation"],
+      "competitor": ["Coupa", "iValua"],
+      "vertical": ["Manufacturing & Engineering", "BFSI", "any"],
+      "motion": ["direct"],
+      "proof": [
+        { "account": "CONSTELLIUM FRANCE", "fact": "Held a 500-user minimum from day 1 against a flexibility-seeking French procurement team, backed by a business case", "date": "2026-01" },
+        { "account": "WSAudiology", "fact": "Refused to itemise bundled pricing without higher commercials and made the buyer submit their numbers first", "date": "2024-04" },
+        { "account": "Gcash", "fact": "Walked back from the table once to force common sense, then closed an accepted 3-year term via repeated BAFOs", "date": "2024-12" }
+      ]
+    },
+    {
+      "id": "clear-data-and-security-gates-fast",
+      "title": "Clear data-sovereignty, sanctions and security gates fast",
+      "guidance": "Treat regulatory gates (GDPR/PDPA/PDP transfer assessments, sanctions controls, SOC 2/VAPT findings, GenAI governance) as the real deal-blocker: walk legal/DPO/InfoSec through your transfer-impact assessment, certifications, sub-processor designations, and a remediation evidence package, supplying documentation within 24 hours. A precise, fast written answer turns a disqualifier into a trust signal and can neutralise a rival's only security advantage.",
+      "lever": "gov-compliance",
+      "stage": ["Formal Evaluation", "Shortlisted", "Negotiation"],
+      "competitor": ["Coupa"],
+      "vertical": ["Utilities", "Real Estate & Infra", "Business Services", "BFSI", "any"],
+      "motion": ["gov", "direct"],
+      "proof": [
+        { "account": "Tenaga Nasional Berhad", "fact": "Cleared the Malaysian PDPA transfer-assessment blocker with certs and a Telekom Malaysia precedent within 24 hours", "date": "2025-05" },
+        { "account": "UNIBAIL-RODAMCO-WESTFIELD", "fact": "Answered GDPR annexes and secured a DPA deviation for EU-to-India transfer plus QTSP coverage", "date": "2025-09" },
+        { "account": "Paul Hastings, LLP", "fact": "Reframed all 42 VAPT findings as low-risk with a SOC 2 bridge letter, neutralising the rival's one InfoSec edge", "date": "2025-11" }
+      ]
+    },
+    {
+      "id": "lead-with-governance-and-navigate-gov-process",
+      "title": "Lead with governance and master the mandated gov process",
+      "guidance": "For monitored or gov-linked buyers, reframe the purchase from efficiency to a governance/compliance mandate (segregation of duties, fraud prevention, 3-bid-and-buy), and show fluency in the mandated procurement process (Competitive Dialogue, JSD/BAFO, QITC framework, vendor-registration scorecards, routing comms through the neutral advisor). Compliance is the board-level reason to buy, and respecting the process builds procurement trust that clears the gate.",
+      "lever": "gov-compliance",
+      "stage": ["Qualified", "Negotiation"],
+      "competitor": ["JAGGAER", "Coupa", "Oracle"],
+      "vertical": ["Real Estate & Infra", "Utilities", "Federal", "any"],
+      "motion": ["gov", "direct"],
+      "proof": [
+        { "account": "Balfour Beatty, LLC", "fact": "Reframed the S2P RFP as a DOJ-monitorship governance mandate, undercutting transaction-led rivals", "date": "2024-07" },
+        { "account": "Seqwater", "fact": "Engaged the Competitive Dialogue on its own terms and adopted the QITC two-phase contracting framework", "date": "2025-06" },
+        { "account": "Victoria Police", "fact": "Supported the champion's two-board-paper self-funding strategy and whole-of-government lighthouse vision", "date": "2024-06" }
+      ]
+    },
+    {
+      "id": "run-parallel-legal-and-bridge-sow",
+      "title": "Run legal/commercial tracks in parallel and bridge the SOW",
+      "guidance": "Share MSA, Order and SOW together for concurrent legal review, run scope workshops alongside redlining, own version control and paper turnaround, and reuse previously approved redlines. When signature is gated on a full SOW that needs exact counts, issue an assumptions-based or bridge SOW so the order form and MSA sign on time while the full SOW finishes later.",
+      "lever": "speed",
+      "stage": ["Negotiation", "Close"],
+      "competitor": [],
+      "vertical": ["Telecom and Communication", "Conglomerate", "Real Estate & Infra", "Food, Bev & FMCG", "any"],
+      "motion": ["direct", "gov"],
+      "proof": [
+        { "account": "Millicom", "fact": "Shared MSA, Order and SOW together for concurrent legal review and ran scoping in parallel", "date": "2025-09" },
+        { "account": "Wyndham Hotel Group LLC", "fact": "Structured a Bridge SOW alongside the Order Form and MSA so signature was not gated on the full SOW", "date": "2024-10" },
+        { "account": "Aboitiz Power Corporation", "fact": "Reused 2023 approved redlines and escalated the non-negotiable bank-security clause senior-to-senior", "date": "2024-07" }
+      ]
+    },
+    {
+      "id": "own-integration-and-region-compliance",
+      "title": "Own integration, migration and region-specific compliance",
+      "guidance": "Address the buyer's biggest execution fear by leading with pre-built ERP adapters/iSaaS, owning data migration QC, writing integration-ownership into explicit SOW language, and solving the hardest regional compliance objection (Mexico CFDI, China rules, local QES) out-of-the-box via pre-integrated partners with no additional integration effort. Removing a cost line competitors scope as custom work is a regional differentiator.",
+      "lever": "proof",
+      "stage": ["Vendor Selected", "Negotiation"],
+      "competitor": ["iValua", "SAP Ariba", "Coupa", "GEP", "JAGGAER"],
+      "vertical": ["Telecom and Communication", "Real Estate & Infra", "Manufacturing & Engineering", "BFSI", "Chemical, Pharma & Biotech Mfg", "any"],
+      "motion": ["direct"],
+      "proof": [
+        { "account": "Millicom", "fact": "Led with ready-to-use SAP/Oracle adapters and iSaaS to make the multi-ERP estate a solved problem vs iValua/Ariba/Coupa", "date": "2025-05" },
+        { "account": "Outokumpu", "fact": "Showed Mexican CFDI validation via pre-integrated Pegaso to SAP with zero additional integration effort", "date": "2025-10" },
+        { "account": "Balfour Beatty, LLC", "fact": "Attached iSaaS Advanced so Zycus owns ongoing Yardi integration upkeep, a turnkey commitment", "date": "2024-08" }
+      ]
+    }
+  ],
+  "by_competitor": {
+    "Ivalua": [
+      "author-the-rfp-on-your-template",
+      "lead-with-embedded-ai",
+      "expose-incumbent-as-repository",
+      "head-to-head-comparison-deck",
+      "build-the-roi-business-case-with-finance",
+      "dual-champion-it-and-procurement",
+      "defend-the-commercial-floor-with-business-case",
+      "own-integration-and-region-compliance"
+    ],
+    "Coupa": [
+      "author-the-rfp-on-your-template",
+      "run-real-user-poc-on-named-pain",
+      "lead-with-embedded-ai",
+      "head-to-head-comparison-deck",
+      "industry-twin-references",
+      "compress-the-funnel-with-compelling-event",
+      "lead-with-local-or-advisory-partner",
+      "dual-si-tender-hedge",
+      "right-size-licensing-to-real-usage",
+      "clear-data-and-security-gates-fast",
+      "lead-with-governance-and-navigate-gov-process",
+      "defend-the-commercial-floor-with-business-case",
+      "own-integration-and-region-compliance"
+    ],
+    "GEP": [
+      "author-the-rfp-on-your-template",
+      "lead-with-embedded-ai",
+      "head-to-head-comparison-deck",
+      "compress-the-funnel-with-compelling-event",
+      "dual-si-tender-hedge",
+      "right-size-licensing-to-real-usage",
+      "own-integration-and-region-compliance"
+    ],
+    "SAP Ariba": [
+      "author-the-rfp-on-your-template",
+      "lead-with-embedded-ai",
+      "expose-incumbent-as-repository",
+      "coexist-dont-rip-and-replace",
+      "compress-the-funnel-with-compelling-event",
+      "bundle-change-management-partner",
+      "dual-si-tender-hedge",
+      "own-integration-and-region-compliance"
+    ],
+    "JAGGAER": [
+      "author-the-rfp-on-your-template",
+      "reframe-tool-swap-to-transformation",
+      "expose-incumbent-as-repository",
+      "foot-in-the-door-modular-scope",
+      "compress-the-funnel-with-compelling-event",
+      "lead-with-governance-and-navigate-gov-process",
+      "own-integration-and-region-compliance"
+    ],
+    "Oracle": [
+      "expose-incumbent-as-repository",
+      "build-the-roi-business-case-with-finance",
+      "head-to-head-comparison-deck",
+      "lead-with-governance-and-navigate-gov-process"
+    ],
+    "DocuSign": [
+      "displace-docusign-with-native-esign"
+    ],
+    "Adobe Sign": [
+      "displace-docusign-with-native-esign"
+    ],
+    "Basware": [
+      "right-size-licensing-to-real-usage"
+    ],
+    "Sirion Labs": [
+      "co-design-product-gaps"
+    ],
+    "Medius": [
+      "dual-champion-it-and-procurement"
+    ]
+  }
+}

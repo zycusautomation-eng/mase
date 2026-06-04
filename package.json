@@ -1,0 +1,24 @@
+{
+  "name": "deal-engine-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Next.js frontend for the Deal Intelligence Engine — connects to the FastAPI backend on Replit via a server-side token-injecting proxy.",
+  "scripts": {
+    "dev": "cross-env NODE_OPTIONS=--use-system-ca next dev",
+    "build": "cross-env NODE_OPTIONS=--use-system-ca next build",
+    "start": "cross-env NODE_OPTIONS=--use-system-ca next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "^15.5.19",
+    "react": "19.0.0",
+    "react-dom": "19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "cross-env": "^7.0.3",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "typescript": "^5"
+  }
+}
