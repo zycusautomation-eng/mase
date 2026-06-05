@@ -2,67 +2,44 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useDashboard, type DealFilters } from "@/lib/engine/DashboardContext";
 import { vpsList, teamOwners, uniqSorted, fyq, type Rec } from "@/lib/engine/helpers";
+import MultiSelect, { type Opt } from "@/components/MultiSelect";
 
-function Select({ value, onChange, children }: { value: string; onChange: (v: string) => void; children: React.ReactNode }) {
-  return (
-    <select value={value} onChange={(e) => onChange(e.target.value)}>
-      {children}
-    </select>
-  );
-}
+const SIZE_OPTS: Opt[] = [
+  { value: "lt250", label: "< $250K" },
+  { value: "250to1m", label: "$250K – $1M" },
+  { value: "gt1m", label: "> $1M" },
+];
+const AI_OPTS: Opt[] = ["AI Hungry", "AI Curious", "AI Resistant"].map((v) => ({ value: v, label: v }));
 
 export default function ScopeFilterBar() {
-  const { records, vp, rsd, setVp, setRsd, scoped, filters, setFilter, clearFilters, filtered } = useDashboard();
+  const { records, vps, rsds, setVps, setRsds, scoped, filters, setFilter, clearFilters, filtered } = useDashboard();
 
-  const vps = vpsList(records);
-  const owners = teamOwners(records, vp);
+  const vpOpts: Opt[] = vpsList(records).map((v) => ({ value: v, label: v }));
+  const ownerOpts: Opt[] = teamOwners(records, vps).map((o) => ({ value: o, label: o }));
 
   const hard = scoped.map((r: Rec) => r.hard || {});
-  const fc = uniqSorted(hard.map((h) => h.forecast_category));
-  const co = uniqSorted(hard.map((h) => h.billing_country));
-  const cq = [...new Map(hard.map((h) => { const q = fyq(h.close_date); return [q.key, q.label]; })).entries()]
-    .sort((a, b) => (a[0] as number) - (b[0] as number)).map((e) => e[1] as string);
+  const fc: Opt[] = uniqSorted(hard.map((h) => h.forecast_category)).map((v) => ({ value: v as string, label: v as string }));
+  const co: Opt[] = uniqSorted(hard.map((h) => h.billing_country)).map((v) => ({ value: v as string, label: v as string }));
+  const cq: Opt[] = [...new Map(hard.map((h) => { const q = fyq(h.close_date); return [q.key, q.label]; })).entries()]
+    .sort((a, b) => (a[0] as number) - (b[0] as number)).map((e) => ({ value: e[1] as string, label: e[1] as string }));
 
-  const dirty = Object.values(filters).some((v) => v !== "all");
-  const f = (k: keyof DealFilters) => (v: string) => setFilter(k, v);
+  const dirty = Object.values(filters).some((v) => v.length > 0);
+  const f = (k: keyof DealFilters) => (v: string[]) => setFilter(k, v);
 
   return (
     <div className="filterbar" id="dealfilters">
       {/* scope */}
-      <Select value={vp} onChange={setVp}>
-        <option value="all">All VPs</option>
-        {vps.map((v) => <option key={v} value={v}>{v}</option>)}
-      </Select>
-      <Select value={rsd} onChange={setRsd}>
-        <option value="all">{vp === "all" ? "All RSDs" : `All (${vp}'s team)`}</option>
-        {owners.map((o) => <option key={o} value={o}>{o}</option>)}
-      </Select>
+      <MultiSelect allLabel="All VPs" options={vpOpts} selected={vps} onChange={setVps} />
+      <MultiSelect allLabel={vps.length ? "All in selected teams" : "All RSDs"} options={ownerOpts} selected={rsds} onChange={setRsds} />
 
       <span className="fdivider" />
 
       {/* filters */}
-      <Select value={filters.forecast} onChange={f("forecast")}>
-        <option value="all">All forecast</option>
-        {fc.map((v) => <option key={v} value={v}>{v}</option>)}
-      </Select>
-      <Select value={filters.country} onChange={f("country")}>
-        <option value="all">All countries</option>
-        {co.map((v) => <option key={v} value={v}>{v}</option>)}
-      </Select>
-      <Select value={filters.size} onChange={f("size")}>
-        <option value="all">All deal sizes</option>
-        <option value="lt250">&lt; $250K</option>
-        <option value="250to1m">$250K – $1M</option>
-        <option value="gt1m">&gt; $1M</option>
-      </Select>
-      <Select value={filters.ai} onChange={f("ai")}>
-        <option value="all">All AI excitement</option>
-        {["AI Hungry", "AI Curious", "AI Resistant"].map((v) => <option key={v} value={v}>{v}</option>)}
-      </Select>
-      <Select value={filters.close} onChange={f("close")}>
-        <option value="all">All close quarters</option>
-        {cq.map((v) => <option key={v} value={v}>{v}</option>)}
-      </Select>
+      <MultiSelect allLabel="All forecast" options={fc} selected={filters.forecast} onChange={f("forecast")} />
+      <MultiSelect allLabel="All countries" options={co} selected={filters.country} onChange={f("country")} />
+      <MultiSelect allLabel="All deal sizes" options={SIZE_OPTS} selected={filters.size} onChange={f("size")} />
+      <MultiSelect allLabel="All AI excitement" options={AI_OPTS} selected={filters.ai} onChange={f("ai")} />
+      <MultiSelect allLabel="All close quarters" options={cq} selected={filters.close} onChange={f("close")} />
 
       {dirty ? <button className="fclear" onClick={clearFilters}>Clear</button> : null}
       <span className="fcount" id="f-count">{filtered.length} of {scoped.length} deal{scoped.length === 1 ? "" : "s"}</span>

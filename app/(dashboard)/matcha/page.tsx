@@ -1,17 +1,17 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useDashboard } from "@/lib/engine/DashboardContext";
-import { daysSince, fmtAmount, teamOwners } from "@/lib/engine/helpers";
+import { daysSince, fmtAmount, teamOwners, stageRank } from "@/lib/engine/helpers";
 
 const TARGET = 4000000;
 const NM = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 export default function MatchaPage() {
-  const { records, vp, rsd, filtered } = useDashboard();
+  const { records, vps, rsds, filtered } = useDashboard();
   const hard = filtered.map((r) => r.hard || {});
 
-  const owners = teamOwners(records, vp);
-  const scopeOwners = rsd === "all" ? owners : [rsd];
+  const owners = teamOwners(records, vps);
+  const scopeOwners = rsds.length ? rsds : owners;
 
   // coverage tiles
   const tiles = scopeOwners.map((o) => {
@@ -22,11 +22,10 @@ export default function MatchaPage() {
     return { o, count: deals.length, val, ok, p };
   });
 
-  // by stage
-  const stageOrder = ["Qualified", "Formal Evaluation", "Shortlisted", "Vendor Selected", "Negotiation"];
+  // by stage — ordered exactly like the Salesforce Opportunity StageName picklist
   const stMap: Record<string, { n: number; v: number }> = {};
   hard.forEach((h) => { const s = h.stage || "Other"; (stMap[s] = stMap[s] || { n: 0, v: 0 }); stMap[s].n++; stMap[s].v += Number(h.amount) || 0; });
-  const order = stageOrder.filter((s) => stMap[s]).concat(Object.keys(stMap).filter((s) => !stageOrder.includes(s)));
+  const order = Object.keys(stMap).sort((a, b) => { const d = stageRank(a) - stageRank(b); return d !== 0 ? d : a.localeCompare(b); });
   const maxV = Math.max(1, ...Object.values(stMap).map((o) => o.v));
 
   // NAA by month

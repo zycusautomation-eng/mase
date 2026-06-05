@@ -93,6 +93,18 @@
   .citem .del:hover{color:var(--red-ink)}
   .chat-empty{color:var(--muted);font-size:12px;padding:10px 4px}
   .chat-main{flex:1;display:flex;flex-direction:column;min-width:0}
+  /* chat scope bar */
+  .chatscope{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:0 0 10px;margin-bottom:6px;border-bottom:1px solid var(--line2)}
+  .cs-modes{display:inline-flex;gap:2px;background:var(--surface2);border:1px solid var(--line);padding:3px;border-radius:10px}
+  .cs-mode{padding:5px 13px;border-radius:7px;cursor:pointer;color:var(--muted);font-weight:600;font-size:12.5px;background:transparent;border:0;transition:all .14s}
+  .cs-mode:hover{color:var(--ink)}
+  .cs-mode.active{color:var(--accent);background:var(--surface);box-shadow:var(--shadow-sm)}
+  .cs-pill{margin-left:auto;font-size:12px;font-weight:600;color:var(--muted);background:var(--inset);border:1px solid var(--line);border-radius:999px;padding:4px 11px}
+  .cs-pill.on{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
+  .cs-clear{font-size:12px;font-weight:600;color:var(--muted);background:transparent;border:1px solid var(--line);border-radius:999px;padding:4px 11px;cursor:pointer}
+  .cs-clear:hover{color:var(--ink);border-color:var(--accent)}
+  .msel-search{width:100%;box-sizing:border-box;background:var(--surface);border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:6px 9px;font:inherit;font-size:12.5px;outline:none;margin-bottom:5px}
+  .msel-search:focus{border-color:var(--accent)}
   .msgs{flex:1;overflow:auto;display:flex;flex-direction:column;gap:14px;padding:4px 4px 8px}
   .msg{display:flex;gap:12px}
   .msg .who{flex:0 0 54px;color:var(--muted);font-size:12px;padding-top:4px;font-weight:600}
@@ -212,6 +224,19 @@
   .filterbar .fcount{font-size:12px;color:var(--muted);margin-left:auto;font-weight:600}
   .filterbar .fclear{background:transparent;border:1px solid var(--line);border-radius:9px;padding:7px 12px;font-size:12.5px;color:var(--muted);font-weight:600;cursor:pointer}
   .filterbar .fclear:hover{color:var(--ink);border-color:var(--accent)}
+  /* multi-select dropdowns */
+  .msel{position:relative}
+  .msel-btn{appearance:none;-webkit-appearance:none;max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:7px 26px 7px 11px;font-size:12.5px;color:var(--ink);font-weight:600;cursor:pointer;box-shadow:var(--shadow-sm);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2399a' fill='none' stroke-width='1.5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center}
+  .msel-btn:hover{border-color:var(--accent)}
+  .msel.open .msel-btn{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .msel-menu{position:absolute;top:calc(100% + 5px);left:0;z-index:20;min-width:190px;max-width:300px;max-height:320px;overflow-y:auto;background:var(--surface2);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:5px}
+  .msel-opt{display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:7px;font-size:12.5px;color:var(--ink);cursor:pointer;white-space:nowrap;width:100%;background:transparent;border:0;text-align:left;font-weight:500}
+  .msel-opt:hover{background:var(--accent-soft)}
+  .msel-opt input{accent-color:var(--accent);cursor:pointer;margin:0;flex:0 0 auto}
+  .msel-opt.clearrow{color:var(--muted);font-weight:600;border-bottom:1px solid var(--line2);border-radius:0;margin-bottom:3px;cursor:pointer}
+  .msel-opt.clearrow:hover{color:var(--ink);background:transparent}
+  .msel-opt.msel-none{color:var(--muted);cursor:default}
+  .msel-opt.msel-none:hover{background:transparent}
 
   /* espresso tiles (forecast tiers) */
   .tier{margin-bottom:20px}
@@ -244,6 +269,17 @@
   .play .beats{display:inline-block;font-size:10px;font-weight:700;color:#fff;background:var(--green);border-radius:5px;padding:0 6px;margin-left:6px;vertical-align:middle}
   .play-g{font-size:12px;color:var(--ink2);margin:3px 0 2px 14px;line-height:1.5}
   .play-proof{font-size:11px;color:var(--muted);margin:0 0 4px 14px;font-style:italic}
+  /* deal drawer: MEDDPICC chips + money/dates grid */
+  .medd-row{display:flex;flex-wrap:wrap;gap:6px}
+  .medd-chip{font-size:11px;font-weight:700;border-radius:6px;padding:2px 8px;border:1px solid transparent;cursor:default}
+  .medd-chip.have{background:var(--green-bg);color:var(--green-ink)}
+  .medd-chip.weak{background:var(--amber-bg);color:var(--amber-ink)}
+  .medd-chip.gap{background:var(--red-bg);color:var(--red-ink)}
+  .medd-gaps{margin:9px 0 0;padding-left:18px;color:var(--ink2);font-size:12.5px;line-height:1.6}
+  .medd-gaps b{color:var(--ink)}
+  .kvgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px 26px}
+  .kvgrid .k{color:var(--muted);font-size:12px}
+  .kvgrid .val{font-size:13.5px;color:var(--ink);margin-top:1px}
 
   /* matcha */
   #matchaview{max-width:1020px;margin:0 auto;padding:2px 2px 80px}
@@ -273,7 +309,13 @@
   .pager button:disabled{opacity:.4;cursor:default}
 
   /* espresso tier tabs */
-  .tiertabs{display:inline-flex;flex-wrap:wrap;margin:0 0 16px}
+  .tiertabs-bar{margin:0 0 16px}
+  .tiertabs{display:inline-flex;flex-wrap:wrap;margin:0}
   .tiertabs .tab{display:inline-flex;align-items:center}
   .tiertabs .tab .tcount{margin-left:6px;font-size:11px;font-weight:700;opacity:.7;background:var(--surface2);border-radius:999px;padding:1px 7px}
   .tiertabs .tab.active .tcount{background:var(--accent-soft);opacity:1}
+
+  /* Espresso: pin the filter bar + forecast ribbon while scrolling the to-do list */
+  .wrap.esp-sticky .filterbar{position:sticky;top:var(--hdr-h,86px);z-index:4;background:var(--bg);margin-bottom:0;padding:8px 0 10px}
+  .wrap.esp-sticky .tiertabs-bar{position:sticky;top:calc(var(--hdr-h,86px) + var(--fb-h,47px));z-index:3;background:var(--bg);padding:6px 0 10px;margin:0}
+  .wrap.esp-sticky .todo-top{background:var(--bg)}

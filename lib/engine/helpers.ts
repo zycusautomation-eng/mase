@@ -97,13 +97,58 @@ export function verdictTone(v: any): "v-on" | "v-risk" | "v-off" | "" {
 }
 
 // --- VP / RSD hierarchy ---
+// `manager_name` in the raw book is unreliable: Shekhar Varma is the President
+// sitting above the territory VPs (161 deals), and some deals carry a blank
+// manager or "Brijesh Kumar". We re-attribute every deal to its territory VP,
+// keyed by its owner, per the org chart below. Notes:
+//   - VP East Open is its own book (Alexa manages it, but it is NOT her West team).
+//   - Mohamad Alhakim is an RVP (UAE) under Carl, and Dan Quinn reports to Mohamad;
+//     both still roll up to Carl Kimball's book.
+//   - Arthur Raguette runs a solo territory and owns his deals himself.
+//   - Kevin Cipollaro (off-chart) → Alexa West; Monika Mutscher (off-chart) → John.
+//   - DROP_OWNERS sit in BD / customer cross-sell / delivery and are excluded.
+export const OWNER_VP: Record<string, string> = {
+  // Anthony Gray — VP (EU/UK)
+  "Anthony Gray": "Anthony Gray", "Claire Hudson": "Anthony Gray", "Casper Hoeholt": "Anthony Gray",
+  // John Woodcock — VP (EMEA / Continental)
+  "John Woodcock": "John Woodcock", "Caroline Lacocque": "John Woodcock", "Dirk Fischbach": "John Woodcock",
+  "Pierre Meraud": "John Woodcock", "Monika Mutscher": "John Woodcock",
+  // Carl Kimball — VP (APAC / MEA); Mohamad Alhakim (RVP, UAE) + Dan Quinn roll up here
+  "Carl Kimball": "Carl Kimball", "Mohamad Alhakim": "Carl Kimball", "Dan Quinn": "Carl Kimball",
+  "Adam Hasan": "Carl Kimball", "George John": "Carl Kimball", "Guillaume Pasquet": "Carl Kimball",
+  "Luke Dougherty": "Carl Kimball", "Tanmay Srivastava": "Carl Kimball",
+  // Alexa Bradley — VP (West)
+  "Alexa Bradley": "Alexa Bradley", "Karson Keogh": "Alexa Bradley", "Mario Castro": "Alexa Bradley",
+  "Rick Taranek": "Alexa Bradley", "Kevin Cipollaro": "Alexa Bradley",
+  // VP East Open — separate book, managed by Alexa
+  "Edward Dlugosz": "VP East Open", "Marc Quessenberry": "VP East Open",
+  "Richard Hunsinger": "VP East Open", "Mike Flowers": "VP East Open",
+  // Arthur Raguette — VP, US Strategic Accounts (solo)
+  "Arthur Raguette": "Arthur Raguette",
+  // Michael McCarthy — VP, US Mid-Markets
+  "Michael McCarthy": "Michael McCarthy", "Bailey Erazo": "Michael McCarthy", "Grace Kim": "Michael McCarthy",
+  "Justin Ajmo": "Michael McCarthy", "Steve Ovadje": "Michael McCarthy",
+};
+
+// BD / customer cross-sell / delivery owners — their opportunities are dropped from every tab.
+export const DROP_OWNERS = new Set<string>([
+  "Elias Kardous", "Anshu Jagiasi", "Nimesh Pandya", "Hrishikesh Pachhapur",
+]);
+
+// Territory VP for a record, or null when the deal should be dropped entirely.
+export function vpOf(r: Rec): string | null {
+  const o = (r.hard || {}).owner_name;
+  if (!o || DROP_OWNERS.has(o)) return null;
+  return OWNER_VP[o] || null;
+}
+export function keepRecord(r: Rec): boolean { return vpOf(r) != null; }
+
 export function teamsMap(records: Rec[]): Record<string, string[]> {
   const m: Record<string, Set<string>> = {};
   records.forEach((r) => {
-    const h = r.hard || {};
-    const vp = h.manager_name || "(no VP)";
-    const o = h.owner_name;
-    if (!o) return;
+    const vp = vpOf(r);
+    const o = (r.hard || {}).owner_name;
+    if (!vp || !o) return;
     (m[vp] = m[vp] || new Set()).add(o);
   });
   const out: Record<string, string[]> = {};
@@ -111,14 +156,20 @@ export function teamsMap(records: Rec[]): Record<string, string[]> {
   return out;
 }
 export function vpsList(records: Rec[]): string[] { return Object.keys(teamsMap(records)).sort(); }
-export function teamOwners(records: Rec[], vp: string): string[] {
+// `vps` empty = every VP. Owners are the union across the selected VPs.
+export function teamOwners(records: Rec[], vps: string[]): string[] {
   const t = teamsMap(records);
-  if (vp === "all") return [...new Set(Object.values(t).flat())].sort();
-  return t[vp] || [];
+  if (!vps.length) return [...new Set(Object.values(t).flat())].sort();
+  return [...new Set(vps.flatMap((v) => t[v] || []))].sort();
 }
-export function inScope(r: Rec, vp: string, rsd: string): boolean {
-  const h = r.hard || {};
-  return (vp === "all" || h.manager_name === vp) && (rsd === "all" || h.owner_name === rsd);
+// Multi-select scope: an empty array means "no constraint" (all).
+export function inScope(r: Rec, vps: string[], rsds: string[]): boolean {
+  const vp = vpOf(r);
+  if (!vp) return false;
+  const o = (r.hard || {}).owner_name;
+  if (vps.length && !vps.includes(vp)) return false;
+  if (rsds.length && !rsds.includes(o)) return false;
+  return true;
 }
 
 export function uniqSorted(arr: any[]): any[] { return [...new Set(arr.filter((v) => v != null && v !== ""))].sort(); }
@@ -182,6 +233,36 @@ export function matchPlays(playbook: any, h: Hard, limit: number): any[] {
   }).filter(Boolean).sort((a: any, b: any) => b.score - a.score).slice(0, limit);
 }
 
+// Salesforce Opportunity StageName picklist, in picklist order (from describe).
+// Used to order the "Deals by stage" chart exactly like Salesforce. Stage values
+// not in this list (legacy default-SF stages on a few records) sort to the end.
+export const STAGE_ORDER: string[] = [
+  "Initial Interest", "Qualified", "Formal Evaluation", "Shortlisted", "Vendor Selected",
+  "No Decision", "Qualified Out", "Contract In Progress", "Contract Signed", "PO Received",
+  "Closed Lost", "Closed Won", "Omitted",
+  "1. Initial Interest", "2. Solution Fitment", "3. Evaluation / POC", "4. Stakeholder Alignment",
+  "5. Budget Approval", "6. Contract Negotiation", "7. Closed Won", "8. Closed Lost",
+  "Budget Approval", "Stakeholder Alignment", "Contract Negotiation", "Solution Fitment", "Evaluation / POC",
+];
+export function stageRank(s: any): number { const i = STAGE_ORDER.indexOf(String(s)); return i === -1 ? 9999 : i; }
+
+// The backend cache carried a few stale/legacy stages that don't exist in the SF
+// picklist. Corrected to the live Salesforce StageName (verified via SF query,
+// Jun 2026). Keyed by 15-char opp_id; applied at load so every tab uses SF truth.
+export const STAGE_FIX: Record<string, string> = {
+  "006P700000RFGL6": "Shortlisted",      // HAVI Logistics — was Negotiation/Review
+  "006P7000009T3v1": "Shortlisted",      // Mizuho Americas — was Proposal/Price Quote
+  "006P700000HBXgR": "Vendor Selected",  // Nordea — was Proposal/Pricing Quote
+  "006P700000PlMpu": "Shortlisted",      // Bosch — was Qualification
+  "006P700000KmkeX": "Shortlisted",      // Watchtower — was Prospecting
+};
+export function applyStageFix(r: Rec): Rec {
+  const id = String(r?.opp_id || "");
+  const fix = STAGE_FIX[id] || STAGE_FIX[id.slice(0, 15)];
+  if (!fix || !r?.hard || r.hard.stage === fix) return r;
+  return { ...r, hard: { ...r.hard, stage: fix } };
+}
+
 // Forecast tiers (ordered). Initial Interest / Closed / Omitted intentionally excluded.
 export const TIERS = [
   { key: "commit", label: "Commit", cap: 5, activatable: false, match: (h: Hard) => h.forecast_category === "Commit" },
@@ -195,6 +276,164 @@ export const TIERS = [
     match: (h: Hard) => ["Pipeline", "Omitted"].includes(h.forecast_category) && ["Qualified", "Formal Evaluation"].includes(h.stage),
   },
 ];
+export type Tier = (typeof TIERS)[number];
+
+// The single forecast tier a deal belongs to (or null = Initial Interest / Closed → no to-dos).
+export function dealTier(h: Hard): Tier | null {
+  return TIERS.find((t) => t.match(h)) || null;
+}
+
+// --- To-dos: ONE source of truth for both the Espresso tab and the deal drawer ---
+// Both call buildDealTodos with the same (record, allRecords, playbook), so the
+// to-dos shown on a deal are guaranteed identical to the deal's Espresso to-dos —
+// same items, same ids (so completion state syncs), same back-planned due dates.
+export interface TodoItem { id: string; text: string; owner?: string; due: { txt: string; cls: string } | null; }
+export interface DealTodos { tier: Tier; deep: boolean; items: TodoItem[]; plays: any[]; dc: number | null; }
+
+export function buildDealTodos(record: Rec, allRecords: Rec[], playbook: any): DealTodos | null {
+  const h = record.hard || {}, ai = record.ai || {};
+  const tier = dealTier(h);
+  if (!tier) return null;
+  const dn = h.account_name || h.opp_name || h.opp_id, oid = h.opp_id;
+  const moves = ((ai.recommended_moves || {}).items || []).slice()
+    .sort((a: any, b: any) => (a.rank || 99) - (b.rank || 99)).slice(0, tier.cap);
+  const total = moves.length;
+  const items = moves.map((m: any, idx: number) => {
+    const t = (m.action || "").trim();
+    if (!t) return null;
+    const id = oid + ":" + slug(dn + "|" + t);
+    const heavy = heavyStep(m.action);
+    const due = heavy ? { txt: "confirm timeline", cls: "heavy" }
+      : (h.close_date ? { txt: `due ${fmtDue(backPlannedDue(allRecords, h.close_date, idx, total))}`, cls: "" } : null);
+    return { id, text: t, owner: m.owner, due };
+  }).filter(Boolean) as TodoItem[];
+  if (!items.length) return null;
+  // deep = forecast deal (full plan + champion building); light = qualified (discovery/engagement).
+  const deep = !tier.activatable;
+  const dc = diffDays(refToday(allRecords), h.close_date);
+  const plays = matchPlays(playbook, h, tier.key === "qualified" ? 1 : 2);
+  return { tier, deep, items, plays, dc };
+}
+
+// --- MEDDPICC read derived from evidence, not just the SF Yes/No flags ---
+export interface MeddItem { dim: string; state: "have" | "weak" | "gap"; note: string; }
+export function dealMeddpicc(record: Rec): MeddItem[] {
+  const h = record.hard || {}, ai = record.ai || {};
+  const stake = (ai.stakeholder_map || {}).items || [];
+  const roles: string[] = stake.map((s: any) => (s.role || "").toLowerCase());
+  const titles: string[] = stake.map((s: any) => (s.title || "").toLowerCase());
+  const openVulns = ((ai.vulnerabilities || {}).items || []).filter((v: any) => v.status !== "closed");
+  const vulnCats = new Set<string>(openVulns.map((v: any) => v.category));
+  const champ = ai.champion_strength || {};
+  const reqs = (ai.explicit_requirements || {}).items || [];
+  const compSummary = (ai.competitive_position || {}).summary || "";
+  const out: MeddItem[] = [];
+
+  // Metrics — a quantified value case, not the metrics_identified flag
+  out.push(vulnCats.has("budget")
+    ? { dim: "Metrics", state: "weak", note: "Value discussed, business case not built" }
+    : h.metrics_identified === true
+      ? { dim: "Metrics", state: "have", note: "Quantified value captured" }
+      : { dim: "Metrics", state: "gap", note: "No quantified value case" });
+  // Economic Buyer — is anyone with budget power actually in the map?
+  out.push(roles.some((r) => /economic|sponsor/.test(r)) || titles.some((t) => /\bcfo\b|\bcpo\b|chief|\bvp\b|director of finance/.test(t))
+    ? { dim: "Economic Buyer", state: "have", note: "Budget owner mapped" }
+    : { dim: "Economic Buyer", state: "gap", note: "No EB in the stakeholder map" });
+  // Decision Criteria
+  out.push(reqs.length
+    ? { dim: "Decision Criteria", state: "have", note: `${reqs.length} explicit requirements captured` }
+    : { dim: "Decision Criteria", state: "gap", note: "Criteria not documented" });
+  // Decision Process
+  out.push(vulnCats.has("timeline")
+    ? { dim: "Decision Process", state: "weak", note: "Timeline slipping / process unclear" }
+    : { dim: "Decision Process", state: "gap", note: "Process & timeline not locked" });
+  // Pain — trust call evidence over the pain_identified flag
+  const painEvidence = ((ai.gaps || {}).items || []).length || openVulns.length || ((ai.customer_expectations_fit || {}).items || []).length;
+  out.push(painEvidence
+    ? { dim: "Pain", state: "have", note: "Captured on calls" + (h.pain_identified === false ? " (SF flag says No — trust the calls)" : "") }
+    : { dim: "Pain", state: "gap", note: "Pain not established" });
+  // Champion
+  const cs = (champ.strength || "").toLowerCase();
+  out.push(/strong|validated|established/.test(cs)
+    ? { dim: "Champion", state: "have", note: champ.champion || "Champion validated" }
+    : champ.champion
+      ? { dim: "Champion", state: "weak", note: `${champ.champion} — ${champ.strength || "developing"}` }
+      : { dim: "Champion", state: "gap", note: "No champion yet" });
+  // Competition
+  out.push(dealComps(h).length || /scanmarket|coupa|ariba|sap|gep|ivalua|jaggaer|pactum|docusign|oracle|basware|sirion|medius|workday/i.test(compSummary)
+    ? { dim: "Competition", state: "have", note: "Competitive field known" }
+    : { dim: "Competition", state: "gap", note: "Competition unknown" });
+  return out;
+}
+
+// --- Chat scope: Generic / VP / RSD / Deal -------------------------------------
+// Generic and single-RSD scope use the backend's native `owner` param (hermetic).
+// VP, multi-RSD and Deal scope inject an authoritative SCOPE LOCK block of just the
+// in-scope records (instruction-bound today; flips to hermetic when the backend
+// gains an opp_ids/owners allowlist).
+export type ChatScopeMode = "generic" | "vp" | "rsd" | "deal";
+export interface ChatScope { mode: ChatScopeMode; vps: string[]; owners: string[]; oppId: string; }
+export const EMPTY_SCOPE: ChatScope = { mode: "generic", vps: [], owners: [], oppId: "" };
+
+export function scopeRecords(records: Rec[], scope: ChatScope): Rec[] {
+  if (scope.mode === "vp") return scope.vps.length ? records.filter((r) => { const vp = vpOf(r); return !!vp && scope.vps.includes(vp); }) : records;
+  if (scope.mode === "rsd") return scope.owners.length ? records.filter((r) => scope.owners.includes((r.hard || {}).owner_name)) : records;
+  if (scope.mode === "deal") return records.filter((r) => r.opp_id === scope.oppId);
+  return records;
+}
+export function scopeLabel(scope: ChatScope, recs: Rec[]): string {
+  if (scope.mode === "vp") return scope.vps.length ? scope.vps.join(" & ") : "All VPs";
+  if (scope.mode === "rsd") return scope.owners.length ? scope.owners.join(", ") : "All RSDs";
+  if (scope.mode === "deal") { const h = recs[0]?.hard || {}; return recs[0] ? `${h.account_name} — ${h.opp_name}` : "a deal"; }
+  return "Whole book";
+}
+// Native single-owner backend scope (hermetic). Undefined → not a single-owner scope.
+export function scopeNativeOwner(scope: ChatScope): string | undefined {
+  return scope.mode === "rsd" && scope.owners.length === 1 ? scope.owners[0] : undefined;
+}
+// Must we inject records? Generic and single-RSD are native; VP/Deal/multi-RSD inject.
+export function scopeNeedsInjection(scope: ChatScope): boolean {
+  if (scope.mode === "vp") return scope.vps.length > 0;
+  if (scope.mode === "rsd") return scope.owners.length > 1;
+  if (scope.mode === "deal") return !!scope.oppId;
+  return false;
+}
+
+export function buildChatContext(records: Rec[], scope: ChatScope): string {
+  const recs = scopeRecords(records, scope);
+  const label = scopeLabel(scope, recs);
+  if (scope.mode === "deal" && recs.length === 1) {
+    const r = recs[0], h = r.hard || {}, ai = r.ai || {};
+    const v = ai.north_star_verdict || {};
+    const moves = ((ai.recommended_moves || {}).items || []).slice()
+      .sort((a: any, b: any) => (a.rank || 99) - (b.rank || 99)).slice(0, 3)
+      .map((m: any, i: number) => `  ${i + 1}. ${(m.action || "").trim()}`).join("\n");
+    const medd = dealMeddpicc(r).filter((m) => m.state !== "have").map((m) => `${m.dim} (${m.note})`).join("; ");
+    const stake = ((ai.stakeholder_map || {}).items || []).map((s: any) => `${s.name} — ${s.role || "?"}`).join("; ");
+    return [
+      `[SCOPE LOCK] This conversation is about ONE opportunity only: ${h.account_name} — ${h.opp_name}.`,
+      `Do not reference any other deal. If asked about anything outside this opportunity, say it is outside scope.`,
+      ``,
+      `Stage/forecast: ${h.stage} / ${h.forecast_category} | Amount: ${fmtAmount(h.amount)} | Close: ${h.close_date} | Owner: ${h.owner_name}`,
+      v.verdict ? `Verdict: ${v.verdict} — ${v.math || ""}` : ``,
+      moves ? `Recommended moves:\n${moves}` : ``,
+      medd ? `MEDDPICC gaps: ${medd}` : ``,
+      stake ? `Stakeholders: ${stake}` : ``,
+    ].filter(Boolean).join("\n");
+  }
+  const lines = recs.map((r) => {
+    const h = r.hard || {}, ai = r.ai || {};
+    const v = (ai.north_star_verdict || {}).verdict || "";
+    const top = (((ai.recommended_moves || {}).items || []).slice().sort((a: any, b: any) => (a.rank || 99) - (b.rank || 99))[0] || {}).action || "";
+    return `- ${h.account_name} | ${h.opp_name} | ${h.stage}/${h.forecast_category} | ${fmtAmount(h.amount)} | close ${h.close_date || "?"} | ${h.owner_name}${v ? ` | verdict ${v}` : ""}${top ? ` | next: ${String(top).slice(0, 120)}` : ""}`;
+  });
+  return [
+    `[SCOPE LOCK] You are answering for: ${label}. Your ENTIRE dataset for this conversation is these ${recs.length} opportunities.`,
+    `Do NOT reference, count, rank, or recommend any opportunity outside this list, even if you know of others. If asked about something outside this scope, say it is outside the current scope and offer to widen it.`,
+    ``,
+    ...lines,
+  ].join("\n");
+}
 
 // --- prose cleanup so it reads like a brief, not a log ---
 export function cleanText(s: any): string {
