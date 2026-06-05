@@ -15,6 +15,8 @@
   a{color:var(--accent)}
   header{padding:13px 28px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;position:sticky;top:0;background:rgba(255,255,255,.82);backdrop-filter:saturate(180%) blur(12px);-webkit-backdrop-filter:saturate(180%) blur(12px);z-index:5;}
   header h1{font-size:16px;margin:0;font-weight:700;letter-spacing:-.2px;color:var(--ink)}
+  /* MASE wordmark — Zycus blue (navy → electric blue) */
+  .brandmark{font-size:21px;font-weight:800;letter-spacing:1.5px;background:linear-gradient(90deg,#10277a,#2f6bff);-webkit-background-clip:text;background-clip:text;color:transparent}
   header .sub{color:var(--muted);font-size:12.5px}
   .spacer{flex:1}
   input#filter{background:var(--surface);border:1px solid var(--line);color:var(--ink);padding:8px 12px;border-radius:10px;width:280px;outline:none;box-shadow:var(--shadow-sm);transition:border .15s,box-shadow .15s}
@@ -137,7 +139,7 @@
   .bar{display:flex;align-items:center;gap:10px;font-size:13px}
   .bar .lab{flex:0 0 130px;color:var(--ink2);font-weight:500}
   .bar .track{flex:1;height:9px;background:var(--inset);border-radius:6px;overflow:hidden}
-  .bar .fill{height:100%;background:linear-gradient(90deg,var(--accent),#3f74f0);border-radius:6px}
+  .bar .fill{height:100%;background:linear-gradient(90deg,var(--accent),color-mix(in srgb,var(--accent) 55%,#fff));border-radius:6px}
   .bar .val{flex:0 0 auto;color:var(--muted);font-variant-numeric:tabular-nums;font-size:12.5px}
   .ilist{list-style:none;padding:0;margin:6px 0 0}
   .ilist li{padding:11px 8px;border-bottom:1px solid var(--line2);font-size:13px;cursor:pointer;border-radius:8px;transition:background .12s}
@@ -319,3 +321,13 @@
   .wrap.esp-sticky .filterbar{position:sticky;top:var(--hdr-h,86px);z-index:4;background:var(--bg);margin-bottom:0;padding:8px 0 10px}
   .wrap.esp-sticky .tiertabs-bar{position:sticky;top:calc(var(--hdr-h,86px) + var(--fb-h,47px));z-index:3;background:var(--bg);padding:6px 0 10px;margin:0}
   .wrap.esp-sticky .todo-top{background:var(--bg)}
+
+  /* Per-tab hues — recolor the accent + faint card wash; background stays white */
+  .wrap.theme-espresso{--accent:#9a5b2d;--accent-soft:#f6ece2;--accent2:#7a4a22}
+  .wrap.theme-espresso .deal-blk{background:#fffaf4;border-color:#efe2d3}
+  .wrap.theme-espresso .todo-prog{background:#fffaf4;border-color:#efe2d3}
+  .wrap.theme-espresso.esp-sticky .filterbar,
+  .wrap.theme-espresso.esp-sticky .tiertabs-bar,
+  .wrap.theme-espresso.esp-sticky .todo-top{background:#fffdfb}
+  .wrap.theme-matcha{--accent:#5d8a2c;--accent-soft:#edf5e1;--accent2:#3f6a1a}
+  .wrap.theme-matcha .card{background:#f9fcf3;border-color:#e5efd7}

@@ -19,7 +19,7 @@ function Header() {
   const onDeals = pathname.startsWith("/deals");
   return (
     <header>
-      <h1>Deal Intelligence Engine</h1>
+      <h1 className="brandmark">MASE</h1>
       <span className="sub" id="subtitle">
         {records.length ? `${records.length} opportunit${records.length === 1 ? "y" : "ies"} swept` : ""}
       </span>
@@ -57,6 +57,8 @@ function Shell({ children }: { children: React.ReactNode }) {
   // (long) to-do list. Header height varies with width, so measure it live and
   // expose --hdr-h / --fb-h for the sticky offsets.
   const onEspresso = pathname.startsWith("/espresso");
+  // Per-tab accent hue: warm/coffee on Espresso, green on Matcha (bg stays white).
+  const tabTheme = onEspresso ? "theme-espresso" : pathname.startsWith("/matcha") ? "theme-matcha" : "";
   useEffect(() => {
     const root = document.documentElement;
     const measure = () => {
@@ -73,7 +75,7 @@ function Shell({ children }: { children: React.ReactNode }) {
   return (
     <>
       <Header />
-      <div className={`wrap ${onEspresso ? "esp-sticky" : ""}`}>
+      <div className={`wrap ${onEspresso ? "esp-sticky" : ""} ${tabTheme}`}>
         {error ? (
           <div className="empty">Couldn&apos;t load the book.<br /><br /><span className="err">{error}</span></div>
         ) : loading ? (
