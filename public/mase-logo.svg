@@ -1,8 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 158" fill="none" role="img" aria-label="MASE — Agents that Close">
   <defs>
     <linearGradient id="maseBlue" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#1f4fe0"/>
-      <stop offset="1" stop-color="#3f86f8"/>
+      <stop offset="0" stop-color="#173083"/>
+      <stop offset="0.55" stop-color="#2348b8"/>
+      <stop offset="1" stop-color="#3a6cf0"/>
     </linearGradient>
   </defs>
   <!-- main sparkle (vertically elongated 4-point star) -->
