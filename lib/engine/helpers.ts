@@ -182,7 +182,14 @@ export function uniqSorted(arr: any[]): any[] { return [...new Set(arr.filter((v
 
 // --- dates ---
 export function refToday(records: Rec[]): string {
-  return records.map((r) => r && r.swept_at).filter(Boolean).sort().pop() || "2026-06-03";
+  // "Today" for back-planning to-do due dates. Use the latest sweep that is NOT
+  // future-dated — a few records carry outlier/future swept_at (e.g. 2026-12-03)
+  // which would otherwise project every back-planned due date months into the
+  // future (the cause of to-dos showing "due Dec 26" on deals closing in May).
+  let now = "2026-06-05";
+  try { now = new Date().toISOString().slice(0, 10); } catch { /* keep fallback */ }
+  const past = records.map((r) => r && r.swept_at).filter((s) => s && s <= now).sort();
+  return past.length ? (past[past.length - 1] as string) : now;
 }
 export function addDays(iso: string, n: number): string {
   const d = new Date(iso + "T00:00:00"); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10);
