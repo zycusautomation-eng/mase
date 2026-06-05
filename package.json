@@ -5,7 +5,7 @@
   "description": "Next.js frontend for the Deal Intelligence Engine — connects to the FastAPI backend on Replit via a server-side token-injecting proxy.",
   "scripts": {
     "dev": "cross-env NODE_OPTIONS=--use-system-ca next dev",
-    "build": "cross-env NODE_OPTIONS=--use-system-ca next build",
+    "build": "next build",
     "start": "cross-env NODE_OPTIONS=--use-system-ca next start",
     "lint": "next lint"
   },

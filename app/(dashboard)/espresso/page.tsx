@@ -16,6 +16,7 @@ function loadDone(): Set<string> {
 export default function EspressoPage() {
   const { records, vp, rsd, playbook, filtered } = useDashboard();
   const [done, setDone] = useState<Set<string>>(loadDone);
+  const [activeTier, setActiveTier] = useState<string | null>(null);
 
   const toggle = useCallback((id: string) => {
     setDone((prev) => {
@@ -68,6 +69,11 @@ export default function EspressoPage() {
 
   if (!records.length) return <div className="empty-s">No swept records yet.</div>;
 
+  const tabKeys = tiers.map((t) => t.tier.key);
+  const active = activeTier && tabKeys.includes(activeTier) ? activeTier : (tabKeys[0] || null);
+  const shown = tiers.find((t) => t.tier.key === active);
+  const shortLabel = (label: string) => label.split(" —")[0];
+
   return (
     <div id="todoview">
       <div className="todo-top">
@@ -77,34 +83,31 @@ export default function EspressoPage() {
 
       {tiers.length === 0 ? (
         <div className="empty-s">No forecast or qualified-pipeline deals in scope yet.</div>
-      ) : tiers.map((tg) => (
-        <Tier key={tg.tier.key} tg={tg} done={done} toggle={toggle} vp={vp} />
-      ))}
+      ) : (
+        <>
+          <div className="tabs tiertabs">
+            {tiers.map((tg) => (
+              <button
+                key={tg.tier.key}
+                className={`tab ${active === tg.tier.key ? "active" : ""}`}
+                onClick={() => setActiveTier(tg.tier.key)}
+              >
+                {shortLabel(tg.tier.label)} <span className="tcount">{tg.deals.length}</span>
+              </button>
+            ))}
+          </div>
+
+          {shown ? (
+            <div className={`tier ${shown.tier.key}`}>
+              {shown.blocks.map((b: any, i: number) => (
+                <DealBlock key={`${b.oid}-${i}`} b={b} done={done} toggle={toggle} vp={vp} />
+              ))}
+            </div>
+          ) : null}
+        </>
+      )}
     </div>
   );
-}
-
-function Tier({ tg, done, toggle, vp }: { tg: any; done: Set<string>; toggle: (id: string) => void; vp: string }) {
-  const [open, setOpen] = useState(!tg.tier.activatable);
-  const head = (
-    <div className="tier-h">
-      <span className="tier-name">{tg.tier.label}</span>
-      <span className="tier-meta">{tg.deals.length} deal{tg.deals.length === 1 ? "" : "s"} · {fmtAmount(tg.totalVal)}</span>
-    </div>
-  );
-  const body = tg.blocks.map((b: any) => <DealBlock key={b.oid} b={b} done={done} toggle={toggle} vp={vp} />);
-
-  if (tg.tier.activatable) {
-    return (
-      <div className={`tier ${tg.tier.key}`}>
-        <button className="activate" onClick={() => setOpen((o) => !o)}>
-          {open ? "▾ " : "▸ Activate "}{tg.tier.label} ({tg.deals.length})
-        </button>
-        <div className="tier-body" style={{ display: open ? "block" : "none" }}>{head}{body}</div>
-      </div>
-    );
-  }
-  return <div className={`tier ${tg.tier.key}`}>{head}{body}</div>;
 }
 
 function DealBlock({ b, done, toggle, vp }: { b: any; done: Set<string>; toggle: (id: string) => void; vp: string }) {
@@ -118,10 +121,10 @@ function DealBlock({ b, done, toggle, vp }: { b: any; done: Set<string>; toggle:
       <div className="deal-h"><span className="nm">{h.account_name || h.opp_name || h.opp_id}</span><span className="amt">{fmtAmount(h.amount)}</span></div>
       <div className="deal-sub">{h.opp_name || ""} · {h.owner_name || ""}{vpMeta} · {h.stage || ""}{closeMeta}</div>
       <ul className="todo-list">
-        {b.items.map((it: any) => {
+        {b.items.map((it: any, idx: number) => {
           const isDone = done.has(it.id);
           return (
-            <li className={`todo-item ${isDone ? "done" : ""}`} key={it.id}>
+            <li className={`todo-item ${isDone ? "done" : ""}`} key={`${it.id}-${idx}`}>
               <input type="checkbox" checked={isDone} onChange={() => toggle(it.id)} />
               <div className="td-body">
                 <div className="td-txt">{it.text}</div>

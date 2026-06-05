@@ -3,85 +3,69 @@
 import { useDashboard, type DealFilters } from "@/lib/engine/DashboardContext";
 import { vpsList, teamOwners, uniqSorted, fyq, type Rec } from "@/lib/engine/helpers";
 
-// The VP / RSD scope pills + hierarchy line (rsdBar in the original).
-function ScopeBar() {
-  const { records, vp, rsd, setVp, setRsd } = useDashboard();
-  const vps = vpsList(records);
-  const owners = teamOwners(records, vp);
-  const teamLabel = vp === "all" ? "all teams" : `${vp}'s team`;
-
+function Select({ value, onChange, children }: { value: string; onChange: (v: string) => void; children: React.ReactNode }) {
   return (
-    <>
-      {vp === "all" ? (
-        <div className="hier">
-          VP Sales: {vps.length ? vps.map((v, i) => (<span key={v}><b>{v}</b>{i < vps.length - 1 ? " · " : ""}</span>)) : "—"}. Pick a VP to scope the book to their team.
-        </div>
-      ) : (
-        <div className="hier">
-          <b>{vp}</b> — VP Sales &nbsp;·&nbsp; RSDs reporting in: {owners.map((o, i) => (<span key={o}><b>{o}</b>{i < owners.length - 1 ? ", " : ""}</span>)) || "—"}
-        </div>
-      )}
-
-      <div className="rsdbar vpbar">
-        <span className={`rsdpill vp ${vp === "all" ? "active" : ""}`} onClick={() => setVp("all")}>All VPs</span>
-        {vps.map((v) => (
-          <span key={v} className={`rsdpill vp ${vp === v ? "active" : ""}`} onClick={() => setVp(v)}>{v}</span>
-        ))}
-      </div>
-      <div className="rsdbar">
-        <span className={`rsdpill ${rsd === "all" ? "active" : ""}`} onClick={() => setRsd("all")}>All ({teamLabel})</span>
-        {owners.map((o) => (
-          <span key={o} className={`rsdpill ${rsd === o ? "active" : ""}`} onClick={() => setRsd(o)}>{o}</span>
-        ))}
-      </div>
-    </>
-  );
-}
-
-function Dropdown({ id, value, allLabel, options, onChange }: {
-  id: keyof DealFilters; value: string; allLabel: string;
-  options: { v: string; label: string }[]; onChange: (v: string) => void;
-}) {
-  return (
-    <select id={`f-${id}`} value={value} onChange={(e) => onChange(e.target.value)}>
-      <option value="all">{allLabel}</option>
-      {options.map((o) => (<option key={o.v} value={o.v}>{o.label}</option>))}
+    <select value={value} onChange={(e) => onChange(e.target.value)}>
+      {children}
     </select>
   );
 }
 
-// The dropdown filter bar (renderDealControls in the original) — now shown on every route.
-function FilterBar() {
-  const { scoped, filters, setFilter, clearFilters, filtered } = useDashboard();
+export default function ScopeFilterBar() {
+  const { records, vp, rsd, setVp, setRsd, scoped, filters, setFilter, clearFilters, filtered } = useDashboard();
+
+  const vps = vpsList(records);
+  const owners = teamOwners(records, vp);
+
   const hard = scoped.map((r: Rec) => r.hard || {});
   const fc = uniqSorted(hard.map((h) => h.forecast_category));
   const co = uniqSorted(hard.map((h) => h.billing_country));
   const cq = [...new Map(hard.map((h) => { const q = fyq(h.close_date); return [q.key, q.label]; })).entries()]
     .sort((a, b) => (a[0] as number) - (b[0] as number)).map((e) => e[1] as string);
 
-  return (
-    <div className="dealfilters" id="dealfilters">
-      <Dropdown id="forecast" value={filters.forecast} allLabel="All forecast" onChange={(v) => setFilter("forecast", v)}
-        options={fc.map((v) => ({ v, label: v }))} />
-      <Dropdown id="country" value={filters.country} allLabel="All countries" onChange={(v) => setFilter("country", v)}
-        options={co.map((v) => ({ v, label: v }))} />
-      <Dropdown id="size" value={filters.size} allLabel="All deal sizes" onChange={(v) => setFilter("size", v)}
-        options={[{ v: "lt250", label: "< $250K" }, { v: "250to1m", label: "$250K – $1M" }, { v: "gt1m", label: "> $1M" }]} />
-      <Dropdown id="ai" value={filters.ai} allLabel="All AI excitement" onChange={(v) => setFilter("ai", v)}
-        options={["AI Hungry", "AI Curious", "AI Resistant"].map((v) => ({ v, label: v }))} />
-      <Dropdown id="close" value={filters.close} allLabel="All close quarters" onChange={(v) => setFilter("close", v)}
-        options={cq.map((v) => ({ v, label: v }))} />
-      <button className="fclear" onClick={clearFilters}>Clear</button>
-      <span className="fcount" id="f-count">{filtered.length} of {scoped.length} deal{scoped.length === 1 ? "" : "s"}</span>
-    </div>
-  );
-}
+  const dirty = Object.values(filters).some((v) => v !== "all");
+  const f = (k: keyof DealFilters) => (v: string) => setFilter(k, v);
 
-export default function ScopeFilterBar() {
   return (
-    <div className="scopewrap">
-      <div className="dealscope"><ScopeBar /></div>
-      <FilterBar />
+    <div className="filterbar" id="dealfilters">
+      {/* scope */}
+      <Select value={vp} onChange={setVp}>
+        <option value="all">All VPs</option>
+        {vps.map((v) => <option key={v} value={v}>{v}</option>)}
+      </Select>
+      <Select value={rsd} onChange={setRsd}>
+        <option value="all">{vp === "all" ? "All RSDs" : `All (${vp}'s team)`}</option>
+        {owners.map((o) => <option key={o} value={o}>{o}</option>)}
+      </Select>
+
+      <span className="fdivider" />
+
+      {/* filters */}
+      <Select value={filters.forecast} onChange={f("forecast")}>
+        <option value="all">All forecast</option>
+        {fc.map((v) => <option key={v} value={v}>{v}</option>)}
+      </Select>
+      <Select value={filters.country} onChange={f("country")}>
+        <option value="all">All countries</option>
+        {co.map((v) => <option key={v} value={v}>{v}</option>)}
+      </Select>
+      <Select value={filters.size} onChange={f("size")}>
+        <option value="all">All deal sizes</option>
+        <option value="lt250">&lt; $250K</option>
+        <option value="250to1m">$250K – $1M</option>
+        <option value="gt1m">&gt; $1M</option>
+      </Select>
+      <Select value={filters.ai} onChange={f("ai")}>
+        <option value="all">All AI excitement</option>
+        {["AI Hungry", "AI Curious", "AI Resistant"].map((v) => <option key={v} value={v}>{v}</option>)}
+      </Select>
+      <Select value={filters.close} onChange={f("close")}>
+        <option value="all">All close quarters</option>
+        {cq.map((v) => <option key={v} value={v}>{v}</option>)}
+      </Select>
+
+      {dirty ? <button className="fclear" onClick={clearFilters}>Clear</button> : null}
+      <span className="fcount" id="f-count">{filtered.length} of {scoped.length} deal{scoped.length === 1 ? "" : "s"}</span>
     </div>
   );
 }

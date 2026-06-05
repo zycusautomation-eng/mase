@@ -49,6 +49,9 @@ function Header() {
 
 function Shell({ children }: { children: React.ReactNode }) {
   const { loading, error } = useDashboard();
+  const pathname = usePathname();
+  // The scope + filters don't apply to Chat (the strategist reads the whole book).
+  const showScope = !pathname.startsWith("/chat");
   return (
     <>
       <Header />
@@ -59,7 +62,7 @@ function Shell({ children }: { children: React.ReactNode }) {
           <div className="empty">Loading the book…</div>
         ) : (
           <>
-            <ScopeFilterBar />
+            {showScope ? <ScopeFilterBar /> : null}
             {children}
           </>
         )}

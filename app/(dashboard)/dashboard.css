@@ -10,7 +10,8 @@
     --radius:14px;
   }
   *{box-sizing:border-box}
-  body{margin:0;font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;}
+  body{margin:0;font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;overflow-x:hidden;}
+  .wrap{min-width:0}
   a{color:var(--accent)}
   header{padding:13px 28px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;position:sticky;top:0;background:rgba(20,25,37,.82);backdrop-filter:saturate(180%) blur(12px);-webkit-backdrop-filter:saturate(180%) blur(12px);z-index:5;}
   header h1{font-size:16px;margin:0;font-weight:700;letter-spacing:-.2px;color:var(--ink)}
@@ -28,7 +29,8 @@
   .view{display:none}
   .view.active{display:block}
 
-  #grid table{border-collapse:separate;border-spacing:0;width:100%;font-size:13px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+  #grid{max-width:100%;overflow-x:auto;border-radius:var(--radius)}
+  #grid table{border-collapse:separate;border-spacing:0;width:100%;min-width:max-content;font-size:13px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
   th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line2);white-space:nowrap}
   th{color:var(--muted);font-weight:600;cursor:pointer;user-select:none;position:sticky;top:0;background:var(--surface2);font-size:11.5px;text-transform:uppercase;letter-spacing:.4px}
   th:hover{color:var(--ink)}
@@ -248,3 +250,30 @@
   .cov .big{font-size:24px;font-weight:800;color:var(--ink);letter-spacing:-.5px}
   .cov .row{display:flex;align-items:center;justify-content:space-between;gap:8px}
   .cov .lab{font-weight:600;font-size:13px;margin-top:6px;color:var(--ink)}
+
+  /* compact, contained scope + filter panel (overrides the loose original layout) */
+  .scopepanel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:11px 13px;margin:0 0 16px;box-shadow:var(--shadow-sm)}
+  .scoperow{display:flex;align-items:flex-start;gap:10px;margin-bottom:8px}
+  .scoperow .rlabel{flex:0 0 30px;font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);font-weight:700;padding-top:9px}
+  .pillgroup{display:flex;flex-wrap:wrap;gap:4px;flex:1;min-width:0;max-height:98px;overflow-y:auto;background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:4px}
+  .pillgroup.vpbar{background:var(--accent-soft);max-height:none}
+  .scopepanel .rsdpill{padding:5px 11px;border-radius:7px;font-size:12px;white-space:nowrap}
+  .scopepanel .filterbar{margin:10px 0 0;padding-top:11px;border-top:1px solid var(--line2)}
+  .pillgroup::-webkit-scrollbar{width:8px}
+  .pillgroup::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px}
+  .filterbar .fdivider{width:1px;align-self:stretch;background:var(--line);margin:2px 4px}
+
+  /* deals pagination */
+  .pager{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:14px 2px 0;font-size:12.5px;color:var(--muted)}
+  .pager b{color:var(--ink)}
+  .pager .pbtns{display:flex;align-items:center;gap:6px}
+  .pager .ppage{padding:0 6px;font-weight:600;color:var(--ink2)}
+  .pager button{background:var(--surface2);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:6px 11px;font-size:12.5px;font-weight:600;cursor:pointer}
+  .pager button:hover:not(:disabled){border-color:var(--accent)}
+  .pager button:disabled{opacity:.4;cursor:default}
+
+  /* espresso tier tabs */
+  .tiertabs{display:inline-flex;flex-wrap:wrap;margin:0 0 16px}
+  .tiertabs .tab{display:inline-flex;align-items:center}
+  .tiertabs .tab .tcount{margin-left:6px;font-size:11px;font-weight:700;opacity:.7;background:var(--surface2);border-radius:999px;padding:1px 7px}
+  .tiertabs .tab.active .tcount{background:var(--accent-soft);opacity:1}

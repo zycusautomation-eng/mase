@@ -60,7 +60,15 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         const r = await fetch("/api/deal-engine/opportunities", { cache: "no-store" });
         const j = await r.json();
         if (!r.ok) throw new Error(j?.error || `Request failed (${r.status})`);
-        if (!off) setRecords(j.records || []);
+        // Defensive de-dupe: the book can contain the same opp_id more than once.
+        const seen = new Set<string>();
+        const recs = (j.records || []).filter((rec: Rec) => {
+          const id = rec?.opp_id;
+          if (id == null || seen.has(id)) return false;
+          seen.add(id);
+          return true;
+        });
+        if (!off) setRecords(recs);
       } catch (e: any) {
         if (!off) setError(e?.message || String(e));
       }
