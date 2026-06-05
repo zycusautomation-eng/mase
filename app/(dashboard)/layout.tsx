@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect } from "react";
 import "./dashboard.css";
 import { DashboardProvider, useDashboard } from "@/lib/engine/DashboardContext";
 import ScopeFilterBar from "@/components/ScopeFilterBar";
@@ -52,10 +53,27 @@ function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   // The scope + filters don't apply to Chat (the strategist reads the whole book).
   const showScope = !pathname.startsWith("/chat");
+  // On Espresso the filter bar + forecast ribbon are pinned while scrolling the
+  // (long) to-do list. Header height varies with width, so measure it live and
+  // expose --hdr-h / --fb-h for the sticky offsets.
+  const onEspresso = pathname.startsWith("/espresso");
+  useEffect(() => {
+    const root = document.documentElement;
+    const measure = () => {
+      root.style.setProperty("--hdr-h", (document.querySelector<HTMLElement>("header")?.offsetHeight || 0) + "px");
+      root.style.setProperty("--fb-h", (document.querySelector<HTMLElement>(".filterbar")?.offsetHeight || 0) + "px");
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    const ro = new ResizeObserver(measure);
+    const hdr = document.querySelector("header"); if (hdr) ro.observe(hdr);
+    const fb = document.querySelector(".filterbar"); if (fb) ro.observe(fb);
+    return () => { window.removeEventListener("resize", measure); ro.disconnect(); };
+  }, [pathname, loading]);
   return (
     <>
       <Header />
-      <div className="wrap">
+      <div className={`wrap ${onEspresso ? "esp-sticky" : ""}`}>
         {error ? (
           <div className="empty">Couldn&apos;t load the book.<br /><br /><span className="err">{error}</span></div>
         ) : loading ? (

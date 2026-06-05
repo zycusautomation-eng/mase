@@ -13,7 +13,7 @@ const COLS: [string, string, number][] = [
 const PAGE_SIZE = 50;
 
 export default function DealsPage() {
-  const { filtered } = useDashboard();
+  const { filtered, records, playbook } = useDashboard();
   const [sortKey, setSortKey] = useState("days_to_close");
   const [sortDir, setSortDir] = useState(1);
   const [selected, setSelected] = useState<Rec | null>(null);
@@ -92,7 +92,7 @@ export default function DealsPage() {
         </div>
       </div>
 
-      <DealDrawer record={selected} onClose={() => setSelected(null)} />
+      <DealDrawer record={selected} records={records} playbook={playbook} onClose={() => setSelected(null)} />
     </>
   );
 }
