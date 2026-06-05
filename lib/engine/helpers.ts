@@ -206,13 +206,19 @@ export function fmtDue(iso: any): string {
 export function heavyStep(t: any): boolean {
   return /\b(poc|pilot|proof[- ]of[- ]concept|security review|infosec|pen[- ]?test|penetration|procurement|legal|red[- ]?line|redlin|msa|dpa|\bnda\b|rfp response|tender response|workshop|integration|sandbox|data migration|reference (call|visit|customer)|business case|sign[- ]?off)\b/i.test(t || "");
 }
+// Enterprise Zycus deals run 12–15 months, but this dashboard is reviewed and
+// re-planned EVERY day — so we never schedule a to-do more than ~2 months out.
+// Due dates are spread across whichever is sooner: the close runway or the
+// 60-day horizon. Tomorrow's refresh re-plans the next near-term moves.
+export const TODO_HORIZON_DAYS = 60;
 export function backPlannedDue(records: Rec[], closeISO: any, idx: number, total: number): string | null {
   const today = refToday(records);
   if (!closeISO) return null;
   const span = diffDays(today, closeISO);
   if (span == null) return null;
-  if (span <= 0) return addDays(today, (idx + 1) * 4);
-  return addDays(today, Math.min(span, Math.max(3, Math.round((span * (idx + 1)) / (total + 1)))));
+  if (span <= 0) return addDays(today, Math.min(TODO_HORIZON_DAYS, (idx + 1) * 4));
+  const effSpan = Math.min(span, TODO_HORIZON_DAYS);
+  return addDays(today, Math.max(3, Math.round((effSpan * (idx + 1)) / (total + 1))));
 }
 export function ownerKind(o: any): "VP" | "team" { return /exec|sponsor|\bvp\b/i.test(o || "") ? "VP" : "team"; }
 
