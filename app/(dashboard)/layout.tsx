@@ -20,7 +20,7 @@ function Header() {
   return (
     <header>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img className="brandmark-img" src="/mase-logo.svg" alt="MASE — Agents that Close" />
+      <img className="brandmark-img" src="/mase-logo.svg" alt="MASE — Agents that close with you" />
       <span className="sub" id="subtitle">
         {records.length ? `${records.length} opportunit${records.length === 1 ? "y" : "ies"} swept` : ""}
       </span>

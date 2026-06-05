@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 158" fill="none" role="img" aria-label="MASE — Agents that Close">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 158" fill="none" role="img" aria-label="MASE — Agents that close with you">
   <defs>
     <linearGradient id="maseBlue" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#173083"/>
@@ -14,6 +14,6 @@
   <text x="182" y="112" font-family="'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif"
         font-weight="800" font-size="104" letter-spacing="-1" fill="url(#maseBlue)">MASE</text>
   <!-- tagline -->
-  <text x="186" y="146" font-family="'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif"
-        font-weight="600" font-size="20" letter-spacing="5" fill="#5b6b7e">AGENTS THAT CLOSE</text>
+  <text x="322" y="146" text-anchor="middle" font-family="'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif"
+        font-weight="600" font-size="17" letter-spacing="3" fill="#5b6b7e">AGENTS THAT CLOSE WITH YOU</text>
 </svg>
