@@ -207,7 +207,7 @@
   .todo-item.done .td-txt{text-decoration:line-through;color:var(--muted)}
   .todo-item.done .td-meta{opacity:.7}
   .td-txt .nm{font-weight:700;color:var(--accent);cursor:pointer}
-  .todo-grp.crit{color:var(--red-ink)} .todo-grp.impt{color:var(--amber-ink)} .todo-grp.bpr{color:var(--accent2)} .todo-grp.impl{color:#7c3aed}
+  .todo-grp.crit{color:var(--red-ink)} .todo-grp.impt{color:var(--amber-ink)} .todo-grp.bpr{color:var(--accent2)} .todo-grp.impl{color:#7c3aed} .todo-grp.moves{color:var(--accent)}
 
   /* RSD filter + hierarchy (shared by To-Do and Matcha) */
   .hier{font-size:12.5px;color:var(--muted);margin:2px 0 8px}

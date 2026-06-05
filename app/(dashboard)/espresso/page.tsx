@@ -27,7 +27,7 @@ export default function EspressoPage() {
         const todos = buildDealTodos(r, records, playbook);
         if (!todos) return null;
         const h = r.hard || {};
-        return { oid: h.opp_id, dn: h.account_name || h.opp_name || h.opp_id, h, items: todos.items, dc: todos.dc, plays: todos.plays };
+        return { oid: h.opp_id, dn: h.account_name || h.opp_name || h.opp_id, h, groups: todos.groups, dc: todos.dc, plays: todos.plays };
       }).filter(Boolean) as any[];
       if (!blocks.length) return null;
       const totalVal = deals.reduce((s, r) => s + (Number((r.hard || {}).amount) || 0), 0);
@@ -37,7 +37,7 @@ export default function EspressoPage() {
 
   const { total, doneCount } = useMemo(() => {
     let t = 0, d = 0;
-    for (const tg of tiers) for (const b of tg.blocks) for (const it of b.items) { t++; if (done.has(it.id)) d++; }
+    for (const tg of tiers) for (const b of tg.blocks) for (const g of b.groups) for (const it of g.items) { t++; if (done.has(it.id)) d++; }
     return { total: t, doneCount: d };
   }, [tiers, done]);
 
@@ -96,23 +96,29 @@ function DealBlock({ b, done, toggle, showVp }: { b: any; done: Set<string>; tog
     <div className="deal-blk">
       <div className="deal-h"><span className="nm">{h.account_name || h.opp_name || h.opp_id}</span><span className="amt">{fmtAmount(h.amount)}</span></div>
       <div className="deal-sub">{h.opp_name || ""} · {h.owner_name || ""}{vpMeta} · {h.stage || ""}{closeMeta}</div>
-      <ul className="todo-list">
-        {b.items.map((it: any, idx: number) => {
-          const isDone = done.has(it.id);
-          return (
-            <li className={`todo-item ${isDone ? "done" : ""}`} key={`${it.id}-${idx}`}>
-              <input type="checkbox" checked={isDone} onChange={() => toggle(it.id)} />
-              <div className="td-body">
-                <div className="td-txt">{it.text}</div>
-                <div className="td-meta">
-                  {it.owner ? <span className={`ownerchip ${ownerKind(it.owner) === "VP" ? "vp" : ""}`}>{it.owner}</span> : null}
-                  {it.due ? <span className={`duechip ${it.due.cls}`}>{it.due.txt}</span> : null}
-                </div>
-              </div>
-            </li>
-          );
-        })}
-      </ul>
+      {b.groups.map((g: any) => (
+        <div key={g.key}>
+          <div className={`todo-grp ${g.tone}`}>{g.label} <span className="c">{g.items.length}</span></div>
+          <ul className="todo-list">
+            {g.items.map((it: any, idx: number) => {
+              const isDone = done.has(it.id);
+              return (
+                <li className={`todo-item ${isDone ? "done" : ""}`} key={`${it.id}-${idx}`}>
+                  <input type="checkbox" checked={isDone} onChange={() => toggle(it.id)} />
+                  <div className="td-body">
+                    <div className="td-txt">{it.text}</div>
+                    <div className="td-meta">
+                      {it.owner ? <span className={`ownerchip ${ownerKind(it.owner) === "VP" ? "vp" : ""}`}>{it.owner}</span> : null}
+                      {it.meta ? <span className="ownerchip">{it.meta}</span> : null}
+                      {it.due ? <span className={`duechip ${it.due.cls}`}>{it.due.txt}</span> : null}
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
       {b.plays.length ? (
         <div className="plays">
           <div className="plays-h">Winning plays from similar wins</div>

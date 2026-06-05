@@ -113,23 +113,29 @@ export default function DealDrawer({
                       <span className="ownerchip vp">{todos.tier.label.split(" —")[0]}</span>
                       <span className="td-meta">{todos.deep ? "Forecast deal — full plan" : "Qualified — focus on discovery & engagement"}</span>
                     </div>
-                    <ul className="todo-list">
-                      {todos.items.map((it) => {
-                        const isDone = done.has(it.id);
-                        return (
-                          <li className={`todo-item ${isDone ? "done" : ""}`} key={it.id}>
-                            <input type="checkbox" checked={isDone} onChange={() => toggle(it.id)} />
-                            <div className="td-body">
-                              <div className="td-txt">{it.text}</div>
-                              <div className="td-meta">
-                                {it.owner ? <span className={`ownerchip ${ownerKind(it.owner) === "VP" ? "vp" : ""}`}>{it.owner}</span> : null}
-                                {it.due ? <span className={`duechip ${it.due.cls}`}>{it.due.txt}</span> : null}
-                              </div>
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
+                    {todos.groups.map((g) => (
+                      <div key={g.key}>
+                        <div className={`todo-grp ${g.tone}`}>{g.label} <span className="c">{g.items.length}</span></div>
+                        <ul className="todo-list">
+                          {g.items.map((it) => {
+                            const isDone = done.has(it.id);
+                            return (
+                              <li className={`todo-item ${isDone ? "done" : ""}`} key={it.id}>
+                                <input type="checkbox" checked={isDone} onChange={() => toggle(it.id)} />
+                                <div className="td-body">
+                                  <div className="td-txt">{it.text}</div>
+                                  <div className="td-meta">
+                                    {it.owner ? <span className={`ownerchip ${ownerKind(it.owner) === "VP" ? "vp" : ""}`}>{it.owner}</span> : null}
+                                    {it.meta ? <span className="ownerchip">{it.meta}</span> : null}
+                                    {it.due ? <span className={`duechip ${it.due.cls}`}>{it.due.txt}</span> : null}
+                                  </div>
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    ))}
                     {todos.deep && todos.plays.length ? (
                       <div className="plays">
                         <div className="plays-h">Winning plays from similar wins</div>

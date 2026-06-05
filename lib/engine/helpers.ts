@@ -306,18 +306,23 @@ export function dealTier(h: Hard): Tier | null {
 // Both call buildDealTodos with the same (record, allRecords, playbook), so the
 // to-dos shown on a deal are guaranteed identical to the deal's Espresso to-dos —
 // same items, same ids (so completion state syncs), same back-planned due dates.
-export interface TodoItem { id: string; text: string; owner?: string; due: { txt: string; cls: string } | null; }
-export interface DealTodos { tier: Tier; deep: boolean; items: TodoItem[]; plays: any[]; dc: number | null; }
+export interface TodoItem { id: string; text: string; owner?: string; due: { txt: string; cls: string } | null; meta?: string; }
+export interface TodoGroup { key: string; label: string; tone: string; items: TodoItem[]; }
+export interface DealTodos { tier: Tier; deep: boolean; groups: TodoGroup[]; plays: any[]; dc: number | null; }
 
 export function buildDealTodos(record: Rec, allRecords: Rec[], playbook: any): DealTodos | null {
   const h = record.hard || {}, ai = record.ai || {};
   const tier = dealTier(h);
   if (!tier) return null;
   const dn = h.account_name || h.opp_name || h.opp_id, oid = h.opp_id;
-  const moves = ((ai.recommended_moves || {}).items || []).slice()
+  // deep = forecast deal (full plan + champion building); light = qualified (discovery/engagement).
+  const deep = !tier.activatable;
+
+  // 1. Next moves — the AI's ranked recommended actions (dated, owned).
+  const moveItems = ((ai.recommended_moves || {}).items || []).slice()
     .sort((a: any, b: any) => (a.rank || 99) - (b.rank || 99)).slice(0, tier.cap);
-  const total = moves.length;
-  const items = moves.map((m: any, idx: number) => {
+  const total = moveItems.length;
+  const moves = moveItems.map((m: any, idx: number) => {
     const t = (m.action || "").trim();
     if (!t) return null;
     const id = oid + ":" + slug(dn + "|" + t);
@@ -326,12 +331,42 @@ export function buildDealTodos(record: Rec, allRecords: Rec[], playbook: any): D
       : (h.close_date ? { txt: `due ${fmtDue(backPlannedDue(allRecords, h.close_date, idx, total))}`, cls: "" } : null);
     return { id, text: t, owner: m.owner, due };
   }).filter(Boolean) as TodoItem[];
-  if (!items.length) return null;
-  // deep = forecast deal (full plan + champion building); light = qualified (discovery/engagement).
-  const deep = !tier.activatable;
+
+  // 2. Open explicit requirements the prospect stated and we have NOT addressed yet.
+  const explicit = (((ai.explicit_requirements || {}).items) || [])
+    .filter((x: any) => x && x.addressed !== true)
+    .slice(0, deep ? 4 : 3)
+    .map((x: any, i: number) => {
+      const t = String(x.requirement || x.quote || "").trim();
+      return t ? { id: `${oid}:exp:${i}:${slug(t)}`, text: t, meta: x.said_by ? `asked by ${x.said_by}` : undefined, due: null } : null;
+    }).filter(Boolean) as TodoItem[];
+
+  // 3. Implicit / promised needs we should proactively cover.
+  const implicit = (((ai.implicit_requirements || {}).items) || [])
+    .slice(0, deep ? 3 : 2)
+    .map((x: any, i: number) => {
+      const t = String(x.inferred_need || "").trim();
+      return t ? { id: `${oid}:imp:${i}:${slug(t)}`, text: t, due: null } : null;
+    }).filter(Boolean) as TodoItem[];
+
+  // 4. Best-practice / hygiene gaps to close on this deal.
+  const bp = (((ai.best_practice_check || {}).flags) || [])
+    .slice(0, deep ? 4 : 3)
+    .map((s: any, i: number) => {
+      const t = String(s || "").trim();
+      return t ? { id: `${oid}:bp:${i}:${slug(t)}`, text: t, due: null } : null;
+    }).filter(Boolean) as TodoItem[];
+
+  const groups: TodoGroup[] = [];
+  if (moves.length) groups.push({ key: "moves", label: "Next moves", tone: "moves", items: moves });
+  if (explicit.length) groups.push({ key: "explicit", label: "Open requirements", tone: "impt", items: explicit });
+  if (implicit.length) groups.push({ key: "implicit", label: "Implicit / promised", tone: "impl", items: implicit });
+  if (bp.length) groups.push({ key: "bestpractice", label: "Best practice", tone: "bpr", items: bp });
+  if (!groups.length) return null;
+
   const dc = diffDays(refToday(allRecords), h.close_date);
   const plays = matchPlays(playbook, h, tier.key === "qualified" ? 1 : 2);
-  return { tier, deep, items, plays, dc };
+  return { tier, deep, groups, plays, dc };
 }
 
 // --- MEDDPICC read derived from evidence, not just the SF Yes/No flags ---
