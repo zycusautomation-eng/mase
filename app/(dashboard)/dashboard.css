@@ -17,6 +17,7 @@
   header h1{font-size:16px;margin:0;font-weight:700;letter-spacing:-.2px;color:var(--ink)}
   /* MASE wordmark — Zycus blue (navy → electric blue) */
   .brandmark{font-size:21px;font-weight:800;letter-spacing:1.5px;background:linear-gradient(90deg,#10277a,#2f6bff);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .brandmark-img{height:80px;width:auto;display:block}
   header .sub{color:var(--muted);font-size:12.5px}
   .spacer{flex:1}
   input#filter{background:var(--surface);border:1px solid var(--line);color:var(--ink);padding:8px 12px;border-radius:10px;width:280px;outline:none;box-shadow:var(--shadow-sm);transition:border .15s,box-shadow .15s}

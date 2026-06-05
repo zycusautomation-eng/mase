@@ -19,7 +19,8 @@ function Header() {
   const onDeals = pathname.startsWith("/deals");
   return (
     <header>
-      <h1 className="brandmark">MASE</h1>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img className="brandmark-img" src="/mase-logo.svg" alt="MASE — Agents that Close" />
       <span className="sub" id="subtitle">
         {records.length ? `${records.length} opportunit${records.length === 1 ? "y" : "ies"} swept` : ""}
       </span>

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 158" fill="none" role="img" aria-label="MASE — Agents that Close">
+  <defs>
+    <linearGradient id="maseBlue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1f4fe0"/>
+      <stop offset="1" stop-color="#3f86f8"/>
+    </linearGradient>
+  </defs>
+  <!-- main sparkle (vertically elongated 4-point star) -->
+  <path d="M72,20 Q72,82 126,80 Q72,82 72,144 Q72,82 18,80 Q72,82 72,20 Z" fill="url(#maseBlue)"/>
+  <!-- small sparkle, upper-right -->
+  <path d="M128,30 Q128,48 146,48 Q128,48 128,66 Q128,48 110,48 Q128,48 128,30 Z" fill="url(#maseBlue)"/>
+  <!-- wordmark -->
+  <text x="182" y="112" font-family="'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif"
+        font-weight="800" font-size="104" letter-spacing="-1" fill="url(#maseBlue)">MASE</text>
+  <!-- tagline -->
+  <text x="186" y="146" font-family="'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif"
+        font-weight="600" font-size="20" letter-spacing="5" fill="#5b6b7e">AGENTS THAT CLOSE</text>
+</svg>
