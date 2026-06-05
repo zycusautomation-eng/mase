@@ -5,8 +5,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDashboard } from "@/lib/engine/DashboardContext";
 import {
-  vpsList, teamOwners, scopeRecords, scopeLabel, scopeNativeOwner, scopeNeedsInjection,
-  buildChatContext, EMPTY_SCOPE, type ChatScope, type ChatScopeMode, type Rec,
+  vpsList, teamOwners, scopeRecords, scopeLabel,
+  EMPTY_SCOPE, type ChatScope, type ChatScopeMode,
 } from "@/lib/engine/helpers";
 import MultiSelect, { type Opt } from "@/components/MultiSelect";
 
@@ -83,21 +83,13 @@ export default function ChatPage() {
     const cid = persist(next, currentId);
     setCurrentId(cid);
     try {
-      // Scope the request: native owner param when hermetic is available, else
-      // inject a SCOPE LOCK block of just the in-scope records (kept out of the
-      // saved/displayed conversation).
-      const owner = scopeNativeOwner(scope);
-      let payloadMessages: Msg[] = next;
-      if (scopeNeedsInjection(scope)) {
-        const ctx = buildChatContext(records, scope);
-        payloadMessages = [
-          { role: "user", content: ctx },
-          { role: "assistant", content: "Understood — I'll only use those opportunities and won't reference anything outside this scope." },
-          ...next,
-        ];
-      }
-      const body: any = { messages: payloadMessages };
-      if (owner) body.owner = owner;
+      // Hermetic scoping: send the exact in-scope opportunity IDs and let the
+      // backend build context from only those deals (Path B). Generic = whole
+      // book (no ids). This honours our custom VP→owner remap and stage fixes
+      // because we send the precise records the UI already computed.
+      const ids = scope.mode === "generic" ? [] : scopeRecords(records, scope).map((r) => r.opp_id).filter(Boolean);
+      const body: any = { messages: next };
+      if (ids.length) body.opp_ids = ids;
       const r = await fetch("/api/deal-engine/chat", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
       const j = await r.json();
       if (!r.ok || j.error) { setError(j.error || `Error ${r.status}`); }
