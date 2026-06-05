@@ -70,7 +70,7 @@ export default function DealsPage() {
                     return <td key={k} className={numeric ? "num" : undefined}>{v == null ? "—" : v}</td>;
                   })}
                   <td>{verdict ? <span className={`chip ${verdictTone(verdict)}`}>{verdict}</span> : ""}</td>
-                  <td>{aiLabel(h)}</td>
+                  <td>{aiLabel(h, ai.ai_fit_signal)}</td>
                   <td className={`conf-${r.analysis_confidence}`}>{r.analysis_confidence || "—"}</td>
                 </tr>
               );

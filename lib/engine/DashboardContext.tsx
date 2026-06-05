@@ -99,7 +99,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       if (filters.forecast.length && !filters.forecast.includes(h.forecast_category)) return false;
       if (filters.country.length && !filters.country.includes(h.billing_country)) return false;
       if (filters.size.length && !filters.size.includes(sizeBand(h.amount))) return false;
-      if (filters.ai.length && !filters.ai.includes(aiLabel(h))) return false;
+      if (filters.ai.length && !filters.ai.includes(aiLabel(h, (r.ai || {}).ai_fit_signal))) return false;
       if (filters.close.length && !filters.close.includes(fyq(h.close_date).label)) return false;
       if (q && ![h.account_name, h.opp_name, h.owner_name, h.manager_name, h.stage].join(" ").toLowerCase().includes(q)) return false;
       return true;

@@ -75,7 +75,9 @@ export function sizeBand(a: any): string {
 }
 export function daysSince(d: any): number { if (!d) return 9999; return Math.round((TODAY.getTime() - new Date(d).getTime()) / 86400000); }
 
-export function aiTier(h: Hard): string | null {
+// `fit` = record.ai.ai_fit_signal — the analyst's AI-readiness read, used as a
+// fallback when the SF ais_* fields are blank (true for most of the stale cache).
+export function aiTier(h: Hard, fit?: any): string | null {
   const st = (h.ais_status || "").toLowerCase();
   if (/hungry/.test(st)) return "Hungry";
   if (/curious/.test(st)) return "Curious";
@@ -86,9 +88,13 @@ export function aiTier(h: Hard): string | null {
     if (n >= 4) return "Curious";
     return "Resistant";
   }
+  const ft = (fit && fit.tier ? String(fit.tier) : "").toLowerCase();
+  if (/hungry/.test(ft)) return "Hungry";
+  if (/curious/.test(ft)) return "Curious";
+  if (/resistant/.test(ft)) return "Resistant";
   return null;
 }
-export function aiLabel(h: Hard): string { const t = aiTier(h); return t ? "AI " + t : "Not scored"; }
+export function aiLabel(h: Hard, fit?: any): string { const t = aiTier(h, fit); return t ? "AI " + t : "Not scored"; }
 
 export function verdictTone(v: any): "v-on" | "v-risk" | "v-off" | "" {
   if (!v) return "";
