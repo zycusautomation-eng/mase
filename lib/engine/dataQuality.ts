@@ -3,7 +3,14 @@
 // / AIS fallback) so it surfaces the underlying data issues, not the app's
 // cosmetic corrections. Pure + deterministic; the page stamps "checked at".
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { keepRecord, STAGE_ORDER, type Rec } from "./helpers";
+import { keepRecord, STAGE_ORDER, dealComps, type Rec } from "./helpers";
+
+// "True insight" detection — a fact counts as KNOWN if it appears in the direct
+// SF field OR in related fields / opp name / the AI-synthesized sections (which
+// already fold in SF tasks + Avoma). So we don't false-flag a gap when the
+// information is captured elsewhere; we only flag when it's genuinely absent.
+const KNOWN_COMP = /coupa|ariba|\bsap\b|\bgep\b|ivalua|jaggaer|oracle|basware|sirion|medius|workday|docusign|scanmarket|pactum|proactis|synertrade|veenion|zip\b|amazon business|tradeshift/i;
+const PRODUCT_TOKENS = /\b(ANA|Agentic AI|AppXtend|Certinal|eInvoicing|eProcurement|iContract|iLogix|iManage|iRequest|iRisk|iSaaS|iSave|iSource|iSupplier|iCompliance|Lythouse|Merlin|Merlin Intake|ML iAnalyze|TMS|S2P|S2C|P2P|CLM|SRM)\b/i;
 
 export interface DQExample { acct: string; opp: string; detail?: string }
 export interface DQCheck { key: string; label: string; bad: number; total: number; examples: DQExample[] }
@@ -52,13 +59,26 @@ export function computeDataQuality(rawRecords: Rec[], triggerLogs: any[] = []): 
   const h = (r: Rec) => r.hard || {};
   const ai = (r: Rec) => r.ai || {};
 
-  const completeness = dim("completeness", "Completeness", [
-    check("ais", "AI Excitement score missing", recs, (r) => empty(h(r).ais_score) ? "no ais_score" : false),
+  const completeness = dim("completeness", "Completeness (true insight, any source)", [
+    check("ais", "AI Excitement not assessable (no score or AI signal anywhere)", recs, (r) => {
+      const hh = h(r), a = ai(r);
+      const known = !empty(hh.ais_score) || !empty(hh.ais_status) || !!(a.ai_fit_signal || {}).tier || !!(a.ai_positioning_strength || {}).summary;
+      return known ? false : "no AIS score or AI signal";
+    }),
     check("amount", "Amount missing or zero", recs, (r) => { const n = Number(h(r).amount); return (!h(r).amount || n === 0) ? "amount " + (h(r).amount ?? "—") : false; }),
     check("close", "Close date missing", recs, (r) => empty(h(r).close_date) ? "no close_date" : false),
     check("owner", "Owner missing", recs, (r) => empty(h(r).owner_name) ? "no owner" : false),
-    check("products", "Products not attached", recs, (r) => empty(h(r).products) ? "no products" : false),
-    check("competitor", "Competitor not logged", recs, (r) => (empty(h(r).competitor) && empty(h(r).primary_competitor)) ? "no competitor" : false),
+    check("products", "Product scope not identified anywhere", recs, (r) => {
+      const hh = h(r), a = ai(r);
+      if (!empty(hh.products)) return false;
+      const txt = [hh.opp_name, (a.competitive_position || {}).summary, ...items(a.recommended_moves).map((m: any) => m.action)].filter(Boolean).join(" ");
+      return PRODUCT_TOKENS.test(txt) ? false : "no product scope in field / opp name / analysis";
+    }),
+    check("competitor", "Competition not identified anywhere (field / Avoma / analysis)", recs, (r) => {
+      const a = ai(r), cp = a.competitive_position || {};
+      const known = dealComps(h(r)).length > 0 || items(cp).length > 0 || KNOWN_COMP.test(cp.summary || "");
+      return known ? false : "no competition intel";
+    }),
     check("stakeholders", "No stakeholders mapped", recs, (r) => items(ai(r).stakeholder_map).length === 0 ? "0 contacts" : false),
     check("qdate", "Qualified date missing", recs, (r) => empty(h(r).qualified_date) ? "no qualified_date" : false,
       (r) => !["Initial Interest", "Prospecting"].includes(h(r).stage)),
