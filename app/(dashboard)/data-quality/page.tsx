@@ -24,10 +24,15 @@ export default function DataQualityPage() {
   const run = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const r = await fetch("/api/deal-engine/opportunities", { cache: "no-store" });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j?.error || `Request failed (${r.status})`);
-      setRes(computeDataQuality(j.records || []));
+      const [oppR, tlR] = await Promise.all([
+        fetch("/api/deal-engine/opportunities", { cache: "no-store" }),
+        fetch("/api/deal-engine/trigger-logs", { cache: "no-store" }).catch(() => null),
+      ]);
+      const j = await oppR.json();
+      if (!oppR.ok) throw new Error(j?.error || `Request failed (${oppR.status})`);
+      let logs: any[] = [];
+      try { if (tlR && tlR.ok) { const t = await tlR.json(); logs = t.rows || (Array.isArray(t) ? t : []); } } catch {}
+      setRes(computeDataQuality(j.records || [], logs));
       setCheckedAt(new Date().toLocaleString());
     } catch (e: any) { setError(e?.message || String(e)); }
     setLoading(false);

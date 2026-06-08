@@ -39,7 +39,7 @@ function dim(key: string, label: string, checks: DQCheck[]): DQDimension {
   return { key, label, score, checks };
 }
 
-export function computeDataQuality(rawRecords: Rec[]): DQResult {
+export function computeDataQuality(rawRecords: Rec[], triggerLogs: any[] = []): DQResult {
   const t = today();
   // App scope: dedupe + drop BD/cross-sell/delivery owners. Keep RAW fields.
   const seen = new Set<string>();
@@ -96,7 +96,22 @@ export function computeDataQuality(rawRecords: Rec[]): DQResult {
     check("conf", "Analysis confidence Low or missing", recs, (r) => { const c = r.analysis_confidence; return (!c || /low/i.test(c)) ? (c || "none") : false; }),
   ]);
 
-  const dimensions = [completeness, freshness, consistency, meddpicc, avoma, analysis];
+  // Sweep triggers — when a Salesforce change fires a trigger, is the account
+  // freshly re-swept (SF + Avoma)? Lag = the record changed after its last sweep.
+  const trigErr = (triggerLogs || []).filter((l: any) => l && (l.error || (l.status && l.status !== "completed")));
+  const triggers = dim("triggers", "Sweep triggers", [
+    check("lag", "Account changed after its last sweep (not freshly re-swept)", recs, (r) => {
+      const sw = r.swept_at; const newest = [h(r).last_modified_date, h(r).last_activity_date].filter(Boolean).sort().pop();
+      return (sw && newest && newest > sw) ? `changed ${newest} > swept ${sw}` : false;
+    }, (r) => !!r.swept_at && (!!h(r).last_modified_date || !!h(r).last_activity_date)),
+    check("nosweep", "Record never swept (no timestamp)", recs, (r) => !r.swept_at ? "no swept_at" : false),
+    ...(triggerLogs && triggerLogs.length ? [{
+      key: "trigerr", label: "Logged trigger re-sweeps that failed", bad: trigErr.length, total: triggerLogs.length,
+      examples: trigErr.slice(0, 5).map((l: any) => ({ acct: l.account_name || "—", opp: l.opp_name || l.opp_id, detail: l.error || l.status })),
+    } as DQCheck] : []),
+  ]);
+
+  const dimensions = [completeness, freshness, consistency, meddpicc, avoma, analysis, triggers];
   const overall = Math.round(dimensions.reduce((s, d) => s + d.score, 0) / dimensions.length);
   return { total: recs.length, overall, dimensions, today: t };
 }
