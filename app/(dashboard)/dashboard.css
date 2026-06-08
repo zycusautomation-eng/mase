@@ -20,6 +20,10 @@
   .brandmark-img{height:80px;width:auto;display:block}
   header .sub{color:var(--muted);font-size:12.5px}
   .spacer{flex:1}
+  .authbtn{display:flex;align-items:center;gap:10px;margin-left:6px}
+  .authbtn-user{color:var(--ink2);font-size:12.5px;font-weight:600;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .authbtn-out{background:var(--surface2);border:1px solid var(--line);color:var(--ink2);border-radius:9px;padding:7px 13px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;transition:border .14s,color .14s}
+  .authbtn-out:hover{color:var(--ink);border-color:var(--accent)}
   input#filter{background:var(--surface);border:1px solid var(--line);color:var(--ink);padding:8px 12px;border-radius:10px;width:280px;outline:none;box-shadow:var(--shadow-sm);transition:border .15s,box-shadow .15s}
   input#filter:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
   input#filter::placeholder{color:var(--muted)}

@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import "./dashboard.css";
 import { DashboardProvider, useDashboard } from "@/lib/engine/DashboardContext";
 import ScopeFilterBar from "@/components/ScopeFilterBar";
+import AuthButton from "@/components/AuthButton";
 
 const TABS = [
   { href: "/deals", label: "Deals" },
@@ -46,6 +47,7 @@ function Header() {
         onChange={(e) => setQuery(e.target.value)}
         style={{ visibility: onDeals ? "visible" : "hidden" }}
       />
+      <AuthButton />
     </header>
   );
 }
