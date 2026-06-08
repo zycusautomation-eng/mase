@@ -1,19 +1,20 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 // Fetches the WHOLE deal-engine to-do book once (GET /api/deal-engine/todo with
-// NO owner param -> owner:"all") and builds a lookup index so the client-built
-// Espresso to-dos can be matched back to the server's authoritative records
-// (which carry todo_key / pushed / sf_task_id).
+// NO owner param -> owner:"all") and renders the Espresso tab DIRECTLY from the
+// server's authoritative records. Each item carries todo_key / pushed /
+// sf_task_id straight off the wire — NO client-side re-derivation, NO key
+// matching. This is what makes "push to Salesforce" work: todo_key and opp_id
+// are sent back verbatim.
 //
-// The backend response is a dict grouped by category. Each category's items use a
-// different display field for the human text, but the text equals what MASE
-// renders (same AI source), so we index by ${opp_id}|${category}|${normText}.
+// The backend response is a dict grouped by category. The 5 array names ARE the
+// category values; each category has its own primary text field.
 
 const TODO_ENDPOINT = "/api/deal-engine/todo";
 
 // category -> the field on the backend item that holds the display text.
-const CATEGORY_TEXT_FIELD: Record<string, string> = {
+export const CATEGORY_TEXT_FIELD: Record<BackendCategory, string> = {
   critical: "action",
   important: "commitment",
   explicitRequirements: "requirement",
@@ -21,13 +22,34 @@ const CATEGORY_TEXT_FIELD: Record<string, string> = {
   bestPractice: "flag",
 };
 
-export interface BackendTodo {
-  todo_key?: string;
+// Render order for the 5 buckets within a deal block.
+export const CATEGORY_ORDER: BackendCategory[] = [
+  "critical",
+  "important",
+  "explicitRequirements",
+  "implicit",
+  "bestPractice",
+];
+
+export type BackendCategory =
+  | "critical"
+  | "important"
+  | "explicitRequirements"
+  | "implicit"
+  | "bestPractice";
+
+// Raw backend item. Carries the identity fields + the category's primary text
+// field + per-category context. We keep it permissive with an index signature so
+// context fields (intervention_owner, who, due, said_by, date, …) are reachable.
+export interface BackendTodoRaw {
   opp_id?: string;
-  category?: string;
+  account_name?: string;
+  opp_name?: string;
+  owner_name?: string;
+  todo_key?: string;
   pushed?: boolean;
   sf_task_id?: string;
-  // display fields (one of these holds the text, per category)
+  // display fields (one per category)
   action?: string;
   commitment?: string;
   requirement?: string;
@@ -36,59 +58,108 @@ export interface BackendTodo {
   [k: string]: unknown;
 }
 
-export type BackendTodoIndex = Map<string, BackendTodo>;
-
-function indexKey(oppId: string, category: string, text: string): string {
-  return `${oppId}|${category}|${text.trim()}`;
+// An item after annotation: original fields + the array name (category) + the
+// resolved display text + the todo_key surfaced as `todoKey`.
+export interface BackendTodoItem extends BackendTodoRaw {
+  category: BackendCategory;
+  text: string;
+  todoKey: string;
 }
 
-// Re-export so callers (Espresso) compute the same key without duplicating logic.
-export function backendKey(oppId: string, category: string, text: string): string {
-  return indexKey(oppId, category, text);
-}
-
-function buildIndex(data: unknown): BackendTodoIndex {
-  const idx: BackendTodoIndex = new Map();
-  if (!data || typeof data !== "object") return idx;
+function annotate(data: unknown): {
+  arrays: Record<BackendCategory, BackendTodoItem[]>;
+  flat: BackendTodoItem[];
+  owner: string | null;
+} {
+  const arrays: Record<BackendCategory, BackendTodoItem[]> = {
+    critical: [],
+    important: [],
+    explicitRequirements: [],
+    implicit: [],
+    bestPractice: [],
+  };
+  const flat: BackendTodoItem[] = [];
+  let owner: string | null = null;
+  if (!data || typeof data !== "object") return { arrays, flat, owner };
   const book = data as Record<string, unknown>;
-  for (const [category, field] of Object.entries(CATEGORY_TEXT_FIELD)) {
+  if (typeof book.owner === "string") owner = book.owner;
+  for (const category of CATEGORY_ORDER) {
+    const field = CATEGORY_TEXT_FIELD[category];
     const items = book[category];
     if (!Array.isArray(items)) continue;
     for (const raw of items) {
       if (!raw || typeof raw !== "object") continue;
-      const item = raw as BackendTodo;
-      const oppId = item.opp_id;
-      const text = item[field];
-      if (typeof oppId !== "string" || typeof text !== "string" || !text.trim()) continue;
-      idx.set(indexKey(oppId, category, text), { ...item, category });
+      const item = raw as BackendTodoRaw;
+      const textVal = item[field];
+      const text = typeof textVal === "string" ? textVal : "";
+      const todoKey = typeof item.todo_key === "string" ? item.todo_key : "";
+      const annotated: BackendTodoItem = { ...item, category, text, todoKey };
+      arrays[category].push(annotated);
+      flat.push(annotated);
     }
   }
-  return idx;
+  return { arrays, flat, owner };
 }
 
 export function useBackendTodos() {
-  const [index, setIndex] = useState<BackendTodoIndex>(() => new Map());
-  const [ready, setReady] = useState(false);
+  const [arrays, setArrays] = useState<Record<BackendCategory, BackendTodoItem[]>>(() => ({
+    critical: [],
+    important: [],
+    explicitRequirements: [],
+    implicit: [],
+    bestPractice: [],
+  }));
+  const [flat, setFlat] = useState<BackendTodoItem[]>([]);
+  const [owner, setOwner] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Per-todo_key optimistic override for pushed state. A successful push flips
+  // the row green without waiting for a refetch.
+  const [pushedOverride, setPushedOverride] = useState<Record<string, { pushed: true; sf_task_id?: string }>>({});
 
   const reload = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
       const res = await fetch(TODO_ENDPOINT, { cache: "no-store" });
       let body: unknown = null;
       try { body = await res.json(); } catch { /* non-JSON / empty */ }
       if (res.ok) {
-        setIndex(buildIndex(body));
+        const { arrays, flat, owner } = annotate(body);
+        setArrays(arrays);
+        setFlat(flat);
+        setOwner(owner);
       } else {
-        setIndex(new Map());
+        setError(`Request failed (${res.status})`);
       }
-    } catch {
-      // backend not deployed / network failure — empty index, never crash.
-      setIndex(new Map());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
-      setReady(true);
+      setLoading(false);
     }
   }, []);
 
   useEffect(() => { reload(); }, [reload]);
 
-  return { index, ready, reload };
+  const markPushed = useCallback((todoKey: string, sfTaskId?: string) => {
+    if (!todoKey) return;
+    setPushedOverride((prev) => ({ ...prev, [todoKey]: { pushed: true, sf_task_id: sfTaskId } }));
+  }, []);
+
+  // Helpers reading the effective pushed state (server `pushed` OR optimistic
+  // override) for a given item.
+  const isPushed = useCallback(
+    (item: BackendTodoItem): boolean => item.pushed === true || pushedOverride[item.todoKey]?.pushed === true,
+    [pushedOverride],
+  );
+  const sfTaskIdFor = useCallback(
+    (item: BackendTodoItem): string | undefined => pushedOverride[item.todoKey]?.sf_task_id || item.sf_task_id,
+    [pushedOverride],
+  );
+
+  return useMemo(
+    () => ({ arrays, flat, owner, loading, error, reload, markPushed, isPushed, sfTaskIdFor, pushedOverride }),
+    [arrays, flat, owner, loading, error, reload, markPushed, isPushed, sfTaskIdFor, pushedOverride],
+  );
 }

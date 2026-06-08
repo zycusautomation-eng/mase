@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import type { BackendTodo } from "@/lib/engine/useBackendTodos";
+import type { BackendTodoItem } from "@/lib/engine/useBackendTodos";
 
 // Tracks which to-dos have been pushed to Salesforce via POST /todo/push.
 // Server-side `pushed` is the source of truth (see useBackendTodos); this hook
@@ -17,7 +17,7 @@ export type SyncStatus = "idle" | "syncing" | "synced" | "error";
 
 // The body we POST: the full backend to-do object (carries todo_key, opp_id,
 // category, display field + context) plus who clicked.
-export type PushPayload = BackendTodo & { pushed_by?: string };
+export type PushPayload = BackendTodoItem & { pushed_by?: string };
 
 function load(): Set<string> {
   if (typeof window === "undefined") return new Set();
@@ -47,9 +47,11 @@ export function useTodoSync() {
     });
   }, []);
 
-  // `id` is the MASE client slug (used only to track UI state); `payload` is the
-  // backend object + pushed_by that actually goes to Salesforce.
-  const sync = useCallback(async (id: string, payload: PushPayload) => {
+  // `id` is the UI key (the item's todo_key, used to track per-row UI state);
+  // `payload` is the backend object + pushed_by that actually goes to Salesforce.
+  // Returns { ok, sf_task_id } so the caller can flip the optimistic pushed
+  // override on success (already_pushed:true is treated as success too).
+  const sync = useCallback(async (id: string, payload: PushPayload): Promise<{ ok: boolean; sf_task_id?: string }> => {
     setStatus((s) => ({ ...s, [id]: "syncing" }));
     try {
       const res = await fetch(PUSH_ENDPOINT, {
@@ -65,18 +67,21 @@ export function useTodoSync() {
       // the box tickable. 400/404 = backend pending / bad request. Both -> error.
       if (!res.ok || b.ok !== true) {
         setStatus((s) => ({ ...s, [id]: "error" }));
-        return;
+        return { ok: false };
       }
 
       // Success (idempotent — already_pushed:true returns ok:true with same task).
-      if (typeof b.sf_task_id === "string") {
-        setSfTaskIds((m) => ({ ...m, [id]: b.sf_task_id as string }));
+      const sfTaskId = typeof b.sf_task_id === "string" ? (b.sf_task_id as string) : undefined;
+      if (sfTaskId) {
+        setSfTaskIds((m) => ({ ...m, [id]: sfTaskId }));
       }
       markSynced(id);
       setStatus((s) => ({ ...s, [id]: "synced" }));
+      return { ok: true, sf_task_id: sfTaskId };
     } catch {
       // network failure / endpoint not built yet (404 etc.) — never crash.
       setStatus((s) => ({ ...s, [id]: "error" }));
+      return { ok: false };
     }
   }, [markSynced]);
 

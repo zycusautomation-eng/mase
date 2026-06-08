@@ -1,23 +1,46 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useDashboard } from "@/lib/engine/DashboardContext";
-import { TIERS, fmtAmount, ownerKind, buildDealTodos, OWNER_VP, type Rec } from "@/lib/engine/helpers";
+import { TIERS, fmtAmount, ownerKind, dealTier, OWNER_VP, type Rec } from "@/lib/engine/helpers";
 import { useTodoDone } from "@/lib/engine/useTodoDone";
 import { useTodoSync, type SyncStatus } from "@/lib/engine/useTodoSync";
-import { useBackendTodos, backendKey, type BackendTodo } from "@/lib/engine/useBackendTodos";
+import {
+  useBackendTodos,
+  CATEGORY_ORDER,
+  type BackendCategory,
+  type BackendTodoItem,
+} from "@/lib/engine/useBackendTodos";
 
-// MASE group key -> backend category. The backend item's display field is keyed
-// off the category (see useBackendTodos), so we only need the category here.
-const GROUP_CATEGORY: Record<string, string> = {
-  moves: "critical",
-  explicit: "explicitRequirements",
-  implicit: "implicit",
-  bestpractice: "bestPractice",
+// Per-category label + tone (reusing the existing .todo-grp tone classes).
+const CATEGORY_META: Record<BackendCategory, { label: string; tone: string }> = {
+  critical: { label: "Critical / next moves", tone: "moves" },
+  important: { label: "Commitments", tone: "impt" },
+  explicitRequirements: { label: "Open requirements", tone: "impt" },
+  implicit: { label: "Implicit / promised", tone: "impl" },
+  bestPractice: { label: "Best practice", tone: "bpr" },
 };
 
+// First 15 chars of a SF id — opp_ids come in 15- and 18-char forms; compare on
+// the shared prefix so scope matching and opp-record lookup are robust.
+const sfKey = (id: any): string => String(id || "").slice(0, 15);
+
+type TodoSync = ReturnType<typeof useTodoSync>;
+type Backend = ReturnType<typeof useBackendTodos>;
+
+interface DealBlockData {
+  oid: string;
+  rec: Rec | undefined;
+  h: any;
+  accountName: string;
+  oppName: string;
+  ownerName: string;
+  tierKey: string;
+  buckets: { category: BackendCategory; items: BackendTodoItem[] }[];
+}
+
 export default function EspressoPage() {
-  const { records, vps, rsds, playbook, filtered } = useDashboard();
+  const { records, vps, rsds, filtered } = useDashboard();
   const { done, toggle } = useTodoDone();
   const sync = useTodoSync();
   const backend = useBackendTodos();
@@ -28,32 +51,88 @@ export default function EspressoPage() {
     : vps.length ? vps.join(" & ")
     : "all VPs";
 
-  // Build tiers -> deals -> items via the SHARED buildDealTodos, so these to-dos
-  // are byte-for-byte the same as what the deal drawer shows for each deal.
-  const tiers = useMemo(() => {
-    return TIERS.map((tier) => {
-      const deals = filtered
-        .filter((r: Rec) => tier.match(r.hard || {}))
-        .sort((a, b) => (Number((b.hard || {}).amount) || 0) - (Number((a.hard || {}).amount) || 0));
-      if (!deals.length) return null;
-      const blocks = deals.map((r: Rec) => {
-        const todos = buildDealTodos(r, records, playbook);
-        if (!todos) return null;
-        const h = r.hard || {};
-        return { oid: h.opp_id, dn: h.account_name || h.opp_name || h.opp_id, h, groups: todos.groups, dc: todos.dc, plays: todos.plays };
-      }).filter(Boolean) as any[];
-      if (!blocks.length) return null;
-      const totalVal = deals.reduce((s, r) => s + (Number((r.hard || {}).amount) || 0), 0);
-      return { tier, deals, blocks, totalVal };
-    }).filter(Boolean) as any[];
-  }, [filtered, records, playbook]);
+  // Opp-record lookup by 15-char opp_id prefix (for header fields + tier).
+  const recByKey = useMemo(() => {
+    const m = new Map<string, Rec>();
+    for (const r of records) m.set(sfKey(r.opp_id), r);
+    return m;
+  }, [records]);
 
+  // Scope set: only deals whose opp is in `filtered` (VP/RSD/filter-scoped),
+  // matched by 15-char opp_id prefix.
+  const scopeKeys = useMemo(() => {
+    const s = new Set<string>();
+    for (const r of filtered) s.add(sfKey(r.opp_id));
+    return s;
+  }, [filtered]);
+
+  // Group all backend to-do items by opp_id into deal blocks, assign each deal a
+  // forecast tier from its opp record, and drop deals out of scope or with no
+  // matching tier (consistent with today — no "Other" bucket).
+  const tiers = useMemo(() => {
+    // opp_id (15-char key) -> per-category items
+    const byOpp = new Map<string, { oid: string; cats: Record<BackendCategory, BackendTodoItem[]> }>();
+    for (const item of backend.flat) {
+      const key = sfKey(item.opp_id);
+      if (!key) continue;
+      if (!scopeKeys.has(key)) continue; // respect VP/RSD/filter scope
+      let entry = byOpp.get(key);
+      if (!entry) {
+        entry = {
+          oid: String(item.opp_id || ""),
+          cats: { critical: [], important: [], explicitRequirements: [], implicit: [], bestPractice: [] },
+        };
+        byOpp.set(key, entry);
+      }
+      entry.cats[item.category].push(item);
+    }
+
+    // Build deal blocks, tag each with its tier (dropping ones with no tier).
+    const blocks: DealBlockData[] = [];
+    for (const [key, entry] of byOpp) {
+      const rec = recByKey.get(key);
+      const h = rec?.hard || {};
+      const tier = rec ? dealTier(h) : null;
+      if (!tier) continue; // no matching opp record OR not in a forecast tier -> drop
+      const first = entry.cats.critical[0] || entry.cats.important[0]
+        || entry.cats.explicitRequirements[0] || entry.cats.implicit[0] || entry.cats.bestPractice[0];
+      const buckets = CATEGORY_ORDER
+        .map((category) => ({ category, items: entry.cats[category] }))
+        .filter((b) => b.items.length > 0);
+      blocks.push({
+        oid: entry.oid,
+        rec,
+        h,
+        accountName: h.account_name || first?.account_name || h.opp_name || entry.oid,
+        oppName: h.opp_name || first?.opp_name || "",
+        ownerName: h.owner_name || first?.owner_name || "",
+        tierKey: tier.key,
+        buckets,
+      });
+    }
+
+    // Group blocks by tier in TIERS order; sort each tier by amount desc.
+    return TIERS.map((tier) => {
+      const tierBlocks = blocks
+        .filter((b) => b.tierKey === tier.key)
+        .sort((a, b) => (Number(b.h.amount) || 0) - (Number(a.h.amount) || 0));
+      if (!tierBlocks.length) return null;
+      return { tier, blocks: tierBlocks };
+    }).filter(Boolean) as { tier: (typeof TIERS)[number]; blocks: DealBlockData[] }[];
+  }, [backend.flat, scopeKeys, recByKey]);
+
+  // done/total across every row, keyed by todo_key. Pushed rows count as done.
   const { total, doneCount } = useMemo(() => {
     let t = 0, d = 0;
-    for (const tg of tiers) for (const b of tg.blocks) for (const g of b.groups) for (const it of g.items) { t++; if (done.has(it.id)) d++; }
+    for (const tg of tiers) for (const b of tg.blocks) for (const bk of b.buckets) for (const it of bk.items) {
+      t++;
+      if (backend.isPushed(it) || done.has(it.todoKey)) d++;
+    }
     return { total: t, doneCount: d };
-  }, [tiers, done]);
+  }, [tiers, done, backend]);
 
+  if (backend.loading && !backend.flat.length) return <div className="empty-s">Loading to-dos…</div>;
+  if (backend.error && !backend.flat.length) return <div className="empty-s">Couldn&apos;t load to-dos. {backend.error}</div>;
   if (!records.length) return <div className="empty-s">No swept records yet.</div>;
 
   const tabKeys = tiers.map((t) => t.tier.key);
@@ -80,7 +159,7 @@ export default function EspressoPage() {
                   className={`tab ${active === tg.tier.key ? "active" : ""}`}
                   onClick={() => setActiveTier(tg.tier.key)}
                 >
-                  {shortLabel(tg.tier.label)} <span className="tcount">{tg.deals.length}</span>
+                  {shortLabel(tg.tier.label)} <span className="tcount">{tg.blocks.length}</span>
                 </button>
               ))}
             </div>
@@ -88,8 +167,8 @@ export default function EspressoPage() {
 
           {shown ? (
             <div className={`tier ${shown.tier.key}`}>
-              {shown.blocks.map((b: any, i: number) => (
-                <DealBlock key={`${b.oid}-${i}`} b={b} done={done} toggle={toggle} sync={sync} index={backend.index} showVp={vps.length !== 1} />
+              {shown.blocks.map((b, i) => (
+                <DealBlock key={`${b.oid}-${i}`} b={b} done={done} toggle={toggle} sync={sync} backend={backend} showVp={vps.length !== 1} />
               ))}
             </div>
           ) : null}
@@ -99,46 +178,30 @@ export default function EspressoPage() {
   );
 }
 
-type TodoSync = ReturnType<typeof useTodoSync>;
-type BackendIndex = ReturnType<typeof useBackendTodos>["index"];
-
-function DealBlock({ b, done, toggle, sync, index, showVp }: { b: any; done: Set<string>; toggle: (id: string) => void; sync: TodoSync; index: BackendIndex; showVp: boolean }) {
+function DealBlock({ b, done, toggle, sync, backend, showVp }: { b: DealBlockData; done: Set<string>; toggle: (id: string) => void; sync: TodoSync; backend: Backend; showVp: boolean }) {
   const { h } = b;
-  const vpMeta = showVp && OWNER_VP[h.owner_name] ? ` (${OWNER_VP[h.owner_name]})` : "";
-  const closeMeta = h.close_date
-    ? <> · close {h.close_date}{b.dc != null ? (b.dc < 0 ? <> · <span className="od">past close</span></> : ` · ${b.dc}d`) : ""}</>
-    : "";
+  const vpMeta = showVp && OWNER_VP[b.ownerName] ? ` (${OWNER_VP[b.ownerName]})` : "";
   return (
     <div className="deal-blk">
-      <div className="deal-h"><span className="nm">{h.account_name || h.opp_name || h.opp_id}</span><span className="amt">{fmtAmount(h.amount)}</span></div>
-      <div className="deal-sub">{h.opp_name || ""} · {h.owner_name || ""}{vpMeta} · {h.stage || ""}{closeMeta}</div>
-      {b.groups.map((g: any) => {
-        const category = GROUP_CATEGORY[g.key];
+      <div className="deal-h"><span className="nm">{b.accountName}</span><span className="amt">{fmtAmount(h.amount)}</span></div>
+      <div className="deal-sub">{b.oppName} · {b.ownerName}{vpMeta} · {h.stage || ""}{h.close_date ? ` · close ${h.close_date}` : ""}{h.forecast_category ? ` · ${h.forecast_category}` : ""}</div>
+      {b.buckets.map((bk) => {
+        const meta = CATEGORY_META[bk.category];
         return (
-          <div key={g.key}>
-            <div className={`todo-grp ${g.tone}`}>{g.label} <span className="c">{g.items.length}</span></div>
+          <div key={bk.category}>
+            <div className={`todo-grp ${meta.tone}`}>{meta.label} <span className="c">{bk.items.length}</span></div>
             <ul className="todo-list">
-              {g.items.map((it: any, idx: number) => {
-                // Bridge the client-built to-do back to the server's record by
-                // (opp_id, category, normalised text). May be undefined if the
-                // backend hasn't published this item (or isn't deployed yet).
-                const match: BackendTodo | undefined = category
-                  ? index.get(backendKey(b.oid, category, it.text))
-                  : undefined;
-                const serverPushed = match?.pushed === true;
-                const isDone = serverPushed || done.has(it.id);
+              {bk.items.map((it, idx) => {
+                const serverPushed = backend.isPushed(it);
+                const isDone = serverPushed || done.has(it.todoKey);
                 return (
-                  <li className={`todo-item ${isDone ? "done" : ""}`} key={`${it.id}-${idx}`}>
-                    <input type="checkbox" checked={isDone} disabled={serverPushed} onChange={() => toggle(it.id)} />
+                  <li className={`todo-item ${isDone ? "done" : ""}`} key={`${it.todoKey || it.text}-${idx}`}>
+                    <input type="checkbox" checked={isDone} disabled={serverPushed} onChange={() => toggle(it.todoKey)} />
                     <div className="td-body">
                       <div className="td-txt">{it.text}</div>
-                      <div className="td-meta">
-                        {it.owner ? <span className={`ownerchip ${ownerKind(it.owner) === "VP" ? "vp" : ""}`}>{it.owner}</span> : null}
-                        {it.meta ? <span className="ownerchip">{it.meta}</span> : null}
-                        {it.due ? <span className={`duechip ${it.due.cls}`}>{it.due.txt}</span> : null}
-                      </div>
+                      <ContextMeta it={it} />
                     </div>
-                    <SfButton oid={b.oid} it={it} enabled={done.has(it.id)} sync={sync} match={match} ownerName={h.owner_name} serverPushed={serverPushed} />
+                    <SfButton it={it} ownerName={b.ownerName} enabled={done.has(it.todoKey)} sync={sync} backend={backend} serverPushed={serverPushed} />
                   </li>
                 );
               })}
@@ -150,18 +213,41 @@ function DealBlock({ b, done, toggle, sync, index, showVp }: { b: any; done: Set
   );
 }
 
-function SfButton({ oid, it, enabled, sync, match, ownerName, serverPushed }: { oid: string; it: any; enabled: boolean; sync: TodoSync; match: BackendTodo | undefined; ownerName?: string; serverPushed: boolean }) {
+// Small context chips per category. Owner-ish fields render as ownerchip; date-ish
+// fields render as duechip; said_by renders as "asked by X".
+function ContextMeta({ it }: { it: BackendTodoItem }) {
+  const owner = (it.intervention_owner || it.who) as string | undefined;
+  const due = (it.due || it.act_by || it.trigger_date || it.date) as string | undefined;
+  const askedBy = it.said_by as string | undefined;
+  const trigger = it.trigger as string | undefined;
+  const urgency = it.urgency as string | undefined;
+  const status = it.status as string | undefined;
+  const hasAny = owner || due || askedBy || trigger || urgency || status;
+  if (!hasAny) return null;
+  return (
+    <div className="td-meta">
+      {owner ? <span className={`ownerchip ${ownerKind(owner) === "VP" ? "vp" : ""}`}>{owner}</span> : null}
+      {askedBy ? <span className="ownerchip">asked by {askedBy}</span> : null}
+      {due ? <span className="duechip">{due}</span> : null}
+      {trigger ? <span className="ownerchip">{trigger}</span> : null}
+      {urgency ? <span className="ownerchip">{urgency}</span> : null}
+      {status ? <span className="ownerchip">{status}</span> : null}
+    </div>
+  );
+}
+
+function SfButton({ it, ownerName, enabled, sync, backend, serverPushed }: { it: BackendTodoItem; ownerName?: string; enabled: boolean; sync: TodoSync; backend: Backend; serverPushed: boolean }) {
   const [confirming, setConfirming] = useState(false);
-  // Server pushed state takes precedence over local/optimistic tracking.
-  const isSynced = serverPushed || sync.synced.has(it.id);
-  const st: SyncStatus = isSynced ? "synced" : (sync.status[it.id] || "idle");
+  const id = it.todoKey; // UI state keyed by todo_key
+  const isSynced = serverPushed || sync.synced.has(id);
+  const st: SyncStatus = isSynced ? "synced" : (sync.status[id] || "idle");
   const syncing = st === "syncing";
   const error = st === "error";
-  const sfTaskId = match?.sf_task_id || sync.sfTaskIds[it.id];
+  const sfTaskId = backend.sfTaskIdFor(it) || sync.sfTaskIds[id];
 
   // Two-step gate: disabled until the checkbox is ticked. Once synced/syncing it
-  // stays disabled too (no re-push). On 502 error the box stays tickable so the
-  // user can retry.
+  // stays disabled (no re-push). On error the box stays tickable so the user can
+  // retry.
   const disabled = !enabled || syncing || isSynced;
 
   const title = syncing ? "Pushing to Salesforce…"
@@ -171,16 +257,12 @@ function SfButton({ oid, it, enabled, sync, match, ownerName, serverPushed }: { 
     : !enabled ? "Tick the box first"
     : "Mark complete in Salesforce";
 
-  const doPush = () => {
-    // Build the body from the matched backend object so it carries todo_key,
-    // opp_id, category and the display field/context. If there's no match yet
-    // (backend not deployed), still POST a best-effort body — the backend will
-    // 400 and we handle it gracefully.
-    const payload = {
-      ...(match || { opp_id: oid, category: undefined, action: it.text }),
-      pushed_by: ownerName,
-    };
-    sync.sync(it.id, payload as any);
+  const doPush = async () => {
+    // Body = the full backend item (carries todo_key + opp_id VERBATIM) + the
+    // category + who clicked. No recomputation, no opp_id reformatting.
+    const payload = { ...it, category: it.category, pushed_by: ownerName };
+    const result = await sync.sync(id, payload);
+    if (result.ok) backend.markPushed(it.todoKey, result.sf_task_id);
   };
 
   const onClick = () => {
