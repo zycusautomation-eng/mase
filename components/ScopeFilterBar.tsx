@@ -12,7 +12,16 @@ const SIZE_OPTS: Opt[] = [
 const AI_OPTS: Opt[] = ["AI Hungry", "AI Curious", "AI Resistant"].map((v) => ({ value: v, label: v }));
 
 export default function ScopeFilterBar() {
-  const { records, vps, rsds, setVps, setRsds, scoped, filters, setFilter, clearFilters, filtered } = useDashboard();
+  const { records, vps, rsds, setVps, setRsds, scoped, filters, setFilter, clearFilters, filtered, locked, blocked, scopeName } = useDashboard();
+
+  // Blocked users (not a known rep/VP/admin) get no deals and no filters.
+  if (blocked) {
+    return (
+      <div className="filterbar" id="dealfilters">
+        <span className="scopelock">No deals are assigned to your account. Contact your admin for access.</span>
+      </div>
+    );
+  }
 
   const vpOpts: Opt[] = vpsList(records).map((v) => ({ value: v, label: v }));
   const ownerOpts: Opt[] = teamOwners(records, vps).map((o) => ({ value: o, label: o }));
@@ -28,9 +37,17 @@ export default function ScopeFilterBar() {
 
   return (
     <div className="filterbar" id="dealfilters">
-      {/* scope */}
-      <MultiSelect allLabel="All VPs" options={vpOpts} selected={vps} onChange={setVps} />
-      <MultiSelect allLabel={vps.length ? "All in selected teams" : "All RSDs"} options={ownerOpts} selected={rsds} onChange={setRsds} />
+      {/* scope — locked to the logged-in user, or free pickers for admins */}
+      {locked ? (
+        <span className="scopelock" title="Your view is scoped to your account">
+          Viewing: <b>{scopeName}</b>
+        </span>
+      ) : (
+        <>
+          <MultiSelect allLabel="All VPs" options={vpOpts} selected={vps} onChange={setVps} />
+          <MultiSelect allLabel={vps.length ? "All in selected teams" : "All RSDs"} options={ownerOpts} selected={rsds} onChange={setRsds} />
+        </>
+      )}
 
       <span className="fdivider" />
 

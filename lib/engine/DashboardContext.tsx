@@ -1,7 +1,8 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
-import { aiLabel, applyStageFix, fyq, inScope, keepRecord, sizeBand, type Rec } from "./helpers";
+import { aiLabel, applyStageFix, fyq, inScope, keepRecord, resolveAccess, sizeBand, type Rec } from "./helpers";
+import { createClient } from "@/lib/supabase/client";
 
 // Each filter is a multi-select: an empty array means "all".
 export interface DealFilters {
@@ -31,6 +32,12 @@ interface DashboardState {
   scoped: Rec[];
   // records narrowed by scope + dropdown filters (+ search, applied in Deals)
   filtered: Rec[];
+  // scope is fixed to the logged-in user (non-admin) — hide the VP/RSD pickers
+  locked: boolean;
+  // logged-in user isn't a known rep/VP/admin — show no deals
+  blocked: boolean;
+  // display name the scope is locked to (e.g. "Alexa Bradley"), null if admin/blocked
+  scopeName: string | null;
 }
 
 const Ctx = createContext<DashboardState | null>(null);
@@ -51,6 +58,9 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [rsds, setRsds] = useState<string[]>([]);
   const [filters, setFilters] = useState<DealFilters>(EMPTY_FILTERS);
   const [query, setQuery] = useState("");
+  const [locked, setLocked] = useState(false);
+  const [blocked, setBlocked] = useState(false);
+  const [scopeName, setScopeName] = useState<string | null>(null);
 
   useEffect(() => {
     let off = false;
@@ -85,12 +95,42 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     return () => { off = true; };
   }, []);
 
+  // Lock the scope to the logged-in user. Admins stay unlocked (whole book); a
+  // VP is locked to their team, an RSD to their own deals, and anyone unknown is
+  // blocked (sees nothing). Runs once on mount.
+  useEffect(() => {
+    let off = false;
+    (async () => {
+      try {
+        const { data } = await createClient().auth.getUser();
+        const access = resolveAccess(data.user?.email);
+        if (off) return;
+        if (access.kind === "scoped") {
+          setVpsRaw(access.vps);
+          setRsds(access.rsds);
+          setScopeName(access.name);
+          setLocked(true);
+        } else if (access.kind === "blocked") {
+          setBlocked(true);
+          setLocked(true);
+        }
+        // admin: leave everything open.
+      } catch {
+        // No session / Supabase unavailable — leave the book unscoped.
+      }
+    })();
+    return () => { off = true; };
+  }, []);
+
   // Changing the VP selection resets the RSD picker (its owner list changes).
   const setVps = useCallback((v: string[]) => { setVpsRaw(v); setRsds([]); }, []);
   const setFilter = useCallback((k: keyof DealFilters, v: string[]) => setFilters((f) => ({ ...f, [k]: v })), []);
   const clearFilters = useCallback(() => setFilters(EMPTY_FILTERS), []);
 
-  const scoped = useMemo(() => records.filter((r) => inScope(r, vps, rsds)), [records, vps, rsds]);
+  const scoped = useMemo(
+    () => (blocked ? [] : records.filter((r) => inScope(r, vps, rsds))),
+    [records, vps, rsds, blocked]
+  );
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
@@ -111,6 +151,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     vps, rsds, filters, query,
     setVps, setRsds, setFilter, clearFilters, setQuery,
     scoped, filtered,
+    locked, blocked, scopeName,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
