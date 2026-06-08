@@ -11,6 +11,7 @@ const TABS = [
   { href: "/espresso", label: "Espresso" },
   { href: "/matcha", label: "Matcha" },
   { href: "/chat", label: "Chat" },
+  { href: "/data-quality", label: "Data Quality" },
 ];
 
 function Header() {
@@ -53,7 +54,7 @@ function Shell({ children }: { children: React.ReactNode }) {
   const { loading, error } = useDashboard();
   const pathname = usePathname();
   // The scope + filters don't apply to Chat (the strategist reads the whole book).
-  const showScope = !pathname.startsWith("/chat");
+  const showScope = !pathname.startsWith("/chat") && !pathname.startsWith("/data-quality");
   // On Espresso the filter bar + forecast ribbon are pinned while scrolling the
   // (long) to-do list. Header height varies with width, so measure it live and
   // expose --hdr-h / --fb-h for the sticky offsets.
