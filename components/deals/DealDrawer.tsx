@@ -1,10 +1,13 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import {
-  buildDealTodos, dealMeddpicc, cleanText, fmtAmount, verdictTone, daysSince, ownerKind,
+  dealMeddpicc, cleanText, fmtAmount, verdictTone, daysSince, dealTier,
   dealComps, type Rec, type MeddItem,
 } from "@/lib/engine/helpers";
 import { useTodoDone } from "@/lib/engine/useTodoDone";
+import { useTodoSync } from "@/lib/engine/useTodoSync";
+import { useBackendTodos } from "@/lib/engine/useBackendTodos";
+import { DealTodoBuckets, bucketsForOpp } from "@/components/deals/DealTodos";
 
 // Trim prose to ~n chars on a sentence/word boundary — keeps every block "two cents".
 function trim(s: any, n = 220): string {
@@ -48,12 +51,18 @@ export default function DealDrawer({
   record, records, playbook, onClose,
 }: { record: Rec | null; records: Rec[]; playbook: any; onClose: () => void }) {
   const { done, toggle } = useTodoDone();
+  const sync = useTodoSync();
+  const backend = useBackendTodos();
   const open = !!record;
   const h = record?.hard || {};
   const ai = record?.ai || {};
 
   const verdict = ai.north_star_verdict || {};
-  const todos = record ? buildDealTodos(record, records || [], playbook) : null;
+  // To-dos come from the SAME backend GET /todo arrays the Espresso tab uses,
+  // filtered to this deal's opp_id — so drawer and Espresso are identical.
+  const tier = record ? dealTier(h) : null;
+  const deep = tier ? !tier.activatable : false;
+  const buckets = record ? bucketsForOpp(backend.flat, record.opp_id) : [];
   const medd = record ? dealMeddpicc(record) : [];
   const champ = ai.champion_strength || {};
   const fit = ai.ai_fit_signal || {};
@@ -105,40 +114,21 @@ export default function DealDrawer({
                 </Section>
               ) : null}
 
-              {/* To-dos — IDENTICAL to this deal's Espresso to-dos (shared builder + done state) */}
+              {/* To-dos — IDENTICAL to this deal's Espresso to-dos: same backend
+                  GET /todo arrays, same todo_key, same Salesforce push. */}
               <Section title="To-dos">
-                {todos ? (
-                  <>
-                    <div className="td-meta" style={{ marginBottom: 8 }}>
-                      <span className="ownerchip vp">{todos.tier.label.split(" —")[0]}</span>
-                      <span className="td-meta">{todos.deep ? "Forecast deal — full plan" : "Qualified — focus on discovery & engagement"}</span>
-                    </div>
-                    {todos.groups.map((g) => (
-                      <div key={g.key}>
-                        <div className={`todo-grp ${g.tone}`}>{g.label} <span className="c">{g.items.length}</span></div>
-                        <ul className="todo-list">
-                          {g.items.map((it) => {
-                            const isDone = done.has(it.id);
-                            return (
-                              <li className={`todo-item ${isDone ? "done" : ""}`} key={it.id}>
-                                <input type="checkbox" checked={isDone} onChange={() => toggle(it.id)} />
-                                <div className="td-body">
-                                  <div className="td-txt">{it.text}</div>
-                                  <div className="td-meta">
-                                    {it.owner ? <span className={`ownerchip ${ownerKind(it.owner) === "VP" ? "vp" : ""}`}>{it.owner}</span> : null}
-                                    {it.meta ? <span className="ownerchip">{it.meta}</span> : null}
-                                    {it.due ? <span className={`duechip ${it.due.cls}`}>{it.due.txt}</span> : null}
-                                  </div>
-                                </div>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      </div>
-                    ))}
-                  </>
+                {tier ? (
+                  <div className="td-meta" style={{ marginBottom: 8 }}>
+                    <span className="ownerchip vp">{tier.label.split(" —")[0]}</span>
+                    <span className="td-meta">{deep ? "Forecast deal — full plan" : "Qualified — focus on discovery & engagement"}</span>
+                  </div>
+                ) : null}
+                {backend.loading && !backend.flat.length ? (
+                  <div className="body">Loading to-dos…</div>
+                ) : buckets.length ? (
+                  <DealTodoBuckets buckets={buckets} ownerName={h.owner_name} done={done} toggle={toggle} sync={sync} backend={backend} />
                 ) : (
-                  <div className="body">No active to-dos — this deal isn&apos;t in a forecast or qualified-pipeline tier.</div>
+                  <div className="body">No open to-dos for this deal.</div>
                 )}
               </Section>
 
@@ -163,7 +153,7 @@ export default function DealDrawer({
                     {champ.champion ? <span className="ownerchip vp">{champ.champion}</span> : null}
                     {champ.strength ? <span className={`duechip ${champ.at_risk ? "heavy" : ""}`}>{champ.strength}</span> : null}
                   </div>
-                  {champ.summary ? <div className="body">{trim(champ.summary, todos?.deep ? 280 : 160)}</div> : null}
+                  {champ.summary ? <div className="body">{trim(champ.summary, deep ? 280 : 160)}</div> : null}
                 </Section>
               ) : null}
 
