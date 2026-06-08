@@ -222,6 +222,17 @@
   .sf-badge.err{background:var(--red)}
   .sf-spin{width:15px;height:15px;border-radius:50%;border:2px solid var(--accent-soft);border-top-color:var(--accent);animation:sf-spin .7s linear infinite}
   @keyframes sf-spin{to{transform:rotate(360deg)}}
+  /* SF push confirm modal */
+  .sfm-overlay{position:fixed;inset:0;background:rgba(15,27,46,.42);display:flex;align-items:center;justify-content:center;z-index:40;backdrop-filter:blur(3px);padding:16px}
+  .sfm-card{background:var(--bg);border:1px solid var(--line);border-radius:16px;width:min(420px,100%);box-shadow:0 30px 80px -20px rgba(16,30,54,.45);padding:20px 22px;animation:pop .16s ease}
+  .sfm-h{font-size:15px;font-weight:700;color:var(--ink);letter-spacing:-.2px}
+  .sfm-txt{margin-top:10px;font-size:13px;color:var(--muted);line-height:1.45;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+  .sfm-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+  .sfm-btn{font:inherit;font-weight:650;font-size:13px;border-radius:10px;padding:8px 16px;cursor:pointer;border:1px solid var(--line)}
+  .sfm-btn.cancel{background:var(--surface);color:var(--ink)}
+  .sfm-btn.cancel:hover{background:var(--accent-soft)}
+  .sfm-btn.confirm{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .sfm-btn.confirm:hover{filter:brightness(1.05)}
   .todo-grp.crit{color:var(--red-ink)} .todo-grp.impt{color:var(--amber-ink)} .todo-grp.bpr{color:var(--accent2)} .todo-grp.impl{color:#7c3aed} .todo-grp.moves{color:var(--accent)}
 
   /* Data Quality */
