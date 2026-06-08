@@ -8,7 +8,8 @@ import { keepRecord, STAGE_ORDER, type Rec } from "./helpers";
 export interface DQExample { acct: string; opp: string; detail?: string }
 export interface DQCheck { key: string; label: string; bad: number; total: number; examples: DQExample[] }
 export interface DQDimension { key: string; label: string; score: number; checks: DQCheck[] }
-export interface DQResult { total: number; overall: number; dimensions: DQDimension[]; today: string }
+export interface DQSync { reSweeps: number; distinctOpps: number; bySource: Record<string, number>; changedNotReswept: number }
+export interface DQResult { total: number; overall: number; dimensions: DQDimension[]; today: string; sync: DQSync }
 
 const SF_STAGES = new Set(STAGE_ORDER);
 
@@ -113,7 +114,19 @@ export function computeDataQuality(rawRecords: Rec[], triggerLogs: any[] = []): 
 
   const dimensions = [completeness, freshness, consistency, meddpicc, avoma, analysis, triggers];
   const overall = Math.round(dimensions.reduce((s, d) => s + d.score, 0) / dimensions.length);
-  return { total: recs.length, overall, dimensions, today: t };
+
+  // Sync activity — how many re-sweeps ran (and from where) vs accounts that
+  // changed but were NOT re-swept. Answers "swept again vs triggers received".
+  const bySource: Record<string, number> = {};
+  const distinct = new Set<string>();
+  for (const l of triggerLogs || []) {
+    bySource[l.source || "unknown"] = (bySource[l.source || "unknown"] || 0) + 1;
+    const id = l.opp_id_15 || l.opp_id; if (id) distinct.add(id);
+  }
+  const lagBad = (triggers.checks.find((c) => c.key === "lag") || ({} as DQCheck)).bad || 0;
+  const sync: DQSync = { reSweeps: (triggerLogs || []).length, distinctOpps: distinct.size, bySource, changedNotReswept: lagBad };
+
+  return { total: recs.length, overall, dimensions, today: t, sync };
 }
 
 export function dqToCsv(res: DQResult): string {

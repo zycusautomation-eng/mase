@@ -49,7 +49,7 @@ export default function DataQualityPage() {
     if (!res) return;
     const blob = new Blob([dqToCsv(res)], { type: "text/csv" });
     const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob); a.download = `mase-data-quality-${res.today}.csv`; a.click();
+    a.href = URL.createObjectURL(blob); a.download = `mase-sync-quality-${res.today}.csv`; a.click();
     URL.revokeObjectURL(a.href);
   }
 
@@ -57,8 +57,8 @@ export default function DataQualityPage() {
     return (
       <div className="dq-lock">
         <form className="dq-lock-card" onSubmit={submit}>
-          <div className="dq-lock-ttl">🔒 Data Quality</div>
-          <div className="dq-lock-sub">Enter the passcode to view data-quality diagnostics.</div>
+          <div className="dq-lock-ttl">🔒 Sync Quality</div>
+          <div className="dq-lock-sub">Enter the passcode to view sync-quality diagnostics.</div>
           <input type="password" autoFocus value={pw} onChange={(e) => { setPw(e.target.value); setPwErr(false); }} placeholder="Passcode" />
           {pwErr ? <div className="dq-lock-err">Incorrect passcode.</div> : null}
           <button type="submit">Unlock</button>
@@ -71,7 +71,7 @@ export default function DataQualityPage() {
     <div id="dqview">
       <div className="todo-top">
         <div className="ttl">
-          Data quality of the swept Salesforce + Avoma book — scored against the latest data at check time.
+          Sync quality of the swept Salesforce + Avoma book — scored against the latest data at check time.
           {checkedAt ? <> · <b>Checked {checkedAt}</b></> : ""}{res ? ` · ${res.total} deals` : ""}
         </div>
         <div className="dq-actions">
@@ -84,14 +84,24 @@ export default function DataQualityPage() {
       {error ? (
         <div className="empty">Couldn&apos;t run the check.<br /><br /><span className="err">{error}</span></div>
       ) : !res ? (
-        <div className="empty">{loading ? "Running data-quality check…" : "…"}</div>
+        <div className="empty">{loading ? "Running sync-quality check…" : "…"}</div>
       ) : (
         <>
           <div className="dq-overall card">
             <div className={`dq-score ${tone(res.overall)}`}>{res.overall}<span>/100</span></div>
-            <div className="dq-overall-lab">Overall data quality
+            <div className="dq-overall-lab">Overall sync quality
               <div className="td-meta">across {res.total} opportunities · {res.dimensions.length} dimensions · lower = more gaps to fix</div>
             </div>
+          </div>
+
+          {/* Sync activity — re-sweeps vs triggers received */}
+          <div className="dq-sync card">
+            <div className="dq-stat"><b>{res.sync.reSweeps}</b><span>re-sweeps logged</span></div>
+            <div className="dq-stat"><b>{res.sync.distinctOpps}</b><span>distinct opportunities re-swept</span></div>
+            <div className="dq-stat"><b>{res.sync.bySource.salesforce_trigger || 0}</b><span>from Salesforce triggers</span></div>
+            <div className="dq-stat"><b>{res.sync.bySource.sweep || 0}</b><span>bulk sweep</span></div>
+            <div className="dq-stat"><b>{res.sync.bySource.manual || 0}</b><span>manual</span></div>
+            <div className={`dq-stat ${res.sync.changedNotReswept ? "warn" : "good"}`}><b>{res.sync.changedNotReswept}</b><span>changed but not re-swept</span></div>
           </div>
 
           <div className="dq-grid">
