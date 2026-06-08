@@ -5,7 +5,7 @@ import { computeDataQuality, dqToCsv, type DQResult } from "@/lib/engine/dataQua
 
 // Soft client-side gate (keeps casual eyes out — not real security; the data
 // loads in the other tabs too). Change via NEXT_PUBLIC_DQ_PASSCODE on the host.
-const PASS = process.env.NEXT_PUBLIC_DQ_PASSCODE || "mase-quality";
+const PASS = process.env.NEXT_PUBLIC_DQ_PASSCODE || "Mased@123";
 const UNLOCK_KEY = "mase_dq_unlocked";
 const tone = (s: number) => (s >= 85 ? "good" : s >= 65 ? "warn" : "bad");
 
