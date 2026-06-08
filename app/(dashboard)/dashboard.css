@@ -230,6 +230,12 @@
   .dq-stat b{font-size:24px;font-weight:800;color:var(--ink);line-height:1}
   .dq-stat span{font-size:11.5px;color:var(--muted)}
   .dq-stat.warn b{color:var(--amber-ink)} .dq-stat.good b{color:var(--green-ink)}
+  .dq-stat-btn{background:transparent;border:0;cursor:pointer;text-align:left;font:inherit;padding:0}
+  .dq-stat-btn:hover span{color:var(--ink)}
+  .dq-lag{margin-top:12px}
+  .dq-lag-h{font-size:13px;font-weight:700;color:var(--ink);margin-bottom:8px}
+  .dq-lag .itab{width:100%}
+  .dq-lag .itab th{position:sticky;top:0;background:var(--surface)}
   .dq-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:12px;margin-top:12px}
   .dq-dim{margin-bottom:0}
   .dq-dim-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}

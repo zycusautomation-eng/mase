@@ -8,7 +8,8 @@ import { keepRecord, STAGE_ORDER, type Rec } from "./helpers";
 export interface DQExample { acct: string; opp: string; detail?: string }
 export interface DQCheck { key: string; label: string; bad: number; total: number; examples: DQExample[] }
 export interface DQDimension { key: string; label: string; score: number; checks: DQCheck[] }
-export interface DQSync { reSweeps: number; distinctOpps: number; bySource: Record<string, number>; changedNotReswept: number }
+export interface DQLagger { acct: string; opp: string; owner: string; change: string; kind: string; sweptAt: string; daysBehind: number }
+export interface DQSync { reSweeps: number; distinctOpps: number; bySource: Record<string, number>; changedNotReswept: number; laggers: DQLagger[] }
 export interface DQResult { total: number; overall: number; dimensions: DQDimension[]; today: string; sync: DQSync }
 
 const SF_STAGES = new Set(STAGE_ORDER);
@@ -123,8 +124,18 @@ export function computeDataQuality(rawRecords: Rec[], triggerLogs: any[] = []): 
     bySource[l.source || "unknown"] = (bySource[l.source || "unknown"] || 0) + 1;
     const id = l.opp_id_15 || l.opp_id; if (id) distinct.add(id);
   }
-  const lagBad = (triggers.checks.find((c) => c.key === "lag") || ({} as DQCheck)).bad || 0;
-  const sync: DQSync = { reSweeps: (triggerLogs || []).length, distinctOpps: distinct.size, bySource, changedNotReswept: lagBad };
+  const laggers = recs.map((r) => {
+    const sw = r.swept_at; if (!sw) return null;
+    const cands: [string, string][] = [];
+    if (h(r).last_modified_date) cands.push(["modified", h(r).last_modified_date]);
+    if (h(r).last_activity_date) cands.push(["activity", h(r).last_activity_date]);
+    if (!cands.length) return null;
+    cands.sort((a, b) => a[1].localeCompare(b[1]));
+    const [kind, change] = cands[cands.length - 1];
+    if (!(change > sw)) return null;
+    return { acct: h(r).account_name || "—", opp: h(r).opp_name || r.opp_id, owner: h(r).owner_name || "—", change, kind, sweptAt: sw, daysBehind: daysBetween(sw, change) };
+  }).filter(Boolean).sort((a: any, b: any) => b.daysBehind - a.daysBehind) as DQLagger[];
+  const sync: DQSync = { reSweeps: (triggerLogs || []).length, distinctOpps: distinct.size, bySource, changedNotReswept: laggers.length, laggers };
 
   return { total: recs.length, overall, dimensions, today: t, sync };
 }

@@ -18,6 +18,7 @@ export default function DataQualityPage() {
   const [error, setError] = useState<string | null>(null);
   const [checkedAt, setCheckedAt] = useState("");
   const [open, setOpen] = useState<Record<string, boolean>>({});
+  const [showLag, setShowLag] = useState(false);
 
   useEffect(() => { try { if (sessionStorage.getItem(UNLOCK_KEY) === "1") setUnlocked(true); } catch {} }, []);
 
@@ -101,8 +102,31 @@ export default function DataQualityPage() {
             <div className="dq-stat"><b>{res.sync.bySource.salesforce_trigger || 0}</b><span>from Salesforce triggers</span></div>
             <div className="dq-stat"><b>{res.sync.bySource.sweep || 0}</b><span>bulk sweep</span></div>
             <div className="dq-stat"><b>{res.sync.bySource.manual || 0}</b><span>manual</span></div>
-            <div className={`dq-stat ${res.sync.changedNotReswept ? "warn" : "good"}`}><b>{res.sync.changedNotReswept}</b><span>changed but not re-swept</span></div>
+            <button type="button" className={`dq-stat dq-stat-btn ${res.sync.changedNotReswept ? "warn" : "good"}`} onClick={() => res.sync.changedNotReswept && setShowLag((s) => !s)} title="Click to list the accounts">
+              <b>{res.sync.changedNotReswept}</b><span>changed but not re-swept{res.sync.changedNotReswept ? (showLag ? " ▾" : " ▸") : ""}</span>
+            </button>
           </div>
+
+          {showLag && res.sync.laggers.length ? (
+            <div className="card dq-lag">
+              <div className="dq-lag-h">Changed but not re-swept — {res.sync.laggers.length} accounts <span className="td-meta">(newest Salesforce change is after the last sweep)</span></div>
+              <table className="itab">
+                <thead><tr><th>Account</th><th>Opportunity</th><th>Owner</th><th>Last change</th><th>Last swept</th><th>Behind</th></tr></thead>
+                <tbody>
+                  {res.sync.laggers.map((l, i) => (
+                    <tr key={i}>
+                      <td className="owner">{l.acct}</td>
+                      <td>{l.opp}</td>
+                      <td>{l.owner}</td>
+                      <td>{l.change} <span className="meta">· {l.kind}</span></td>
+                      <td>{l.sweptAt}</td>
+                      <td className="num">{l.daysBehind}d</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
 
           <div className="dq-grid">
             {res.dimensions.map((d) => (
