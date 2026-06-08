@@ -4,10 +4,12 @@ import { useState, useMemo } from "react";
 import { useDashboard } from "@/lib/engine/DashboardContext";
 import { TIERS, fmtAmount, ownerKind, buildDealTodos, OWNER_VP, type Rec } from "@/lib/engine/helpers";
 import { useTodoDone } from "@/lib/engine/useTodoDone";
+import { useTodoSync, type SyncStatus } from "@/lib/engine/useTodoSync";
 
 export default function EspressoPage() {
   const { records, vps, rsds, playbook, filtered } = useDashboard();
   const { done, toggle } = useTodoDone();
+  const sync = useTodoSync();
   const [activeTier, setActiveTier] = useState<string | null>(null);
 
   const who = rsds.length ? rsds.join(", ")
@@ -76,7 +78,7 @@ export default function EspressoPage() {
           {shown ? (
             <div className={`tier ${shown.tier.key}`}>
               {shown.blocks.map((b: any, i: number) => (
-                <DealBlock key={`${b.oid}-${i}`} b={b} done={done} toggle={toggle} showVp={vps.length !== 1} />
+                <DealBlock key={`${b.oid}-${i}`} b={b} done={done} toggle={toggle} sync={sync} showVp={vps.length !== 1} />
               ))}
             </div>
           ) : null}
@@ -86,7 +88,9 @@ export default function EspressoPage() {
   );
 }
 
-function DealBlock({ b, done, toggle, showVp }: { b: any; done: Set<string>; toggle: (id: string) => void; showVp: boolean }) {
+type TodoSync = ReturnType<typeof useTodoSync>;
+
+function DealBlock({ b, done, toggle, sync, showVp }: { b: any; done: Set<string>; toggle: (id: string) => void; sync: TodoSync; showVp: boolean }) {
   const { h } = b;
   const vpMeta = showVp && OWNER_VP[h.owner_name] ? ` (${OWNER_VP[h.owner_name]})` : "";
   const closeMeta = h.close_date
@@ -113,6 +117,7 @@ function DealBlock({ b, done, toggle, showVp }: { b: any; done: Set<string>; tog
                       {it.due ? <span className={`duechip ${it.due.cls}`}>{it.due.txt}</span> : null}
                     </div>
                   </div>
+                  <SfButton oid={b.oid} it={it} enabled={isDone} sync={sync} />
                 </li>
               );
             })}
@@ -120,5 +125,49 @@ function DealBlock({ b, done, toggle, showVp }: { b: any; done: Set<string>; tog
         </div>
       ))}
     </div>
+  );
+}
+
+function SfButton({ oid, it, enabled, sync }: { oid: string; it: any; enabled: boolean; sync: TodoSync }) {
+  const isSynced = sync.synced.has(it.id);
+  const st: SyncStatus = isSynced ? "synced" : (sync.status[it.id] || "idle");
+  const syncing = st === "syncing";
+  const error = st === "error";
+
+  // Two-step gate: disabled until the checkbox is ticked. Once synced/syncing it
+  // stays disabled too (no re-push). Otherwise a tick enables the push.
+  const disabled = !enabled || syncing || isSynced;
+
+  const title = syncing ? "Pushing to Salesforce…"
+    : isSynced ? "Marked complete in Salesforce"
+    : error ? "Couldn't reach Salesforce — backend pending"
+    : !enabled ? "Tick the box first"
+    : "Mark complete in Salesforce";
+
+  const onClick = () => {
+    if (disabled) return;
+    sync.sync(it.id, { opp_id: oid, todo_id: it.id, text: it.text });
+  };
+
+  return (
+    <button
+      type="button"
+      className={`sf-btn ${st}`}
+      disabled={disabled}
+      title={title}
+      aria-label={title}
+      onClick={onClick}
+    >
+      {syncing ? (
+        <span className="sf-spin" aria-hidden />
+      ) : (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/salesforce.svg" alt="" width={18} height={18} className="sf-cloud" />
+          {isSynced ? <span className="sf-badge ok" aria-hidden>✓</span> : null}
+          {error ? <span className="sf-badge err" aria-hidden /> : null}
+        </>
+      )}
+    </button>
   );
 }
