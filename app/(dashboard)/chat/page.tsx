@@ -38,7 +38,10 @@ function Bubble({ text }: { text: string }) {
 }
 
 export default function ChatPage() {
-  const { records } = useDashboard();
+  const { records: allRecords, scoped: scopedRecords, locked, blocked, scopeName } = useDashboard();
+  // When the user is locked to their own scope, the strategist may only ever see
+  // their deals — use the scoped set as the entire book for chat.
+  const records = locked ? scopedRecords : allRecords;
   const [messages, setMessages] = useState<Msg[]>([]);
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [chats, setChats] = useState<Chat[]>([]);
@@ -87,7 +90,11 @@ export default function ChatPage() {
       // backend build context from only those deals (Path B). Generic = whole
       // book (no ids). This honours our custom VP→owner remap and stage fixes
       // because we send the precise records the UI already computed.
-      const ids = scope.mode === "generic" ? [] : scopeRecords(records, scope).map((r) => r.opp_id).filter(Boolean);
+      // Locked users always send their scoped opp ids (even in "generic" mode),
+      // so the backend can never answer over deals outside their scope.
+      const ids = locked
+        ? records.map((r) => r.opp_id).filter(Boolean)
+        : scope.mode === "generic" ? [] : scopeRecords(records, scope).map((r) => r.opp_id).filter(Boolean);
       const body: any = { messages: next };
       if (ids.length) body.opp_ids = ids;
       const r = await fetch("/api/deal-engine/chat", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
@@ -131,6 +138,12 @@ export default function ChatPage() {
 
       <div className="chat-main">
         <div className="chatscope">
+          {locked ? (
+            <span className="scopelock" title="The strategist only sees your deals">
+              {blocked ? "No deals assigned to your account" : <>Scoped to: <b>{scopeName}</b> · {records.length} deal{records.length === 1 ? "" : "s"}</>}
+            </span>
+          ) : (
+          <>
           <div className="cs-modes">
             {MODES.map((m) => (
               <button key={m.key} className={`cs-mode ${scope.mode === m.key ? "active" : ""}`} onClick={() => setMode(m.key)}>{m.label}</button>
@@ -155,6 +168,8 @@ export default function ChatPage() {
           {(scope.vps.length || scope.owners.length || scope.oppId) ? (
             <button className="cs-clear" title="Clear selection" onClick={() => setScope({ ...EMPTY_SCOPE, mode: scope.mode })}>✕ Clear</button>
           ) : null}
+          </>
+          )}
         </div>
 
         <div className="msgs" ref={msgsRef}>
@@ -176,8 +191,8 @@ export default function ChatPage() {
         </div>
         <div className="chatbar">
           <div className="inner">
-            <textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={onKey} rows={1} placeholder={`Ask about ${scope.mode === "generic" ? "the book" : scopeText}… (Enter to send, Shift+Enter for newline)`} />
-            <button onClick={() => { const v = input; setInput(""); send(v); }} disabled={busy}>Send</button>
+            <textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={onKey} rows={1} disabled={blocked} placeholder={blocked ? "You don't have access to any deals." : `Ask about ${locked ? scopeName : scope.mode === "generic" ? "the book" : scopeText}… (Enter to send, Shift+Enter for newline)`} />
+            <button onClick={() => { const v = input; setInput(""); send(v); }} disabled={busy || blocked}>Send</button>
           </div>
         </div>
       </div>

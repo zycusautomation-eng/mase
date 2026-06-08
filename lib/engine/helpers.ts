@@ -178,6 +178,64 @@ export function inScope(r: Rec, vps: string[], rsds: string[]): boolean {
   return true;
 }
 
+// --- map the logged-in SSO user to a default scope ---
+// Exceptions for people whose email local-part doesn't cleanly become their
+// display name (nicknames, reversed order, etc.). Add entries as needed, e.g.
+//   "j.ajmo@zycus.com": "Justin Ajmo",
+// Tip: to preview a rep's view with your own login, temporarily map your email
+// here (e.g. "gurv.sharma@zycus.com": "Alexa Bradley") then remove it.
+export const EMAIL_TO_OWNER: Record<string, string> = {};
+
+// Turn an email into a candidate owner display-name. "alexa.bradley@zycus.com"
+// -> "Alexa Bradley". Falls back to the override table for exceptions.
+export function ownerFromEmail(email: string | null | undefined): string | null {
+  if (!email) return null;
+  const e = email.toLowerCase();
+  if (EMAIL_TO_OWNER[e]) return EMAIL_TO_OWNER[e];
+  const local = e.split("@")[0];
+  const name = local
+    .split(/[._-]+/)
+    .filter(Boolean)
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+    .join(" ");
+  return name || null;
+}
+
+// Default VP/RSD scope for a logged-in owner. A VP gets their whole team; an RSD
+// gets just their own deals; anyone not in the org map (leadership, admins,
+// unknown) gets null = no scope (sees everything).
+export function scopeForOwner(name: string | null): { vps: string[]; rsds: string[] } | null {
+  if (!name) return null;
+  const vp = OWNER_VP[name];
+  if (!vp) return null;
+  if (vp === name) return { vps: [name], rsds: [] }; // VP -> whole team
+  return { vps: [], rsds: [name] }; // RSD -> own deals only
+}
+
+// Leadership / admins who may see the whole book (filters stay unlocked).
+export const ADMIN_EMAILS = new Set<string>([
+  "gurv.sharma@zycus.com",
+]);
+
+// Resolve the logged-in email into an access decision:
+//   admin   -> sees everything, filters unlocked
+//   scoped  -> locked to their VP team / own deals
+//   blocked -> not a known rep/VP/admin: sees nothing
+export type Access =
+  | { kind: "admin" }
+  | { kind: "scoped"; vps: string[]; rsds: string[]; name: string }
+  | { kind: "blocked" };
+
+export function resolveAccess(email: string | null | undefined): Access {
+  if (ADMIN_EMAILS.has((email || "").toLowerCase())) return { kind: "admin" };
+  const name = ownerFromEmail(email);
+  const scope = name ? scopeForOwner(name) : null;
+  if (scope && name) return { kind: "scoped", vps: scope.vps, rsds: scope.rsds, name };
+  // For now, anyone not matched as a rep/VP sees the whole book (fail-open).
+  // Flip this back to { kind: "blocked" } to restrict unknown accounts.
+  return { kind: "admin" };
+}
+
 export function uniqSorted(arr: any[]): any[] { return [...new Set(arr.filter((v) => v != null && v !== ""))].sort(); }
 
 // --- dates ---
