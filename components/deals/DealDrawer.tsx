@@ -136,17 +136,6 @@ export default function DealDrawer({
                         </ul>
                       </div>
                     ))}
-                    {todos.deep && todos.plays.length ? (
-                      <div className="plays">
-                        <div className="plays-h">Winning plays from similar wins</div>
-                        {todos.plays.map(({ p, beats }: any, i: number) => (
-                          <details className="play" key={i}>
-                            <summary>{p.title}{beats.length ? <span className="beats">beats {beats.join(", ")}</span> : null}</summary>
-                            <div className="play-g">{p.guidance}</div>
-                          </details>
-                        ))}
-                      </div>
-                    ) : null}
                   </>
                 ) : (
                   <div className="body">No active to-dos — this deal isn&apos;t in a forecast or qualified-pipeline tier.</div>

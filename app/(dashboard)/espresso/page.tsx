@@ -119,18 +119,6 @@ function DealBlock({ b, done, toggle, showVp }: { b: any; done: Set<string>; tog
           </ul>
         </div>
       ))}
-      {b.plays.length ? (
-        <div className="plays">
-          <div className="plays-h">Winning plays from similar wins</div>
-          {b.plays.map(({ p, beats }: any, i: number) => (
-            <details className="play" key={i}>
-              <summary>{p.title}{beats.length ? <span className="beats">beats {beats.join(", ")}</span> : null}</summary>
-              <div className="play-g">{p.guidance}</div>
-              {p.proof && p.proof[0] ? <div className="play-proof">won at {p.proof[0].account}{p.proof[0].date ? " · " + p.proof[0].date : ""}</div> : null}
-            </details>
-          ))}
-        </div>
-      ) : null}
     </div>
   );
 }
