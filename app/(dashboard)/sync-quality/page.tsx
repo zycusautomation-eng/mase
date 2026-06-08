@@ -102,6 +102,7 @@ export default function DataQualityPage() {
             <div className="dq-stat"><b>{res.sync.bySource.salesforce_trigger || 0}</b><span>from Salesforce triggers</span></div>
             <div className="dq-stat"><b>{res.sync.bySource.sweep || 0}</b><span>bulk sweep</span></div>
             <div className="dq-stat"><b>{res.sync.bySource.manual || 0}</b><span>manual</span></div>
+            <div className="dq-stat"><b>{res.sync.bySource.scheduled || 0}</b><span>scheduled (7am/6pm)</span></div>
             <button type="button" className={`dq-stat dq-stat-btn ${res.sync.changedNotReswept ? "warn" : "good"}`} onClick={() => res.sync.changedNotReswept && setShowLag((s) => !s)} title="Click to list the accounts">
               <b>{res.sync.changedNotReswept}</b><span>changed but not re-swept{res.sync.changedNotReswept ? (showLag ? " ▾" : " ▸") : ""}</span>
             </button>
