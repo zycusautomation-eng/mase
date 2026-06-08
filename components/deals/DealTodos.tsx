@@ -20,7 +20,7 @@ export const CATEGORY_META: Record<BackendCategory, { label: string; tone: strin
   critical: { label: "Critical / next moves", tone: "moves" },
   important: { label: "Commitments", tone: "impt" },
   explicitRequirements: { label: "Open requirements", tone: "impt" },
-  implicit: { label: "Implicit / promised", tone: "impl" },
+  implicit: { label: "Implicit requirements", tone: "impl" },
   bestPractice: { label: "Best practice", tone: "bpr" },
 };
 
