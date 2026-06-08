@@ -1,13 +1,16 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { useState } from "react";
 import { useDashboard } from "@/lib/engine/DashboardContext";
-import { daysSince, fmtAmount, teamOwners, stageRank } from "@/lib/engine/helpers";
+import { daysSince, fmtAmount, teamOwners, stageRank, type Rec } from "@/lib/engine/helpers";
+import DealDrawer from "@/components/deals/DealDrawer";
 
 const TARGET = 4000000;
 const NM = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 export default function MatchaPage() {
-  const { records, vps, rsds, filtered } = useDashboard();
+  const { records, vps, rsds, filtered, playbook } = useDashboard();
+  const [selected, setSelected] = useState<Rec | null>(null);
   const hard = filtered.map((r) => r.hard || {});
 
   const owners = teamOwners(records, vps);
@@ -42,12 +45,13 @@ export default function MatchaPage() {
   // with only open/planned tasks has a null activity date. Fall back to the
   // qualified (then last-modified) date so we measure a REAL untouched age
   // rather than emitting a sentinel — and so brand-new deals aren't flagged.
-  const stale = hard
-    .filter((h) => (h.stage || "") === "Qualified")
-    .map((h) => {
+  const stale = filtered
+    .map((r) => ({ r, h: r.hard || {} }))
+    .filter(({ h }) => (h.stage || "") === "Qualified")
+    .map(({ r, h }) => {
       const sinceActivity = daysSince(h.last_activity_date);
       const refDays = sinceActivity ?? daysSince(h.qualified_date) ?? daysSince(h.last_modified_date);
-      return { h, sinceActivity, refDays };
+      return { r, h, sinceActivity, refDays };
     })
     .filter((x) => x.refDays != null && x.refDays > 30)
     .sort((a, b) => (b.refDays as number) - (a.refDays as number));
@@ -101,8 +105,10 @@ export default function MatchaPage() {
 
       <div className="sec-title">Stalled at Qualified — not touched in 30+ days <span style={{ color: "var(--muted)" }}>({stale.length})</span></div>
       <div className="card"><ul className="ilist">
-        {stale.length ? stale.map(({ h, sinceActivity, refDays }) => (
-          <li key={h.opp_id}>
+        {stale.length ? stale.map(({ r, h, sinceActivity, refDays }) => (
+          <li key={h.opp_id} className="click" onClick={() => setSelected(r)} role="button" tabIndex={0}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelected(r); } }}
+            title="Open deal">
             <div className="top"><span className="nm">{h.account_name} <span className="meta">· {h.opp_name}</span></span><span className="amt">{fmtAmount(h.amount)}</span></div>
             <div className="meta">{h.owner_name} · qualified {h.qualified_date || "?"} · {h.last_activity_date
               ? `last activity ${h.last_activity_date} (${sinceActivity} days ago)`
@@ -110,6 +116,8 @@ export default function MatchaPage() {
           </li>
         )) : <div className="empty-s">No Qualified deals sitting untouched. Momentum is being held.</div>}
       </ul></div>
+
+      <DealDrawer record={selected} records={records} playbook={playbook} onClose={() => setSelected(null)} />
     </div>
   );
 }
