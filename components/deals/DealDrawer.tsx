@@ -9,13 +9,11 @@ import { useTodoSync } from "@/lib/engine/useTodoSync";
 import { useBackendTodos } from "@/lib/engine/useBackendTodos";
 import { DealTodoBuckets, bucketsForOpp } from "@/components/deals/DealTodos";
 
-// Trim prose to ~n chars on a sentence/word boundary — keeps every block "two cents".
-function trim(s: any, n = 220): string {
-  const t = cleanText(s);
-  if (!t || t.length <= n) return t;
-  const cut = t.slice(0, n);
-  const stop = Math.max(cut.lastIndexOf(". "), cut.lastIndexOf("; "));
-  return (stop > n * 0.5 ? cut.slice(0, stop + 1) : cut.replace(/\s+\S*$/, "")) + "…";
+// Show the full insight — no truncation. The v2 sweep produces decision-grade prose and
+// the CSS wraps it (.card .body is pre-wrap, .itab td is white-space:normal), so we render
+// the cleaned text in full. (Signature kept so call sites can pass the old length arg.)
+function trim(s: any, _n = 220): string {
+  return cleanText(s);
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
