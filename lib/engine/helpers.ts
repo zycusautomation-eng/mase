@@ -83,6 +83,16 @@ export function daysSince(d: any): number | null {
   return Math.round((TODAY.getTime() - t) / 86400000);
 }
 
+// A deal is "stalled" (Matcha's domain — kept OUT of Espresso so the two tabs never
+// intersect) when it sits in Qualified with no logged activity for 30+ days. Activity
+// falls back to qualified then last-modified date so we measure a real untouched age,
+// matching Matcha's "Stalled at Qualified" definition exactly.
+export function isStalled(h: Hard): boolean {
+  if ((h.stage || "") !== "Qualified") return false;
+  const since = daysSince(h.last_activity_date) ?? daysSince(h.qualified_date) ?? daysSince(h.last_modified_date);
+  return since != null && since > 30;
+}
+
 // `fit` = record.ai.ai_fit_signal — the analyst's AI-readiness read, used as a
 // fallback when the SF ais_* fields are blank (true for most of the stale cache).
 export function aiTier(h: Hard, fit?: any): string | null {

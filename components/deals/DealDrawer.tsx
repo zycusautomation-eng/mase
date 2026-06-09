@@ -16,6 +16,14 @@ function trim(s: any, _n = 220): string {
   return cleanText(s);
 }
 
+// Fit prose to at most n words (no ellipsis) — used for the 60-word combined risk read.
+function wordCap(s: any, n: number): string {
+  const t = cleanText(s);
+  if (!t) return "";
+  const w = t.split(/\s+/).filter(Boolean);
+  return w.length <= n ? t : w.slice(0, n).join(" ");
+}
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="card">
@@ -66,8 +74,16 @@ export default function DealDrawer({
   const fit = ai.ai_fit_signal || {};
   const pos = ai.ai_positioning_strength || {};
   const stake = (ai.stakeholder_map || {}).items || [];
-  const openVulns = ((ai.vulnerabilities || {}).items || []).filter((v: any) => v.status !== "closed");
-  const blocker = openVulns[0];
+  const vuln = ai.vulnerabilities || {};
+  const openVulns = (vuln.items || []).filter((v: any) => v.status !== "closed");
+  // The blocker is ONE combined risk read, capped at 60 words (a seasoned RSD doesn't
+  // need stage-tactical filler). Prefer the backend's synthesized vulnerabilities.summary;
+  // otherwise stitch the open risks together. Fit to 60 words — no mid-sentence truncation.
+  const riskSummary = wordCap(
+    vuln.summary || openVulns.map((v: any) => cleanText(v.detail)).filter(Boolean).join(" "),
+    60,
+  );
+  const riskCats: string[] = Array.from(new Set(openVulns.map((v: any) => String(v.category || "")).filter((c: string) => !!c)));
   const overdue = typeof h.days_to_close === "number" && h.days_to_close < 0;
   const lastDays = daysSince(h.last_activity_date);
 
@@ -104,11 +120,15 @@ export default function DealDrawer({
                 </Section>
               ) : null}
 
-              {/* The one blocker */}
-              {blocker ? (
+              {/* The blocker — one combined risk read, <=60 words, strategic (not stage-tactical) */}
+              {riskSummary ? (
                 <Section title="The blocker">
-                  <div className="headline">{trim(blocker.detail, 260)}</div>
-                  {blocker.category ? <div className="td-meta" style={{ marginTop: 4 }}><span className="duechip heavy">{String(blocker.category).replace(/_/g, " ")}</span>{blocker.first_raised ? <span className="ownerchip">raised {blocker.first_raised}</span> : null}</div> : null}
+                  <div className="headline">{riskSummary}</div>
+                  {riskCats.length ? (
+                    <div className="td-meta" style={{ marginTop: 4 }}>
+                      {riskCats.slice(0, 5).map((c) => <span key={c} className="duechip heavy">{c.replace(/_/g, " ")}</span>)}
+                    </div>
+                  ) : null}
                 </Section>
               ) : null}
 
