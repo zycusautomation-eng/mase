@@ -39,20 +39,35 @@ export async function updateSession(request: NextRequest) {
 
   // IMPORTANT: do not run code between createServerClient and getUser() — it
   // could cause hard-to-debug session-refresh issues.
+  // getUser() makes a network call to Supabase. If Supabase is slow or down
+  // (e.g. a paused free-tier project), an un-bounded await HANGS the middleware
+  // until Vercel kills it -> 504 MIDDLEWARE_INVOCATION_TIMEOUT site-wide. Race it
+  // against a short timeout so the middleware always returns fast.
   let user = null;
+  let authReachable = true;
   try {
-    const { data } = await supabase.auth.getUser();
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("auth-timeout")), 2500),
+    );
+    const { data } = (await Promise.race([supabase.auth.getUser(), timeout])) as Awaited<
+      ReturnType<typeof supabase.auth.getUser>
+    >;
     user = data.user;
   } catch (e) {
-    // Network/Supabase hiccup — don't 500 the whole site. Treat as signed-out.
-    console.warn("[auth] getUser failed:", e instanceof Error ? e.message : e);
+    // Supabase unreachable/slow (timeout or network error). Do NOT 504, and do NOT
+    // trap everyone at a /login that also can't reach the provider: degrade to
+    // "no gate" for this request (same stance as missing env). The deployment's
+    // platform protection still applies; the gate resumes the moment Supabase is back.
+    authReachable = false;
+    console.warn("[auth] getUser failed/timeout — letting request through:",
+      e instanceof Error ? e.message : e);
   }
 
   const path = request.nextUrl.pathname;
   // Anything under /login or /auth (the OAuth callback) is public.
   const isPublic = path.startsWith("/login") || path.startsWith("/auth");
 
-  if (!user && !isPublic) {
+  if (authReachable && !user && !isPublic) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
