@@ -64,6 +64,11 @@ export default function DealDrawer({
   const ai = record?.ai || {};
 
   const verdict = ai.north_star_verdict || {};
+  // recommended_forecast sometimes carries a long rationale ("Pipeline (remove until EB
+  // mapped...)"). Show just the clean category in the chip; full text goes in the tooltip.
+  const recFcRaw = String(verdict.recommended_forecast || "");
+  const recFcCat = (recFcRaw.match(/^\s*(Commit|Best Case|Upside|Pipeline|Omitted|Closed)/i)?.[1])
+    || recFcRaw.split(/[\s(,—-]/)[0] || recFcRaw;
   // To-dos come from the SAME backend GET /todo arrays the Espresso tab uses,
   // filtered to this deal's opp_id — so drawer and Espresso are identical.
   const tier = record ? dealTier(h) : null;
@@ -117,10 +122,10 @@ export default function DealDrawer({
                 <Section title="Verdict">
                   <div>
                     <span className={`chip ${verdictTone(verdict.verdict)}`}>{verdict.verdict}</span>
-                    {verdict.forecast_defensible === false && verdict.recommended_forecast ? (
+                    {verdict.forecast_defensible === false && recFcCat ? (
                       <span className="duechip heavy" style={{ marginLeft: 6 }}
-                        title={`Current forecast is not defensible on the evidence — recommend ${verdict.recommended_forecast}`}>
-                        Forecast → {verdict.recommended_forecast}
+                        title={`Current forecast is not defensible on the evidence — recommend ${recFcRaw}`}>
+                        Forecast → {recFcCat}
                       </span>
                     ) : null}
                   </div>
