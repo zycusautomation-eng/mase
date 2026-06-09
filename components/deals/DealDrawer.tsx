@@ -9,13 +9,19 @@ import { useTodoSync } from "@/lib/engine/useTodoSync";
 import { useBackendTodos } from "@/lib/engine/useBackendTodos";
 import { DealTodoBuckets, bucketsForOpp } from "@/components/deals/DealTodos";
 
-// Trim prose to ~n chars on a sentence/word boundary — keeps every block "two cents".
-function trim(s: any, n = 220): string {
+// Show the full insight — no truncation. The v2 sweep produces decision-grade prose and
+// the CSS wraps it (.card .body is pre-wrap, .itab td is white-space:normal), so we render
+// the cleaned text in full. (Signature kept so call sites can pass the old length arg.)
+function trim(s: any, _n = 220): string {
+  return cleanText(s);
+}
+
+// Fit prose to at most n words (no ellipsis) — used for the 60-word combined risk read.
+function wordCap(s: any, n: number): string {
   const t = cleanText(s);
-  if (!t || t.length <= n) return t;
-  const cut = t.slice(0, n);
-  const stop = Math.max(cut.lastIndexOf(". "), cut.lastIndexOf("; "));
-  return (stop > n * 0.5 ? cut.slice(0, stop + 1) : cut.replace(/\s+\S*$/, "")) + "…";
+  if (!t) return "";
+  const w = t.split(/\s+/).filter(Boolean);
+  return w.length <= n ? t : w.slice(0, n).join(" ");
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -58,6 +64,11 @@ export default function DealDrawer({
   const ai = record?.ai || {};
 
   const verdict = ai.north_star_verdict || {};
+  // recommended_forecast sometimes carries a long rationale ("Pipeline (remove until EB
+  // mapped...)"). Show just the clean category in the chip; full text goes in the tooltip.
+  const recFcRaw = String(verdict.recommended_forecast || "");
+  const recFcCat = (recFcRaw.match(/^\s*(Commit|Best Case|Upside|Pipeline|Omitted|Closed)/i)?.[1])
+    || recFcRaw.split(/[\s(,—-]/)[0] || recFcRaw;
   // To-dos come from the SAME backend GET /todo arrays the Espresso tab uses,
   // filtered to this deal's opp_id — so drawer and Espresso are identical.
   const tier = record ? dealTier(h) : null;
@@ -68,8 +79,16 @@ export default function DealDrawer({
   const fit = ai.ai_fit_signal || {};
   const pos = ai.ai_positioning_strength || {};
   const stake = (ai.stakeholder_map || {}).items || [];
-  const openVulns = ((ai.vulnerabilities || {}).items || []).filter((v: any) => v.status !== "closed");
-  const blocker = openVulns[0];
+  const vuln = ai.vulnerabilities || {};
+  const openVulns = (vuln.items || []).filter((v: any) => v.status !== "closed");
+  // The blocker is ONE combined risk read, capped at 60 words (a seasoned RSD doesn't
+  // need stage-tactical filler). Prefer the backend's synthesized vulnerabilities.summary;
+  // otherwise stitch the open risks together. Fit to 60 words — no mid-sentence truncation.
+  const riskSummary = wordCap(
+    vuln.summary || openVulns.map((v: any) => cleanText(v.detail)).filter(Boolean).join(" "),
+    60,
+  );
+  const riskCats: string[] = Array.from(new Set(openVulns.map((v: any) => String(v.category || "")).filter((c: string) => !!c)));
   const overdue = typeof h.days_to_close === "number" && h.days_to_close < 0;
   const lastDays = daysSince(h.last_activity_date);
 
@@ -101,16 +120,31 @@ export default function DealDrawer({
               {/* Verdict + one-line why */}
               {verdict.verdict ? (
                 <Section title="Verdict">
-                  <div><span className={`chip ${verdictTone(verdict.verdict)}`}>{verdict.verdict}</span></div>
-                  {verdict.math ? <div className="body" style={{ marginTop: 6 }}>{trim(verdict.math, 260)}</div> : null}
+                  <div>
+                    <span className={`chip ${verdictTone(verdict.verdict)}`}>{verdict.verdict}</span>
+                    {verdict.forecast_defensible === false && recFcCat ? (
+                      <span className="duechip heavy" style={{ marginLeft: 6 }}
+                        title={`Current forecast is not defensible on the evidence — recommend ${recFcRaw}`}>
+                        Forecast → {recFcCat}
+                      </span>
+                    ) : null}
+                  </div>
+                  {/* The RevOps verdict insight (headline), NOT the SF stage arithmetic (math). */}
+                  {(verdict.headline || verdict.math) ? (
+                    <div className="body" style={{ marginTop: 6 }}>{trim(verdict.headline || verdict.math)}</div>
+                  ) : null}
                 </Section>
               ) : null}
 
-              {/* The one blocker */}
-              {blocker ? (
+              {/* The blocker — one combined risk read, <=60 words, strategic (not stage-tactical) */}
+              {riskSummary ? (
                 <Section title="The blocker">
-                  <div className="headline">{trim(blocker.detail, 260)}</div>
-                  {blocker.category ? <div className="td-meta" style={{ marginTop: 4 }}><span className="duechip heavy">{String(blocker.category).replace(/_/g, " ")}</span>{blocker.first_raised ? <span className="ownerchip">raised {blocker.first_raised}</span> : null}</div> : null}
+                  <div className="headline">{riskSummary}</div>
+                  {riskCats.length ? (
+                    <div className="td-meta" style={{ marginTop: 4 }}>
+                      {riskCats.slice(0, 5).map((c) => <span key={c} className="duechip heavy">{c.replace(/_/g, " ")}</span>)}
+                    </div>
+                  ) : null}
                 </Section>
               ) : null}
 

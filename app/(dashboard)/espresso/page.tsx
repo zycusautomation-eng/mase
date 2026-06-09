@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useMemo, useState } from "react";
 import { useDashboard } from "@/lib/engine/DashboardContext";
-import { TIERS, fmtAmount, dealTier, OWNER_VP, type Rec } from "@/lib/engine/helpers";
+import { TIERS, fmtAmount, dealTier, isStalled, OWNER_VP, type Rec } from "@/lib/engine/helpers";
 import { useTodoDone } from "@/lib/engine/useTodoDone";
 import { useTodoSync } from "@/lib/engine/useTodoSync";
 import {
@@ -79,6 +79,7 @@ export default function EspressoPage() {
       const h = rec?.hard || {};
       const tier = rec ? dealTier(h) : null;
       if (!tier) continue; // no matching opp record OR not in a forecast tier -> drop
+      if (isStalled(h)) continue; // stalled deals belong to Matcha — keep Espresso/Matcha disjoint
       const first = entry.cats.critical[0] || entry.cats.important[0]
         || entry.cats.explicitRequirements[0] || entry.cats.implicit[0] || entry.cats.bestPractice[0];
       const buckets = CATEGORY_ORDER
