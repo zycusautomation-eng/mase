@@ -115,8 +115,19 @@ export default function DealDrawer({
               {/* Verdict + one-line why */}
               {verdict.verdict ? (
                 <Section title="Verdict">
-                  <div><span className={`chip ${verdictTone(verdict.verdict)}`}>{verdict.verdict}</span></div>
-                  {verdict.math ? <div className="body" style={{ marginTop: 6 }}>{trim(verdict.math, 260)}</div> : null}
+                  <div>
+                    <span className={`chip ${verdictTone(verdict.verdict)}`}>{verdict.verdict}</span>
+                    {verdict.forecast_defensible === false && verdict.recommended_forecast ? (
+                      <span className="duechip heavy" style={{ marginLeft: 6 }}
+                        title={`Current forecast is not defensible on the evidence — recommend ${verdict.recommended_forecast}`}>
+                        Forecast → {verdict.recommended_forecast}
+                      </span>
+                    ) : null}
+                  </div>
+                  {/* The RevOps verdict insight (headline), NOT the SF stage arithmetic (math). */}
+                  {(verdict.headline || verdict.math) ? (
+                    <div className="body" style={{ marginTop: 6 }}>{trim(verdict.headline || verdict.math)}</div>
+                  ) : null}
                 </Section>
               ) : null}
 
