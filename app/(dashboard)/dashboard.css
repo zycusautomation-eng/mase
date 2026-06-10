@@ -20,10 +20,17 @@
   .brandmark-img{height:80px;width:auto;display:block}
   header .sub{color:var(--muted);font-size:12.5px}
   .spacer{flex:1}
-  .authbtn{display:flex;align-items:center;gap:10px;margin-left:6px}
-  .authbtn-user{color:var(--ink2);font-size:12.5px;font-weight:600;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .authbtn-out{background:var(--surface2);border:1px solid var(--line);color:var(--ink2);border-radius:9px;padding:7px 13px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;transition:border .14s,color .14s}
-  .authbtn-out:hover{color:var(--ink);border-color:var(--accent)}
+  .authmenu{position:relative;margin-left:6px}
+  .authmenu-avatar{width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;transition:border .14s,box-shadow .14s}
+  .authmenu-avatar:hover{border-color:var(--accent)}
+  .authmenu-avatar[aria-expanded="true"]{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .authmenu-pop{position:absolute;top:44px;right:0;min-width:222px;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 28px rgba(15,23,42,.16);padding:6px;z-index:60}
+  .authmenu-id{padding:9px 11px 10px}
+  .authmenu-id-label{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px}
+  .authmenu-id-email{color:var(--ink);font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .authmenu-sep{height:1px;background:var(--line);margin:2px 4px 4px}
+  .authmenu-signout{display:block;width:100%;text-align:left;background:transparent;border:0;color:var(--ink2);border-radius:8px;padding:9px 11px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:background .12s,color .12s}
+  .authmenu-signout:hover{background:var(--surface2);color:var(--ink)}
   input#filter{background:var(--surface);border:1px solid var(--line);color:var(--ink);padding:8px 12px;border-radius:10px;width:280px;outline:none;box-shadow:var(--shadow-sm);transition:border .15s,box-shadow .15s}
   input#filter:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
   input#filter::placeholder{color:var(--muted)}
@@ -361,9 +368,22 @@
 
   /* matcha */
   #matchaview{max-width:1020px;margin:0 auto;padding:2px 2px 80px}
-  .cov .big{font-size:24px;font-weight:800;color:var(--ink);letter-spacing:-.5px}
-  .cov .row{display:flex;align-items:center;justify-content:space-between;gap:8px}
-  .cov .lab{font-weight:600;font-size:13px;margin-top:6px;color:var(--ink)}
+  /* Coverage tile — self-contained so nothing can leak out of the card. */
+  .covcard{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:15px 16px 14px;box-shadow:var(--shadow-sm);overflow:hidden;display:flex;flex-direction:column;min-width:0}
+  .covcard-top{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
+  .covcard-amount{font-size:22px;font-weight:800;letter-spacing:-.6px;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .covcard-top .pill{flex:0 0 auto;margin:0}
+  .covcard-owner{font-weight:650;font-size:14px;color:var(--ink);margin-top:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .covcard-sub{font-size:12px;color:var(--muted);margin-top:1px}
+  .covcard-track{height:7px;background:var(--inset);border-radius:999px;overflow:hidden;margin-top:13px}
+  .covcard-fill{height:100%;border-radius:999px;transition:width .35s ease;min-width:3px}
+  .covcard-foot{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-top:9px;font-size:12px;font-variant-numeric:tabular-nums;min-width:0}
+  .covcard-pct{color:var(--ink2);font-weight:600;white-space:nowrap;flex:0 0 auto}
+  .covcard-gap{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right;min-width:0}
+  .covcard[data-state="ok"] .covcard-fill{background:var(--green)}
+  .covcard[data-state="ok"] .covcard-gap{color:var(--green-ink)}
+  .covcard[data-state="warn"] .covcard-fill{background:var(--amber)}
+  .covcard[data-state="warn"] .covcard-gap{color:var(--amber-ink)}
 
   /* compact, contained scope + filter panel (overrides the loose original layout) */
   .scopepanel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:11px 13px;margin:0 0 16px;box-shadow:var(--shadow-sm)}

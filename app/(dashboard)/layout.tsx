@@ -6,6 +6,7 @@ import "./dashboard.css";
 import { DashboardProvider, useDashboard } from "@/lib/engine/DashboardContext";
 import ScopeFilterBar from "@/components/ScopeFilterBar";
 import AuthButton from "@/components/AuthButton";
+import SimulateBar from "@/components/SimulateBar";
 
 const TABS = [
   { href: "/deals", label: "Deals" },
@@ -20,6 +21,13 @@ function Header() {
   const { records, scoped, locked, query, setQuery } = useDashboard();
   const shown = locked ? scoped.length : records.length;
   const onDeals = pathname.startsWith("/deals");
+  // The header search is a Deals-only filter. `query` lives in the shared
+  // DashboardContext and feeds `filtered`, which Matcha/Espresso also use — so a
+  // leftover search would silently narrow those tabs too. Clear it whenever we
+  // leave Deals so the search never leaks across routes.
+  useEffect(() => {
+    if (!onDeals && query) setQuery("");
+  }, [onDeals, query, setQuery]);
   return (
     <header>
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -54,7 +62,7 @@ function Header() {
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
-  const { loading, error } = useDashboard();
+  const { loading, error, blocked } = useDashboard();
   const pathname = usePathname();
   // The scope + filters don't apply to Chat (the strategist reads the whole book).
   const showScope = !pathname.startsWith("/chat") && !pathname.startsWith("/sync-quality");
@@ -79,12 +87,15 @@ function Shell({ children }: { children: React.ReactNode }) {
   }, [pathname, loading]);
   return (
     <>
+      <SimulateBar />
       <Header />
       <div className={`wrap ${onEspresso ? "esp-sticky" : ""} ${tabTheme}`}>
         {error ? (
           <div className="empty">Couldn&apos;t load the book.<br /><br /><span className="err">{error}</span></div>
         ) : loading ? (
           <div className="empty">Loading the book…</div>
+        ) : blocked ? (
+          <div className="empty">You don&apos;t have access to MASE.<br /><br /><span className="sub">This account isn&apos;t on the access list. If you believe this is a mistake, contact an admin.</span></div>
         ) : (
           <>
             {showScope ? <ScopeFilterBar /> : null}

@@ -37,11 +37,23 @@ export default function ScopeFilterBar() {
 
   return (
     <div className="filterbar" id="dealfilters">
-      {/* scope — locked to the logged-in user, or free pickers for admins */}
+      {/* scope — locked to the logged-in user, or free pickers for admins.
+          A VP (locked with their team in `vps`) keeps a people picker limited to
+          their own reps so they can drill into an individual; a single rep gets
+          no picker (they only ever see their own deals). */}
       {locked ? (
-        <span className="scopelock" title="Your view is scoped to your account">
-          Viewing: <b>{scopeName}</b>
-        </span>
+        vps.length > 0 ? (
+          <>
+            <span className="scopelock" title="Your view is scoped to your team">
+              Viewing: <b>{scopeName}</b>&apos;s team
+            </span>
+            <MultiSelect allLabel="All reps" options={ownerOpts} selected={rsds} onChange={setRsds} />
+          </>
+        ) : (
+          <span className="scopelock" title="Your view is scoped to your account">
+            Viewing: <b>{scopeName}</b>
+          </span>
+        )
       ) : (
         <>
           <MultiSelect allLabel="All VPs" options={vpOpts} selected={vps} onChange={setVps} />

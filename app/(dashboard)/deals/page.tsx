@@ -5,9 +5,14 @@ import { useDashboard } from "@/lib/engine/DashboardContext";
 import { aiLabel, fmtAmount, verdictTone, type Rec } from "@/lib/engine/helpers";
 import DealDrawer from "@/components/deals/DealDrawer";
 
-const COLS: [string, string, number][] = [
-  ["account_name", "Account", 0], ["opp_name", "Opportunity", 0], ["stage", "Stage", 0],
-  ["forecast_category", "Forecast", 0], ["amount", "Amount", 1], ["close_date", "Close", 0],
+// Columns are split so Verdict + AIS sit immediately after Opportunity.
+// LEAD_COLS render first, then Verdict/AIS, then REST_COLS, then Conf.
+const LEAD_COLS: [string, string, number][] = [
+  ["account_name", "Account", 0], ["opp_name", "Opportunity", 0],
+];
+const REST_COLS: [string, string, number][] = [
+  ["stage", "Stage", 0], ["forecast_category", "Forecast", 0],
+  ["amount", "Amount", 1], ["close_date", "Close", 0],
   ["days_to_close", "Days", 1], ["owner_name", "Owner", 0],
 ];
 const PAGE_SIZE = 50;
@@ -52,25 +57,31 @@ export default function DealsPage() {
         <table>
           <thead>
             <tr>
-              {COLS.map(([k, label]) => (
+              {LEAD_COLS.map(([k, label]) => (
                 <th key={k} onClick={() => sortBy(k)}>{label}{arrow(k)}</th>
               ))}
-              <th>Verdict</th><th>AIS</th><th>Conf.</th>
+              <th>Verdict</th><th>AIS</th>
+              {REST_COLS.map(([k, label]) => (
+                <th key={k} onClick={() => sortBy(k)}>{label}{arrow(k)}</th>
+              ))}
+              <th>Conf.</th>
             </tr>
           </thead>
           <tbody>
             {pageRows.map((r) => {
               const h = r.hard || {}, ai = r.ai || {};
               const verdict = ai.north_star_verdict && ai.north_star_verdict.verdict;
+              const cell = ([k, , numeric]: [string, string, number]) => {
+                let v: any = h[k];
+                if (k === "amount") v = fmtAmount(v);
+                return <td key={k} className={numeric ? "num" : undefined}>{v == null ? "—" : v}</td>;
+              };
               return (
                 <tr key={r.opp_id} onClick={() => setSelected(r)}>
-                  {COLS.map(([k, , numeric]) => {
-                    let v: any = h[k];
-                    if (k === "amount") v = fmtAmount(v);
-                    return <td key={k} className={numeric ? "num" : undefined}>{v == null ? "—" : v}</td>;
-                  })}
+                  {LEAD_COLS.map(cell)}
                   <td>{verdict ? <span className={`chip ${verdictTone(verdict)}`}>{verdict}</span> : ""}</td>
                   <td>{aiLabel(h, ai.ai_fit_signal)}</td>
+                  {REST_COLS.map(cell)}
                   <td className={`conf-${r.analysis_confidence}`}>{r.analysis_confidence || "—"}</td>
                 </tr>
               );

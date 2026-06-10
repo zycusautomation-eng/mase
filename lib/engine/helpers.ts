@@ -197,12 +197,50 @@ export function inScope(r: Rec, vps: string[], rsds: string[]): boolean {
 }
 
 // --- map the logged-in SSO user to a default scope ---
-// Exceptions for people whose email local-part doesn't cleanly become their
-// display name (nicknames, reversed order, etc.). Add entries as needed, e.g.
-//   "j.ajmo@zycus.com": "Justin Ajmo",
-// Tip: to preview a rep's view with your own login, temporarily map your email
-// here (e.g. "gurv.sharma@zycus.com": "Alexa Bradley") then remove it.
-export const EMAIL_TO_OWNER: Record<string, string> = {};
+// EXPLICIT ALLOW-LIST (email -> Salesforce owner/VP display name). This is the
+// single source of truth for who may use MASE: only emails listed here (or in
+// ADMIN_EMAILS) get in; everyone else is blocked (see resolveAccess). Emails are
+// the real SFDC User.Email values — note most follow firstname.lastname@zycus.com
+// but a few do not (e.g. Mario Castro = marioj.castro). This list gates MASE ONLY
+// and has no effect on VIBE, which is a separate app sharing the same Supabase.
+export const EMAIL_TO_OWNER: Record<string, string> = {
+  // Anthony Gray — VP (EU/UK)
+  "anthony.gray@zycus.com": "Anthony Gray",
+  "claire.hudson@zycus.com": "Claire Hudson",
+  "casper.hoeholt@zycus.com": "Casper Hoeholt",
+  // John Woodcock — VP (EMEA/Continental)
+  "john.woodcock@zycus.com": "John Woodcock",
+  "caroline.lacocque@zycus.com": "Caroline Lacocque",
+  "dirk.fischbach@zycus.com": "Dirk Fischbach",
+  "pierre.meraud@zycus.com": "Pierre Meraud",
+  // Carl Kimball — VP (APAC/MEA)
+  "carl.kimball@zycus.com": "Carl Kimball",
+  "mohamad.alhakim@zycus.com": "Mohamad Alhakim",
+  "dan.quinn@zycus.com": "Dan Quinn",
+  "adam.hasan@zycus.com": "Adam Hasan",
+  "george.john@zycus.com": "George John",
+  "guillaume.pasquet@zycus.com": "Guillaume Pasquet",
+  "luke.dougherty@zycus.com": "Luke Dougherty",
+  "tanmay.srivastava@zycus.com": "Tanmay Srivastava",
+  // Alexa Bradley — VP (West)
+  "alexa.bradley@zycus.com": "Alexa Bradley",
+  "karson.keogh@zycus.com": "Karson Keogh",
+  "marioj.castro@zycus.com": "Mario Castro", // note: marioj, NOT mario.castro
+  "rick.taranek@zycus.com": "Rick Taranek",
+  // VP East (open/vacant) — owners only
+  "edward.dlugosz@zycus.com": "Edward Dlugosz",
+  "marc.quessenberry@zycus.com": "Marc Quessenberry",
+  "richard.hunsinger@zycus.com": "Richard Hunsinger",
+  "mike.flowers@zycus.com": "Mike Flowers",
+  // Arthur Raguette — VP, US Strategic Accounts (solo)
+  "arthur.raguette@zycus.com": "Arthur Raguette",
+  // Michael McCarthy — VP, US Mid-Markets
+  "michael.mccarthy@zycus.com": "Michael McCarthy",
+  "bailey.erazo@zycus.com": "Bailey Erazo",
+  "grace.kim@zycus.com": "Grace Kim",
+  "justin.ajmo@zycus.com": "Justin Ajmo",
+  "steve.ovadje@zycus.com": "Steve Ovadje",
+};
 
 // Turn an email into a candidate owner display-name. "alexa.bradley@zycus.com"
 // -> "Alexa Bradley". Falls back to the override table for exceptions.
@@ -233,6 +271,11 @@ export function scopeForOwner(name: string | null): { vps: string[]; rsds: strin
 // Leadership / admins who may see the whole book (filters stay unlocked).
 export const ADMIN_EMAILS = new Set<string>([
   "gurv.sharma@zycus.com",
+  "aleen.dhar@zycus.com",
+  "sam.thomas@zycus.com",
+  "amit.shah@zycus.com",
+  "aatish@zycus.com",
+  "shekhar.varma@zycus.com",
 ]);
 
 // Resolve the logged-in email into an access decision:
@@ -245,13 +288,17 @@ export type Access =
   | { kind: "blocked" };
 
 export function resolveAccess(email: string | null | undefined): Access {
-  if (ADMIN_EMAILS.has((email || "").toLowerCase())) return { kind: "admin" };
-  const name = ownerFromEmail(email);
-  const scope = name ? scopeForOwner(name) : null;
-  if (scope && name) return { kind: "scoped", vps: scope.vps, rsds: scope.rsds, name };
-  // For now, anyone not matched as a rep/VP sees the whole book (fail-open).
-  // Flip this back to { kind: "blocked" } to restrict unknown accounts.
-  return { kind: "admin" };
+  const e = (email || "").toLowerCase();
+  if (ADMIN_EMAILS.has(e)) return { kind: "admin" };
+  // Strict allow-list (fail-CLOSED): only emails explicitly in EMAIL_TO_OWNER
+  // get in. We deliberately do NOT guess a name from the email local-part — an
+  // unlisted @zycus.com account (including VIBE's team, who share this Supabase
+  // project) must see nothing. Unknown => blocked.
+  const name = EMAIL_TO_OWNER[e];
+  if (!name) return { kind: "blocked" };
+  const scope = scopeForOwner(name);
+  if (!scope) return { kind: "blocked" };
+  return { kind: "scoped", vps: scope.vps, rsds: scope.rsds, name };
 }
 
 export function uniqSorted(arr: any[]): any[] { return [...new Set(arr.filter((v) => v != null && v !== ""))].sort(); }

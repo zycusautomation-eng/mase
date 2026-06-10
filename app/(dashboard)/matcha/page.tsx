@@ -21,8 +21,9 @@ export default function MatchaPage() {
     const deals = hard.filter((h) => h.owner_name === o);
     const val = deals.reduce((s, h) => s + (Number(h.amount) || 0), 0);
     const ok = val >= TARGET;
-    const p = Math.min(100, Math.round((100 * val) / TARGET));
-    return { o, count: deals.length, val, ok, p };
+    const pct = TARGET > 0 ? Math.round((100 * val) / TARGET) : 0; // true coverage %
+    const p = Math.min(100, pct);                                  // bar width caps at 100
+    return { o, count: deals.length, val, ok, p, pct };
   });
 
   // by stage — ordered exactly like the Salesforce Opportunity StageName picklist
@@ -63,16 +64,18 @@ export default function MatchaPage() {
       <div className="todo-top"><div className="ttl">Pipeline health. Coverage target is <b>$4M</b> of open pipeline per RSD.</div></div>
 
       <div className="tiles">
-        {tiles.map(({ o, count, val, ok, p }) => (
-          <div className="card cov" key={o} style={{ ["--c" as any]: ok ? "var(--green)" : "var(--amber)" }}>
-            <div className="row"><div className="big">{fmtAmount(val)}</div><span className={`pill ${ok ? "good" : "warn"}`}>{ok ? "adequate" : "inadequate"}</span></div>
-            <div className="lab">{o} — {count} open deals</div>
-            <div className="bars" style={{ marginTop: 8 }}>
-              <div className="bar">
-                <span className="lab">vs $4M</span>
-                <div className="track"><div className="fill" style={{ width: `${p}%`, background: ok ? "var(--green)" : "var(--amber)" }} /></div>
-                <span className="val">{p}%{ok ? "" : ` · short ${fmtAmount(TARGET - val)}`}</span>
-              </div>
+        {tiles.map(({ o, count, val, ok, p, pct }) => (
+          <div className="covcard" key={o} data-state={ok ? "ok" : "warn"}>
+            <div className="covcard-top">
+              <div className="covcard-amount" title={fmtAmount(val)}>{fmtAmount(val)}</div>
+              <span className={`pill ${ok ? "good" : "warn"}`}>{ok ? "adequate" : "inadequate"}</span>
+            </div>
+            <div className="covcard-owner" title={o}>{o}</div>
+            <div className="covcard-sub">{count} open deal{count === 1 ? "" : "s"}</div>
+            <div className="covcard-track"><div className="covcard-fill" style={{ width: `${p}%` }} /></div>
+            <div className="covcard-foot">
+              <span className="covcard-pct">{pct}% of $4M</span>
+              <span className="covcard-gap">{ok ? "✓ on target" : `short ${fmtAmount(TARGET - val)}`}</span>
             </div>
           </div>
         ))}

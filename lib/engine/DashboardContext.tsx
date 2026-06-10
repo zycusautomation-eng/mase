@@ -38,6 +38,12 @@ interface DashboardState {
   blocked: boolean;
   // display name the scope is locked to (e.g. "Alexa Bradley"), null if admin/blocked
   scopeName: string | null;
+  // admin-only impersonation: true if the REAL logged-in user is an admin
+  realIsAdmin: boolean;
+  // email currently being simulated (null = the admin's own whole-book view)
+  simEmail: string | null;
+  // admins: re-scope the whole UI as if `email` were logged in. null resets.
+  simulateAs: (email: string | null) => void;
 }
 
 const Ctx = createContext<DashboardState | null>(null);
@@ -61,6 +67,35 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [locked, setLocked] = useState(false);
   const [blocked, setBlocked] = useState(false);
   const [scopeName, setScopeName] = useState<string | null>(null);
+  const [realIsAdmin, setRealIsAdmin] = useState(false);
+  const [simEmail, setSimEmail] = useState<string | null>(null);
+
+  // Admin-only: re-scope the entire dashboard as if `email` were the logged-in
+  // user (impersonation preview). null = back to the admin's own whole-book view.
+  // Drives the exact same locked/blocked/vps/rsds the real gate would, so the
+  // admin sees precisely what that user sees. Client-side only — the admin still
+  // fetched the whole book; this just filters it.
+  const simulateAs = useCallback((email: string | null) => {
+    setSimEmail(email);
+    try {
+      if (email) sessionStorage.setItem("mase_sim_as", email);
+      else sessionStorage.removeItem("mase_sim_as");
+    } catch { /* sessionStorage unavailable */ }
+    setFilters(EMPTY_FILTERS);
+    if (!email) {
+      setVpsRaw([]); setRsds([]); setScopeName(null); setLocked(false); setBlocked(false);
+      return;
+    }
+    const a = resolveAccess(email);
+    if (a.kind === "scoped") {
+      setVpsRaw(a.vps); setRsds(a.rsds); setScopeName(a.name); setLocked(true); setBlocked(false);
+    } else if (a.kind === "blocked") {
+      setVpsRaw([]); setRsds([]); setScopeName(email); setLocked(true); setBlocked(true);
+    } else {
+      // simulating another admin = whole book
+      setVpsRaw([]); setRsds([]); setScopeName(null); setLocked(false); setBlocked(false);
+    }
+  }, []);
 
   useEffect(() => {
     let off = false;
@@ -113,8 +148,14 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         } else if (access.kind === "blocked") {
           setBlocked(true);
           setLocked(true);
+        } else {
+          // admin: leave the book open, and restore any saved simulation.
+          setRealIsAdmin(true);
+          try {
+            const saved = sessionStorage.getItem("mase_sim_as");
+            if (saved) simulateAs(saved);
+          } catch { /* ignore */ }
         }
-        // admin: leave everything open.
       } catch {
         // No session / Supabase unavailable — leave the book unscoped.
       }
@@ -152,6 +193,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     setVps, setRsds, setFilter, clearFilters, setQuery,
     scoped, filtered,
     locked, blocked, scopeName,
+    realIsAdmin, simEmail, simulateAs,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
