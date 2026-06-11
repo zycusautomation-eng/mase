@@ -1,8 +1,14 @@
 "use client";
 
-import { Suspense, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+
+// When Supabase env vars are absent (local dev / unconfigured host), there is no
+// auth provider to sign into — constructing the browser client throws. Degrade to
+// opening the app directly instead of crashing on this page.
+const SUPABASE_CONFIGURED =
+  !!process.env.NEXT_PUBLIC_SUPABASE_URL && !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 export default function LoginPage() {
   return (
@@ -16,9 +22,19 @@ function LoginInner() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const params = useSearchParams();
+  const router = useRouter();
   const authError = params.get("error");
 
+  // Not configured -> there's no gate; send the user into the app.
+  useEffect(() => {
+    if (!SUPABASE_CONFIGURED) router.replace("/deals");
+  }, [router]);
+
   async function signIn() {
+    if (!SUPABASE_CONFIGURED) {
+      router.replace("/deals");
+      return;
+    }
     setLoading(true);
     setErr(null);
     const supabase = createClient();
@@ -34,6 +50,16 @@ function LoginInner() {
       setLoading(false);
     }
     // On success the browser is redirected to Microsoft — nothing else to do.
+  }
+
+  if (!SUPABASE_CONFIGURED) {
+    return (
+      <main style={styles.page}>
+        <div style={styles.card}>
+          <p style={styles.sub}>Auth not configured on this environment — opening the app…</p>
+        </div>
+      </main>
+    );
   }
 
   return (
