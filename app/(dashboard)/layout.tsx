@@ -17,8 +17,7 @@ const TABS = [
 
 function Header() {
   const pathname = usePathname();
-  const { records, scoped, locked, query, setQuery } = useDashboard();
-  const shown = locked ? scoped.length : records.length;
+  const { query, setQuery } = useDashboard();
   const onDeals = pathname.startsWith("/deals");
   // The header search is a Deals-only filter. `query` lives in the shared
   // DashboardContext and feeds `filtered`, which Matcha/Espresso also use — so a
@@ -31,9 +30,6 @@ function Header() {
     <header>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img className="brandmark-img" src="/mase-logo.svg" alt="MASE — Agents that close with you" />
-      <span className="sub" id="subtitle">
-        {shown ? `${shown} opportunit${shown === 1 ? "y" : "ies"} swept` : ""}
-      </span>
       <div className="tabs">
         {TABS.map((t) => (
           <Link key={t.href} href={t.href} className={`tab ${pathname.startsWith(t.href) ? "active" : ""}`}>
