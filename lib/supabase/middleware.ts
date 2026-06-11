@@ -9,6 +9,14 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function updateSession(request: NextRequest) {
+  // If Supabase isn't configured on this deploy (env vars absent — e.g. local dev
+  // or an unconfigured host), don't gate: redirecting every route to a /login that
+  // can't authenticate would lock the app out entirely. Degrade to "no gate", the
+  // same stance as AuthButton and app/page.tsx. Production (env present) gates normally.
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    return NextResponse.next({ request });
+  }
+
   const path = request.nextUrl.pathname;
   // /login and /auth/* (the OAuth callback) must stay reachable when signed out.
   const isPublic = path.startsWith("/login") || path.startsWith("/auth");
