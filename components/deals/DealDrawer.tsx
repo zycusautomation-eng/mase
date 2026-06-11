@@ -33,6 +33,49 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+// Rich MEDDPICC from the backend ai.meddpicc block: 8 elements, fixed order, each with
+// a status badge + a multi-sentence narrative + evidence sources. This is the real read;
+// the legacy derived <Meddpicc> below is only a fallback for deals not yet re-swept.
+const MEDDPICC_ORDER: [string, string][] = [
+  ["metrics", "Metrics"],
+  ["economic_buyer", "Economic Buyer"],
+  ["decision_criteria", "Decision Criteria"],
+  ["decision_process", "Decision Process"],
+  ["paper_process", "Paper Process"],
+  ["identify_pain", "Identify Pain"],
+  ["champion", "Champion"],
+  ["competition", "Competition"],
+];
+// status -> the existing medd-chip tone classes (have=green, weak=amber, gap=red).
+const MEDD_BADGE: Record<string, string> = { confirmed: "have", partial: "weak", gap: "gap" };
+
+function MeddpiccRich({ meddpicc }: { meddpicc: any }) {
+  return (
+    <div className="medd-rich">
+      {MEDDPICC_ORDER.map(([key, label]) => {
+        const el = meddpicc?.[key];
+        if (!el) return null;
+        const tone = MEDD_BADGE[el.status] || "gap";
+        return (
+          <div className="medd-el" key={key}>
+            <div className="medd-el-h">
+              <span className="medd-el-name">{label}</span>
+              <span className={`medd-chip ${tone}`}>{el.status || "gap"}</span>
+            </div>
+            {el.narrative ? <div className="body">{cleanText(el.narrative)}</div> : null}
+            {Array.isArray(el.sources) && el.sources.length ? (
+              <details className="medd-src">
+                <summary>Sources ({el.sources.length})</summary>
+                <ul>{el.sources.map((s: string, i: number) => <li key={i}>{cleanText(s)}</li>)}</ul>
+              </details>
+            ) : null}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function Meddpicc({ items }: { items: MeddItem[] }) {
   const gaps = items.filter((m) => m.state !== "have");
   return (
@@ -79,6 +122,7 @@ export default function DealDrawer({
   const fit = ai.ai_fit_signal || {};
   const pos = ai.ai_positioning_strength || {};
   const stake = (ai.stakeholder_map || {}).items || [];
+  const meddpicc = ai.meddpicc; // rich backend MEDDPICC (present on re-swept deals)
   const vuln = ai.vulnerabilities || {};
   const openVulns = (vuln.items || []).filter((v: any) => v.status !== "closed");
   // The blocker is ONE combined risk read, capped at 60 words (a seasoned RSD doesn't
@@ -201,13 +245,13 @@ export default function DealDrawer({
                         <tr key={i}>
                           <td className="owner">{s.name}{s.title ? <div className="td-meta">{s.title}</div> : null}</td>
                           <td>{s.role || "—"}</td>
-                          <td>{trim(s.sentiment, 160)}</td>
+                          <td>{trim(s.sentiment)}{s.risk ? <div className="td-meta" style={{ marginTop: 3 }}>⚠ {cleanText(s.risk)}</div> : null}{s.last_contact_date ? <div className="td-meta">last contact {s.last_contact_date}</div> : null}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 ) : null}
-                <Meddpicc items={medd} />
+                {meddpicc ? <MeddpiccRich meddpicc={meddpicc} /> : <Meddpicc items={medd} />}
               </Section>
 
               {/* Money & dates that are real */}

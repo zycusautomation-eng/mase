@@ -474,6 +474,17 @@
   .medd-chip.gap{background:var(--red-bg);color:var(--red-ink)}
   .medd-gaps{margin:9px 0 0;padding-left:18px;color:var(--ink2);font-size:12.5px;line-height:1.6}
   .medd-gaps b{color:var(--ink)}
+  /* Rich MEDDPICC (ai.meddpicc): one block per element with a status badge + narrative + sources */
+  .medd-rich{display:flex;flex-direction:column;gap:12px;margin-top:2px}
+  .medd-el{border-top:1px solid var(--line2);padding-top:10px}
+  .medd-el:first-child{border-top:0;padding-top:0}
+  .medd-el-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px}
+  .medd-el-name{font-size:13px;font-weight:700;color:var(--ink)}
+  .medd-el .medd-chip{text-transform:capitalize}
+  .medd-el .body{color:var(--ink2)}
+  .medd-src{margin-top:6px}
+  .medd-src summary{font-size:11.5px;color:var(--muted);cursor:pointer;font-weight:600}
+  .medd-src ul{margin:5px 0 0;padding-left:16px;color:var(--ink2);font-size:11.5px;line-height:1.55}
   .kvgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px 26px}
   .kvgrid .k{color:var(--muted);font-size:12px}
   .kvgrid .val{font-size:13.5px;color:var(--ink);margin-top:1px}
