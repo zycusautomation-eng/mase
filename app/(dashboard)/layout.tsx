@@ -6,7 +6,6 @@ import "./dashboard.css";
 import { DashboardProvider, useDashboard } from "@/lib/engine/DashboardContext";
 import ScopeFilterBar from "@/components/ScopeFilterBar";
 import AuthButton from "@/components/AuthButton";
-import SimulateBar from "@/components/SimulateBar";
 
 const TABS = [
   { href: "/deals", label: "Deals" },
@@ -70,6 +69,8 @@ function Shell({ children }: { children: React.ReactNode }) {
   // (long) to-do list. Header height varies with width, so measure it live and
   // expose --hdr-h / --fb-h for the sticky offsets.
   const onEspresso = pathname.startsWith("/espresso");
+  // Chat is a full-bleed app surface (no narrow centered page wrap).
+  const onChat = pathname.startsWith("/chat");
   // Per-tab accent hue: warm/coffee on Espresso, green on Matcha (bg stays white).
   const tabTheme = onEspresso ? "theme-espresso" : pathname.startsWith("/matcha") ? "theme-matcha" : "";
   useEffect(() => {
@@ -77,19 +78,20 @@ function Shell({ children }: { children: React.ReactNode }) {
     const measure = () => {
       root.style.setProperty("--hdr-h", (document.querySelector<HTMLElement>("header")?.offsetHeight || 0) + "px");
       root.style.setProperty("--fb-h", (document.querySelector<HTMLElement>(".filterbar")?.offsetHeight || 0) + "px");
+      root.style.setProperty("--sim-h", (document.querySelector<HTMLElement>(".simbar")?.offsetHeight || 0) + "px");
     };
     measure();
     window.addEventListener("resize", measure);
     const ro = new ResizeObserver(measure);
     const hdr = document.querySelector("header"); if (hdr) ro.observe(hdr);
     const fb = document.querySelector(".filterbar"); if (fb) ro.observe(fb);
+    const sim = document.querySelector(".simbar"); if (sim) ro.observe(sim);
     return () => { window.removeEventListener("resize", measure); ro.disconnect(); };
   }, [pathname, loading]);
   return (
     <>
-      <SimulateBar />
       <Header />
-      <div className={`wrap ${onEspresso ? "esp-sticky" : ""} ${tabTheme}`}>
+      <div className={`wrap ${onEspresso ? "esp-sticky" : ""} ${onChat ? "chat-page" : ""} ${tabTheme}`}>
         {error ? (
           <div className="empty">Couldn&apos;t load the book.<br /><br /><span className="err">{error}</span></div>
         ) : loading ? (

@@ -1,23 +1,42 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useDashboard } from "@/lib/engine/DashboardContext";
+import { EMAIL_TO_OWNER, resolveAccess } from "@/lib/engine/helpers";
 
 // Whether Supabase is configured on this deploy. When the env vars are missing
 // (local dev or an unconfigured host), constructing the browser client throws —
 // so we degrade to "no auth UI" rather than white-screening the whole app.
-// Mirrors the middleware's own "misconfig => no gate, not a 500" stance.
 const SUPABASE_CONFIGURED =
   !!process.env.NEXT_PUBLIC_SUPABASE_URL && !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-// User-icon menu in the dashboard header. The avatar button opens a dropdown
-// showing the signed-in identity and a sign-out action.
+// Synthetic email used to preview the "blocked / non-member" view.
+const BLOCKED_PREVIEW = "preview.nonmember@example.com";
+type SimOpt = { email: string; name: string; role: "VP" | "Rep" };
+
+// User-icon menu in the dashboard header. Opens a dropdown with the signed-in
+// identity, an admin-only "Simulate view" control (impersonate any rep/VP to
+// preview exactly what they see), and sign-out.
 export default function AuthButton() {
   const [email, setEmail] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const { realIsAdmin, simEmail, simulateAs, scopeName, blocked } = useDashboard();
+
+  // Allow-listed users to simulate, grouped VP-first then rep, A→Z (ported from
+  // the old top SimulateBar).
+  const simOpts = useMemo<SimOpt[]>(() => {
+    return Object.entries(EMAIL_TO_OWNER)
+      .map(([e, name]) => {
+        const a = resolveAccess(e) as { kind: string; vps?: string[] };
+        const role: "VP" | "Rep" = a.kind === "scoped" && (a.vps?.length ?? 0) > 0 ? "VP" : "Rep";
+        return { email: e, name: name as string, role };
+      })
+      .sort((a, b) => (a.role === b.role ? a.name.localeCompare(b.name) : a.role === "VP" ? -1 : 1));
+  }, []);
 
   useEffect(() => {
     if (!SUPABASE_CONFIGURED) return;
@@ -28,7 +47,7 @@ export default function AuthButton() {
     }).catch(() => {});
   }, []);
 
-  // Close the dropdown on an outside click or the Escape key.
+  // Close on outside click / Escape.
   useEffect(() => {
     if (!open) return;
     function onDown(e: MouseEvent) {
@@ -45,7 +64,6 @@ export default function AuthButton() {
     };
   }, [open]);
 
-  // Not configured -> render nothing (no crash, no auth controls).
   if (!SUPABASE_CONFIGURED) return null;
 
   async function signOut() {
@@ -55,21 +73,35 @@ export default function AuthButton() {
     router.refresh();
   }
 
+  const simulating = simEmail != null;
+  const selectValue = simEmail === BLOCKED_PREVIEW ? "__blocked__" : simEmail ?? "";
+  function onSimChange(v: string) {
+    if (v === "") simulateAs(null);
+    else if (v === "__blocked__") simulateAs(BLOCKED_PREVIEW);
+    else simulateAs(v);
+  }
+  const simStatus = !simulating
+    ? null
+    : blocked
+      ? "a non-member — no access"
+      : `${scopeName ?? simEmail}${simOpts.find((o) => o.email === simEmail)?.role === "VP" ? " — whole team" : " — own deals"}`;
+
   return (
     <div className="authmenu" ref={ref}>
       <button
         type="button"
-        className="authmenu-avatar"
+        className={`authmenu-avatar ${simulating ? "simulating" : ""}`}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={email ? `Account: ${email}` : "Account"}
-        title={email || "Account"}
+        title={simulating ? `Simulating ${scopeName ?? simEmail}` : (email || "Account")}
         onClick={() => setOpen((o) => !o)}
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
           <circle cx="12" cy="8" r="3.6" />
           <path d="M5 19.2c0-3.4 3.2-5.6 7-5.6s7 2.2 7 5.6c0 .6-.5 1-1.1 1H6.1c-.6 0-1.1-.4-1.1-1Z" />
         </svg>
+        {simulating && <span className="authmenu-simdot" aria-hidden="true" />}
       </button>
       {open && (
         <div className="authmenu-pop" role="menu">
@@ -79,13 +111,49 @@ export default function AuthButton() {
               {email || "Unknown user"}
             </div>
           </div>
+
+          {realIsAdmin && (
+            <>
+              <div className="authmenu-sep" />
+              <div className="authmenu-sim">
+                <div className="authmenu-id-label">
+                  Simulate view
+                  {simulating && <span className="authmenu-sim-on">ON</span>}
+                </div>
+                <select
+                  className="authmenu-sim-select"
+                  value={selectValue}
+                  onChange={(e) => onSimChange(e.target.value)}
+                >
+                  <option value="">Your view (admin · whole book)</option>
+                  <optgroup label="VPs">
+                    {simOpts.filter((o) => o.role === "VP").map((o) => (
+                      <option key={o.email} value={o.email}>{o.name} — VP</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Reps">
+                    {simOpts.filter((o) => o.role === "Rep").map((o) => (
+                      <option key={o.email} value={o.email}>{o.name}</option>
+                    ))}
+                  </optgroup>
+                  <option value="__blocked__">A non-member (blocked / no access)</option>
+                </select>
+                {simulating && (
+                  <>
+                    <div className="authmenu-sim-status">
+                      Viewing as <b>{simStatus}</b>. Exactly what they see.
+                    </div>
+                    <button type="button" className="authmenu-sim-exit" onClick={() => simulateAs(null)}>
+                      Exit simulation
+                    </button>
+                  </>
+                )}
+              </div>
+            </>
+          )}
+
           <div className="authmenu-sep" />
-          <button
-            type="button"
-            className="authmenu-signout"
-            role="menuitem"
-            onClick={signOut}
-          >
+          <button type="button" className="authmenu-signout" role="menuitem" onClick={signOut}>
             Sign out
           </button>
         </div>

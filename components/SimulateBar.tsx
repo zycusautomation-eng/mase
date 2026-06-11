@@ -43,7 +43,7 @@ export default function SimulateBar() {
 
     return (
         <div
-            className={`flex items-center gap-3 px-4 py-1.5 text-xs border-b ${
+            className={`simbar flex items-center gap-3 px-4 py-1.5 text-xs border-b ${
                 simulating
                     ? "bg-amber-500/15 border-amber-500/40 text-amber-800 dark:text-amber-300"
                     : "bg-muted/40 text-muted-foreground"
