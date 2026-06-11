@@ -103,7 +103,7 @@ function AdminPromptPanel() {
   async function load() {
     setLoading(true); setNote(null);
     try {
-      const r = await fetch("/api/deal-engine/chat/prompt");
+      const r = await fetch("/api/deal-engine/chat/prompt", { cache: "no-store" });
       const j = await r.json();
       if (!r.ok || j.error) { setNote(j.error || `Error ${r.status}`); }
       else {
@@ -116,6 +116,11 @@ function AdminPromptPanel() {
     } catch (e: any) { setNote(e?.message || String(e)); }
     setLoading(false);
   }
+
+  // Fetch the prompt as soon as the panel mounts (admins only), so it's ready
+  // and never blank — independent of when the panel is first expanded.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { void load(); }, []);
 
   function toggle() {
     const o = !open; setOpen(o);

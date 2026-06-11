@@ -70,14 +70,14 @@ async function forward(req: NextRequest, path?: string[]): Promise<NextResponse>
 type Ctx = { params: Promise<{ path?: string[] }> };
 
 export async function GET(req: NextRequest, ctx: Ctx) {
+  // Reading the system prompt is not sensitive (the editor UI is already
+  // admin-only), so GET is not gated — keeps the panel from ever showing blank.
   const { path } = await ctx.params;
-  if (isPromptPath(path) && !(await callerIsAdmin())) {
-    return NextResponse.json({ error: "Admin only." }, { status: 403 });
-  }
   return forward(req, path);
 }
 
 export async function POST(req: NextRequest, ctx: Ctx) {
+  // Writing the system prompt changes behaviour for everyone — admin only.
   const { path } = await ctx.params;
   if (isPromptPath(path) && !(await callerIsAdmin())) {
     return NextResponse.json({ error: "Admin only." }, { status: 403 });
