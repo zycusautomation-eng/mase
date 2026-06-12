@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useDashboard } from "@/lib/engine/DashboardContext";
 import { daysSince, fmtAmount, teamOwners, stageRank, type Rec } from "@/lib/engine/helpers";
 import DealDrawer from "@/components/deals/DealDrawer";
+import { useBackendTodos } from "@/lib/engine/useBackendTodos";
+import { topMoveForOpp, replanDue } from "@/components/deals/DealTodos";
 
 const TARGET = 4000000;
 const NM = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -11,6 +13,7 @@ const NM = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct"
 export default function MatchaPage() {
   const { records, vps, rsds, filtered, playbook } = useDashboard();
   const [selected, setSelected] = useState<Rec | null>(null);
+  const backend = useBackendTodos(); // to surface each stalled deal's next move
   const hard = filtered.map((r) => r.hard || {});
 
   const owners = teamOwners(records, vps);
@@ -108,16 +111,29 @@ export default function MatchaPage() {
 
       <div className="sec-title">Stalled at Qualified — not touched in 30+ days <span style={{ color: "var(--muted)" }}>({stale.length})</span></div>
       <div className="card"><ul className="ilist">
-        {stale.length ? stale.map(({ r, h, sinceActivity, refDays }) => (
-          <li key={h.opp_id} className="click" onClick={() => setSelected(r)} role="button" tabIndex={0}
-            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelected(r); } }}
-            title="Open deal">
-            <div className="top"><span className="nm">{h.account_name} <span className="meta">· {h.opp_name}</span></span><span className="amt">{fmtAmount(h.amount)}</span></div>
-            <div className="meta">{h.owner_name} · qualified {h.qualified_date || "?"} · {h.last_activity_date
-              ? `last activity ${h.last_activity_date} (${sinceActivity} days ago)`
-              : `no activity logged${refDays != null ? ` · ${refDays}d untouched` : ""}`}</div>
-          </li>
-        )) : <div className="empty-s">No Qualified deals sitting untouched. Momentum is being held.</div>}
+        {stale.length ? stale.map(({ r, h, sinceActivity, refDays }) => {
+          // The intelligent next move to un-stall this deal: the backend's rank-1 move if it
+          // has one, else a synthesized re-engage play. Always a future due date.
+          const silent = sinceActivity ?? refDays;
+          const move = topMoveForOpp(backend.flat, r.opp_id) || {
+            text: `Re-engage the buyer (${silent != null ? `${silent}d` : "30+d"} silent): book a checkpoint, re-confirm the next milestone and decision timeline, and reset a mutual close plan.`,
+            dueBy: replanDue(silent != null && silent > 60),
+          };
+          return (
+            <li key={h.opp_id} className="click" onClick={() => setSelected(r)} role="button" tabIndex={0}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelected(r); } }}
+              title="Open deal">
+              <div className="top"><span className="nm">{h.account_name} <span className="meta">· {h.opp_name}</span></span><span className="amt">{fmtAmount(h.amount)}</span></div>
+              <div className="meta">{h.owner_name} · qualified {h.qualified_date || "?"} · {h.last_activity_date
+                ? `last activity ${h.last_activity_date} (${sinceActivity} days ago)`
+                : `no activity logged${refDays != null ? ` · ${refDays}d untouched` : ""}`}</div>
+              <div className="why" style={{ marginTop: 5 }}>
+                <b>► Next:</b> {move.text}
+                {move.dueBy ? <span className="duechip" style={{ marginLeft: 6 }}>due {move.dueBy}</span> : null}
+              </div>
+            </li>
+          );
+        }) : <div className="empty-s">No Qualified deals sitting untouched. Momentum is being held.</div>}
       </ul></div>
 
       <DealDrawer record={selected} records={records} playbook={playbook} onClose={() => setSelected(null)} />

@@ -123,6 +123,33 @@ function dueInfo(it: BackendTodoItem): { dueBy: string; from: string | null } | 
   return { dueBy, from };
 }
 
+// A future due date (>= today) re-planned from today by urgency. Exposed so other views
+// (e.g. Matcha) can date a synthesized move the same way the to-do chips do.
+export function replanDue(urgent: boolean): string {
+  return addDays(todayISO(), urgent ? 2 : 7);
+}
+
+// The single highest-leverage NEXT MOVE for one opp — the rank-1 critical to-do — with its
+// future due date. Used by Matcha to put an actionable "Next" on each stalled deal instead
+// of just metadata. Returns null when the opp has no critical move (caller can synthesize one).
+export function topMoveForOpp(
+  flat: BackendTodoItem[],
+  oppId: unknown,
+): { text: string; dueBy: string; owner?: string } | null {
+  const key = sfKey(oppId);
+  for (const it of flat) {
+    if (it.category === "critical" && sfKey(it.opp_id) === key && it.text) {
+      const di = dueInfo(it);
+      return {
+        text: it.text,
+        dueBy: di?.dueBy || replanDue(isUrgentTodo(it)),
+        owner: (it.intervention_owner as string) || undefined,
+      };
+    }
+  }
+  return null;
+}
+
 // Small context chips per category. Owner-ish fields render as ownerchip; the due date is
 // always future; said_by renders as "asked by X".
 export function ContextMeta({ it }: { it: BackendTodoItem }) {
