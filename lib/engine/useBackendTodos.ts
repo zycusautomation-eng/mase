@@ -31,6 +31,11 @@ export const CATEGORY_ORDER: BackendCategory[] = [
   "bestPractice",
 ];
 
+// Best-practice flags that are CRM data-entry / field hygiene rather than deal moves.
+// Matches a SF field API name (__c), a boolean/null field state, or a data-entry verb.
+const CRM_HYGIENE_FLAG =
+  /__c\b|\b(is|are)\s+(false|null)\b|[=:]\s*(false|null)\b|amount\s*[=:]\s*0|\bpopulate\b|log (recent )?activity|update salesforce|complete the (crm|salesforce) record|no products scoped|contact roles? in salesforce|no salesforce (opportunity )?data/i;
+
 export type BackendCategory =
   | "critical"
   | "important"
@@ -92,6 +97,12 @@ function annotate(data: unknown): {
       const item = raw as BackendTodoRaw;
       const textVal = item[field];
       const text = typeof textVal === "string" ? textVal : "";
+      // A to-do moves the deal; it does not fill Salesforce. Drop best-practice flags that
+      // are CRM data-entry / field hygiene (cite a SF field API name, a boolean/null field
+      // state, or a "populate/log activity" task). The same deal gaps survive as clean,
+      // field-name-free flags and in the rich MEDDPICC panel. This keeps the UI clean now;
+      // the v2 sweep stops emitting these, so over time this is just a safety net.
+      if (category === "bestPractice" && CRM_HYGIENE_FLAG.test(text)) continue;
       const todoKey = typeof item.todo_key === "string" ? item.todo_key : "";
       const annotated: BackendTodoItem = { ...item, category, text, todoKey };
       arrays[category].push(annotated);
