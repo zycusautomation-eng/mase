@@ -95,22 +95,56 @@ export function DealTodoBuckets({
   );
 }
 
-// Small context chips per category. Owner-ish fields render as ownerchip; date-ish
-// fields render as duechip; said_by renders as "asked by X".
+// --- Due dates are ALWAYS in the future ---
+// A to-do's "due by" must never be a past date. A genuine future deadline is kept as-is;
+// a past or missing one is re-planned to an urgency-based window from today (the board is
+// re-planned daily, so "today" stays current): urgent ~2 days, otherwise ~7 days. The
+// origin date (when it was raised / the move was triggered) is shown separately as "from".
+const todayISO = (): string => new Date().toISOString().slice(0, 10);
+function addDays(iso: string, n: number): string {
+  const d = new Date(iso + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+function isUrgentTodo(it: BackendTodoItem): boolean {
+  const u = String((it.urgency as string) || "").toLowerCase();
+  if (/high|critical|urgent|immediate/.test(u)) return true;
+  if (it.category === "critical") return true; // next-moves are time-sensitive by nature
+  return /\b(today|immediately|this week|asap|urgent|escalat|dealbreaker|overdue|right away|within 48)\b/i
+    .test(String(it.text || ""));
+}
+function dueInfo(it: BackendTodoItem): { dueBy: string; from: string | null } | null {
+  const deadline = (it.act_by || it.due) as string | undefined; // a real deadline field
+  const origin = (it.trigger_date || it.date) as string | undefined; // when raised / triggered
+  if (!deadline && !origin) return null; // undated item (e.g. a best-practice flag): no due chip
+  const t = todayISO();
+  const dueBy = deadline && deadline >= t ? deadline : addDays(t, isUrgentTodo(it) ? 2 : 7);
+  const from = origin && origin < dueBy ? origin : null;
+  return { dueBy, from };
+}
+
+// Small context chips per category. Owner-ish fields render as ownerchip; the due date is
+// always future; said_by renders as "asked by X".
 export function ContextMeta({ it }: { it: BackendTodoItem }) {
   const owner = (it.intervention_owner || it.who) as string | undefined;
-  const due = (it.due || it.act_by || it.trigger_date || it.date) as string | undefined;
   const askedBy = it.said_by as string | undefined;
-  const trigger = it.trigger as string | undefined;
-  const urgency = it.urgency as string | undefined;
-  const status = it.status as string | undefined;
-  const hasAny = owner || due || askedBy || trigger || urgency || status;
+  // Drop standalone status-like chips ("overdue" / "open" / "completed" / "no due date") on any
+  // field — the future due chip carries the timing now, and a bare "overdue" contradicts it.
+  // Narrative triggers (e.g. "5 overdue deliverables") are long, not bare, so they survive.
+  const NOISE = /^(open|overdue|completed|no due date)$/i;
+  const clean = (s: string | undefined) => (s && !NOISE.test(s.trim()) ? s : undefined);
+  const trigger = clean(it.trigger as string | undefined);
+  const urgency = clean(it.urgency as string | undefined);
+  const status = clean(it.status as string | undefined);
+  const di = dueInfo(it);
+  const hasAny = owner || di || askedBy || trigger || urgency || status;
   if (!hasAny) return null;
   return (
     <div className="td-meta">
       {owner ? <span className={`ownerchip ${ownerKind(owner) === "VP" ? "vp" : ""}`}>{owner}</span> : null}
       {askedBy ? <span className="ownerchip">asked by {askedBy}</span> : null}
-      {due ? <span className="duechip">{due}</span> : null}
+      {di ? <span className="duechip">due {di.dueBy}</span> : null}
+      {di?.from ? <span className="ownerchip">from {di.from}</span> : null}
       {trigger ? <span className="ownerchip">{trigger}</span> : null}
       {urgency ? <span className="ownerchip">{urgency}</span> : null}
       {status ? <span className="ownerchip">{status}</span> : null}
