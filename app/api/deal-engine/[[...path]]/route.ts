@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { ADMIN_EMAILS } from "@/lib/engine/helpers";
+import { freshAccessToken } from "@/lib/sfdc/server";
 
 // Server-side proxy. The browser calls same-origin /api/deal-engine/* and this
 // handler attaches the Bearer token (kept in a server-side env var) and forwards
@@ -19,6 +20,12 @@ function isPromptPath(path?: string[]): boolean {
   return !!path && path.length === 2 && path[0] === "chat" && path[1] === "prompt";
 }
 
+// The to-do push: /api/deal-engine/todo/push. We enrich its body with the
+// caller's Salesforce OAuth token so the backend creates the Task AS the rep.
+function isPushPath(path?: string[]): boolean {
+  return !!path && path.length === 2 && path[0] === "todo" && path[1] === "push";
+}
+
 async function callerIsAdmin(): Promise<boolean> {
   try {
     const supabase = await createClient();
@@ -34,7 +41,7 @@ function targetUrl(path: string[] | undefined, search: string): string {
   return `${BASE}/api/deal-engine${suffix}${search}`;
 }
 
-async function forward(req: NextRequest, path?: string[]): Promise<NextResponse> {
+async function forward(req: NextRequest, path?: string[], bodyOverride?: string): Promise<NextResponse> {
   if (!BASE || !TOKEN) {
     return NextResponse.json(
       { error: "Server is missing DEAL_ENGINE_API_BASE or DEAL_ENGINE_TOKEN. Set them in .env.local." },
@@ -51,7 +58,7 @@ async function forward(req: NextRequest, path?: string[]): Promise<NextResponse>
     },
   };
   if (req.method !== "GET" && req.method !== "HEAD") {
-    init.body = await req.text();
+    init.body = bodyOverride !== undefined ? bodyOverride : await req.text();
   }
 
   try {
@@ -77,10 +84,32 @@ export async function GET(req: NextRequest, ctx: Ctx) {
 }
 
 export async function POST(req: NextRequest, ctx: Ctx) {
-  // Writing the system prompt changes behaviour for everyone — admin only.
   const { path } = await ctx.params;
+  // Writing the system prompt changes behaviour for everyone — admin only.
   if (isPromptPath(path) && !(await callerIsAdmin())) {
     return NextResponse.json({ error: "Admin only." }, { status: 403 });
+  }
+  // To-do push: inject the caller's Salesforce token so the Task is created as
+  // the rep. If they haven't connected, we forward unchanged and the backend
+  // falls back to the shared integration user.
+  if (isPushPath(path)) {
+    try {
+      const supabase = await createClient();
+      const { data } = await supabase.auth.getUser();
+      if (data.user) {
+        const tok = await freshAccessToken(data.user.id);
+        if (tok) {
+          const raw = await req.text();
+          let body: Record<string, unknown> = {};
+          try { body = raw ? JSON.parse(raw) : {}; } catch { body = {}; }
+          body.sf_access_token = tok.access_token;
+          body.sf_instance_url = tok.instance_url;
+          return forward(req, path, JSON.stringify(body));
+        }
+      }
+    } catch {
+      /* fall through — forward unchanged, backend uses the shared user */
+    }
   }
   return forward(req, path);
 }

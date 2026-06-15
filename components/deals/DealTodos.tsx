@@ -9,6 +9,8 @@ import {
   type BackendCategory,
   type BackendTodoItem,
 } from "@/lib/engine/useBackendTodos";
+import { useAgentRun } from "@/components/agent/AgentRun";
+import { useDashboard } from "@/lib/engine/DashboardContext";
 
 // SHARED to-do renderer — the single source of truth for how a deal's to-dos
 // look and behave. Used by BOTH the Espresso tab and the deal drawer, sourced
@@ -83,6 +85,7 @@ export function DealTodoBuckets({
                       <div className="td-txt">{it.text}</div>
                       <ContextMeta it={it} />
                     </div>
+                    <AgentButton it={it} ownerName={ownerName} />
                     <SfButton it={it} ownerName={ownerName} enabled={done.has(it.todoKey)} sync={sync} backend={backend} serverPushed={serverPushed} />
                   </li>
                 );
@@ -176,6 +179,32 @@ export function ContextMeta({ it }: { it: BackendTodoItem }) {
       {urgency ? <span className="ownerchip">{urgency}</span> : null}
       {status ? <span className="ownerchip">{status}</span> : null}
     </div>
+  );
+}
+
+// "Run with AI" — hands this to-do to the Tactical Fulfillment Agent, which
+// drafts the outbound email live in a right-side panel. Draft-only; a human
+// reviews and sends. ADMIN-ONLY for now: neither reps nor VPs see it — only a
+// real admin in their own (not simulated) view, so simulating any user hides it
+// (the preview matches what that user actually sees: nothing).
+export function AgentButton({ it, ownerName }: { it: BackendTodoItem; ownerName?: string }) {
+  const { start } = useAgentRun();
+  const { realIsAdmin, simEmail } = useDashboard();
+  const canRunAI = realIsAdmin && simEmail == null;
+  if (!canRunAI) return null;
+  return (
+    <button
+      type="button"
+      className="ai-btn"
+      title="Run with AI — draft this on the rep's behalf"
+      aria-label="Run with AI"
+      onClick={() => start(it, ownerName)}
+    >
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 3l1.9 4.6L18.5 9.5 13.9 11.4 12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3Z" fill="currentColor" />
+        <circle cx="18.5" cy="17.5" r="2.2" fill="currentColor" opacity=".7" />
+      </svg>
+    </button>
   );
 }
 

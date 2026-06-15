@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useDashboard } from "@/lib/engine/DashboardContext";
+import { useSfdc } from "@/components/sfdc/SfdcProvider";
 import { EMAIL_TO_OWNER, resolveAccess } from "@/lib/engine/helpers";
 
 // Whether Supabase is configured on this deploy. When the env vars are missing
@@ -25,6 +26,7 @@ export default function AuthButton() {
   const ref = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const { realIsAdmin, simEmail, simulateAs, scopeName, blocked } = useDashboard();
+  const sf = useSfdc();
 
   // Allow-listed users to simulate, grouped VP-first then rep, A→Z (ported from
   // the old top SimulateBar).
@@ -146,6 +148,29 @@ export default function AuthButton() {
                     <button type="button" className="authmenu-sim-exit" onClick={() => simulateAs(null)}>
                       Exit simulation
                     </button>
+                  </>
+                )}
+              </div>
+            </>
+          )}
+
+          {sf.configured && (
+            <>
+              <div className="authmenu-sep" />
+              <div className="authmenu-sf">
+                <div className="authmenu-id-label">Salesforce</div>
+                {sf.connected ? (
+                  <>
+                    <div className="authmenu-sf-on">
+                      <span className="authmenu-sf-dot" aria-hidden /> Connected
+                      <span className="authmenu-sf-user" title={sf.username || ""}>{sf.displayName || sf.username}</span>
+                    </div>
+                    <button type="button" className="authmenu-sf-btn disc" onClick={() => sf.disconnect()}>Disconnect</button>
+                  </>
+                ) : (
+                  <>
+                    <div className="authmenu-sf-off">Not connected — to-dos push under a shared account.</div>
+                    <button type="button" className="authmenu-sf-btn conn" onClick={() => sf.connect()}>Connect Salesforce</button>
                   </>
                 )}
               </div>

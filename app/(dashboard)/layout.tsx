@@ -6,6 +6,8 @@ import "./dashboard.css";
 import { DashboardProvider, useDashboard } from "@/lib/engine/DashboardContext";
 import ScopeFilterBar from "@/components/ScopeFilterBar";
 import AuthButton from "@/components/AuthButton";
+import { AgentRunProvider } from "@/components/agent/AgentRun";
+import { SfdcProvider } from "@/components/sfdc/SfdcProvider";
 
 const TABS = [
   { href: "/deals", label: "Deals" },
@@ -108,7 +110,11 @@ function Shell({ children }: { children: React.ReactNode }) {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <DashboardProvider>
-      <Shell>{children}</Shell>
+      <AgentRunProvider>
+        <SfdcProvider>
+          <Shell>{children}</Shell>
+        </SfdcProvider>
+      </AgentRunProvider>
     </DashboardProvider>
   );
 }
