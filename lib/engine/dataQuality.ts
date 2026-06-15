@@ -3,7 +3,7 @@
 // / AIS fallback) so it surfaces the underlying data issues, not the app's
 // cosmetic corrections. Pure + deterministic; the page stamps "checked at".
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { keepRecord, STAGE_ORDER, dealComps, type Rec } from "./helpers";
+import { keepRecord, STAGE_ORDER, dealComps, OWNER_VP, type Rec } from "./helpers";
 
 // "True insight" detection — a fact counts as KNOWN if it appears in the direct
 // SF field OR in related fields / opp name / the AI-synthesized sections (which
@@ -40,6 +40,30 @@ const TODO_MILESTONE = /discover|demo|\brfi\b|\brfp\b|shortlist|shoe.?fit|shufit
 // Stage-mechanics filler — telling a seasoned rep to "advance to the next stage" is not insight.
 const TODO_FILLER = /move (it )?to (formal eval|shortlist|qualified|negotiation|vendor select|proposal)|advance (the deal )?to|progress (the deal )?to (the )?(next stage|formal eval|shortlist)|reach (formal eval|shortlist|[a-z ]+stage) by/i;
 const moveText = (r: Rec): string => items((r.ai || {}).recommended_moves).map((m: any) => String(m.action || "")).join("  ");
+
+// --- Provenance / fabrication detection ---
+// An INDEPENDENT audit of the RAW stored record (not the frontend-scrubbed to-do
+// text), so it surfaces what the backend actually saved regardless of the display
+// fix. Every fact must trace to a source. The owner->manager map is deterministic
+// truth on the frontend, so a manager named in a move that is neither a known
+// Zycus person, the owner themselves, nor a placeholder is a fabrication — this is
+// exactly how "Mark Emery" / "Andrew Graham" / "Rajesh Kumar" get caught.
+const ZYCUS_PEOPLE = new Set<string>([
+  ...Object.keys(OWNER_VP).map((s) => s.toLowerCase()),
+  ...Object.values(OWNER_VP).map((s) => s.toLowerCase()),
+]);
+const PLACEHOLDER = /manager_name|\{\{?\s*[a-z_]+\s*\}?\}|\[[a-z_][a-z_ ]*\]|<[a-z_][a-z_ ]*>|name_here|insert\s+name|tbd\s+name/i;
+const stripPoss = (s: string): string => s.replace(/['’]s$/, "");
+// The person occupying the MANAGER slot of an escalation move, or null. Precise on
+// purpose (a "(manager)" tag, or a name directly followed by an action verb) to
+// avoid flagging capitalised verb phrases like "Schedule Call".
+function mgrSlotName(act: string): string | null {
+  let m = act.match(/([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z'’.\-]+){1,2})\s*\((?:the\s+)?manager\)/);
+  if (m) return m[1];
+  m = act.match(/Executive connect:?\s*\(?([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z'’.\-]+){1,2})\s+(?:to|should|must|calls?|schedules?|reaches?|will|joins?)\b/);
+  if (m) return m[1];
+  return null;
+}
 
 // Build a check over a denominator subset (default: all records).
 function check(key: string, label: string, recs: Rec[], isBad: (r: Rec) => string | false, denom?: (r: Rec) => boolean): DQCheck {
@@ -167,7 +191,44 @@ export function computeDataQuality(rawRecords: Rec[], triggerLogs: any[] = []): 
     }, hasMomentum),
   ]);
 
-  const dimensions = [completeness, freshness, consistency, meddpicc, avoma, analysis, triggers, todoQuality];
+  // Provenance / fabrication — does every fact trace to a source? Independent of the
+  // backend gate: it reads the RAW record, so it catches fabricated/unresolved facts
+  // even if a frontend scrub hides them in the UI. A clean book scores 100 here.
+  const provenance = dim("provenance", "Provenance / fabrication (do facts trace to a source?)", [
+    check("prov_manager", "Manager named in a move is not a real person (fabricated / unresolved)", recs, (r) => {
+      const owner = stripPoss(String(h(r).owner_name || "").toLowerCase());
+      for (const m of items(ai(r).recommended_moves)) {
+        const slot = mgrSlotName(String(m.action || ""));
+        if (!slot) continue;
+        const s = stripPoss(slot.toLowerCase());
+        if (s === owner) continue;                 // owner referenced (incl. possessive) — fine
+        if (!ZYCUS_PEOPLE.has(s)) return `"${slot}" is not a known Zycus manager`;
+      }
+      return false;
+    }, (r) => items(ai(r).recommended_moves).some((m: any) => !!mgrSlotName(String(m.action || "")))),
+    check("prov_placeholder", "Unresolved template token / placeholder left in analysis or to-dos", recs, (r) => {
+      const txt = [moveText(r), (ai(r).north_star_verdict || {}).headline, (ai(r).north_star_verdict || {}).verdict,
+        ...items(ai(r).vulnerabilities).map((v: any) => v.detail)].filter(Boolean).join("  ");
+      const m = txt.match(PLACEHOLDER);
+      return m ? `"${m[0]}"` : false;
+    }),
+    // Forward-compatible: once the backend ships per-fact sources, flag any fact with a
+    // value but no source. Records that predate the provenance schema have no *_source
+    // keys, so the denominator is 0 and this check is inert until the gate is deployed.
+    check("prov_unsourced", "Fact present with no source recorded (needs backend provenance)", recs, (r) => {
+      const hh = h(r) as any;
+      for (const f of ["manager_name", "amount", "stage", "close_date", "competitor"]) {
+        if (hh[f + "_source"] === undefined) continue;            // schema not present yet
+        if (!empty(hh[f]) && empty(hh[f + "_source"])) return `${f} has no source`;
+      }
+      return false;
+    }, (r) => {
+      const hh = h(r) as any;
+      return ["manager_name", "amount", "stage", "close_date", "competitor"].some((f) => hh[f + "_source"] !== undefined);
+    }),
+  ]);
+
+  const dimensions = [completeness, freshness, consistency, meddpicc, avoma, analysis, triggers, todoQuality, provenance];
   const overall = Math.round(dimensions.reduce((s, d) => s + d.score, 0) / dimensions.length);
 
   // Sync activity — how many re-sweeps ran (and from where) vs accounts that
