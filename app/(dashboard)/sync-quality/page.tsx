@@ -128,7 +128,8 @@ export default function DataQualityPage() {
       <div className="todo-top">
         <div className="ttl">
           Sync quality of the swept Salesforce + Avoma book — scored against the latest data at check time.
-          {checkedAt ? <> · <b>Checked {checkedAt}</b></> : ""}{res ? ` · ${res.total} deals` : ""}
+          {res?.lastSync ? <> · <b>Last sync {res.lastSync}</b>{res.lastSyncCount ? ` (${res.lastSyncCount} deals)` : ""}</> : ""}
+          {checkedAt ? <> · Checked {checkedAt}</> : ""}{res ? ` · ${res.total} deals` : ""}
         </div>
         <div className="dq-actions">
           <button className="fclear" onClick={run} disabled={loading}>{loading ? "Checking…" : "↻ Re-run check"}</button>

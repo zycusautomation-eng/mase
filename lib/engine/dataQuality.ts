@@ -17,7 +17,7 @@ export interface DQCheck { key: string; label: string; bad: number; total: numbe
 export interface DQDimension { key: string; label: string; score: number; checks: DQCheck[] }
 export interface DQLagger { acct: string; opp: string; owner: string; change: string; kind: string; sweptAt: string; daysBehind: number }
 export interface DQSync { reSweeps: number; distinctOpps: number; bySource: Record<string, number>; changedNotReswept: number; laggers: DQLagger[] }
-export interface DQResult { total: number; overall: number; dimensions: DQDimension[]; today: string; sync: DQSync }
+export interface DQResult { total: number; overall: number; dimensions: DQDimension[]; today: string; sync: DQSync; lastSync: string; lastSyncCount: number }
 
 const SF_STAGES = new Set(STAGE_ORDER);
 
@@ -191,7 +191,12 @@ export function computeDataQuality(rawRecords: Rec[], triggerLogs: any[] = []): 
   }).filter(Boolean).sort((a: any, b: any) => b.daysBehind - a.daysBehind) as DQLagger[];
   const sync: DQSync = { reSweeps: (triggerLogs || []).length, distinctOpps: distinct.size, bySource, changedNotReswept: laggers.length, laggers };
 
-  return { total: recs.length, overall, dimensions, today: t, sync };
+  // Last sync = the most recent swept_at across the book, ignoring future-dated outliers.
+  const sweptDates = recs.map((r) => r.swept_at).filter((s): s is string => !!s && s <= t).sort();
+  const lastSync = sweptDates.length ? sweptDates[sweptDates.length - 1] : "";
+  const lastSyncCount = lastSync ? sweptDates.filter((s) => s === lastSync).length : 0;
+
+  return { total: recs.length, overall, dimensions, today: t, sync, lastSync, lastSyncCount };
 }
 
 export function dqToCsv(res: DQResult): string {
