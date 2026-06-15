@@ -9,6 +9,61 @@ const PASS = process.env.NEXT_PUBLIC_DQ_PASSCODE || "Mased@123";
 const UNLOCK_KEY = "mase_dq_unlocked";
 const tone = (s: number) => (s >= 85 ? "good" : s >= 65 ? "warn" : "bad");
 
+// Live sweep-queue progress. Reads GET /api/deal-engine/sweep/status and polls while a run
+// is active. Works with the current status shape (total/done/failed/in_progress + opps[]) and
+// the future queue-backed shape (counts{} + recent_failed[]). Hides itself if the endpoint
+// isn't available or nothing is queued.
+function SweepQueuePanel() {
+  const [q, setQ] = useState<any>(null);
+  const [dead, setDead] = useState(false);
+  useEffect(() => {
+    let off = false; let timer: ReturnType<typeof setTimeout>;
+    const load = async () => {
+      try {
+        const r = await fetch("/api/deal-engine/sweep/status", { cache: "no-store" });
+        if (!r.ok) throw new Error(String(r.status));
+        const j = await r.json();
+        if (off) return;
+        setQ(j); setDead(false);
+        timer = setTimeout(load, j?.status === "running" ? 5000 : 20000);
+      } catch {
+        if (off) return;
+        setDead(true);
+        timer = setTimeout(load, 30000);
+      }
+    };
+    load();
+    return () => { off = true; clearTimeout(timer); };
+  }, []);
+  if (dead || !q) return null;
+  const c = q.counts || {
+    done: q.done || 0, failed: q.failed || 0, working: q.in_progress || 0, total: q.total || 0,
+    waiting: Math.max(0, (q.total || 0) - (q.done || 0) - (q.failed || 0) - (q.in_progress || 0)),
+  };
+  const total = c.total || (c.waiting + c.working + c.done + c.failed);
+  if (!total) return null;
+  const pct = Math.round((100 * c.done) / total);
+  const running = q.status === "running" || c.working > 0 || c.waiting > 0;
+  const failed: any[] = q.recent_failed || (q.opps || []).filter((o: any) => o.status === "failed");
+  return (
+    <div className="card dq-sync" style={{ flexWrap: "wrap" }}>
+      <div className="dq-stat"><b style={{ color: running ? "var(--green-ink)" : undefined }}>{running ? "● Running" : "Idle"}</b><span>sweep worker</span></div>
+      <div className="dq-stat"><b>{c.done}/{total}</b><span>done ({pct}%)</span></div>
+      <div className="dq-stat"><b>{c.working}</b><span>in flight</span></div>
+      <div className="dq-stat"><b>{c.waiting}</b><span>waiting</span></div>
+      <div className="dq-stat"><b style={c.failed ? { color: "var(--red-ink)" } : undefined}>{c.failed}</b><span>failed</span></div>
+      <div style={{ flexBasis: "100%", height: 8, background: "var(--inset)", borderRadius: 6, overflow: "hidden", marginTop: 8 }}>
+        <div style={{ height: "100%", width: `${pct}%`, background: "var(--green)", borderRadius: 6, transition: "width .3s" }} />
+      </div>
+      {failed.length ? (
+        <div style={{ flexBasis: "100%", marginTop: 6 }} className="td-meta">
+          Failed: {failed.slice(0, 6).map((f) => f.account_name || f.opp_id).join(", ")}{failed.length > 6 ? ` +${failed.length - 6} more` : ""}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export default function DataQualityPage() {
   const [unlocked, setUnlocked] = useState(false);
   const [pw, setPw] = useState("");
@@ -94,6 +149,9 @@ export default function DataQualityPage() {
               <div className="td-meta">across {res.total} opportunities · {res.dimensions.length} dimensions · lower = more gaps to fix</div>
             </div>
           </div>
+
+          {/* Live sweep-queue progress (durable worker) — hidden until the endpoint exists */}
+          <SweepQueuePanel />
 
           {/* Sync activity — re-sweeps vs triggers received */}
           <div className="dq-sync card">
