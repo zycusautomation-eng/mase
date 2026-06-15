@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { fixManagerName } from "./helpers";
 
 // Fetches the WHOLE deal-engine to-do book once (GET /api/deal-engine/todo with
 // NO owner param -> owner:"all") and renders the Espresso tab DIRECTLY from the
@@ -96,7 +97,10 @@ function annotate(data: unknown): {
       if (!raw || typeof raw !== "object") continue;
       const item = raw as BackendTodoRaw;
       const textVal = item[field];
-      const text = typeof textVal === "string" ? textVal : "";
+      // Correct the owner's manager in the display text: the backend leaves a literal
+      // `manager_name` token or fabricates a non-existent manager; resolve it from the
+      // deterministic owner→manager map so "Executive connect" moves name the real person.
+      const text = typeof textVal === "string" ? fixManagerName(textVal, item.owner_name) : "";
       // A to-do moves the deal; it does not fill Salesforce. Drop best-practice flags that
       // are CRM data-entry / field hygiene (cite a SF field API name, a boolean/null field
       // state, or a "populate/log activity" task). The same deal gaps survive as clean,
