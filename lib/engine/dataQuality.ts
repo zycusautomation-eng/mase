@@ -31,6 +31,16 @@ const ex = (r: Rec, detail?: string): DQExample => ({ acct: (r.hard || {}).accou
 const empty = (v: any) => v == null || v === "" || (typeof v === "string" && /^(—|n\/a|none|tbd|null)$/i.test(v.trim()));
 const items = (v: any): any[] => (Array.isArray(v) ? v : (v && v.items) || []);
 
+// --- To-do quality detection ---
+// Busywork: a "to-do" that just fills/repairs Salesforce instead of moving the deal.
+const TODO_BUSYWORK = /__c\b|populate|log (recent )?activity|fix salesforce|salesforce hygiene|complete the (crm|salesforce)|reconstruct deal state|resolve .*data (access|integrity)|update salesforce|contact roles? in salesforce|diagnose .*data/i;
+// Enterprise-motion grounding: references a buying-committee role OR a real milestone.
+const TODO_COMMITTEE = /economic buyer|\beb\b|\bcfo\b|\bcpo\b|\bcoo\b|\bceo\b|decision maker|champion|sponsor|buying committee|procurement (lead|head|director|owner)/i;
+const TODO_MILESTONE = /discover|demo|\brfi\b|\brfp\b|shortlist|shoe.?fit|shufit|\bbrd\b|business requirement|workshop|\bpoc\b|pilot|pric(e|ing)|commercial|negotiat|\broi\b|reference|infosec|security review|integrat|\bsow\b|\bmsa\b|redlin|legal|tender|proposal|use.?case|onsite|enablement/i;
+// Stage-mechanics filler — telling a seasoned rep to "advance to the next stage" is not insight.
+const TODO_FILLER = /move (it )?to (formal eval|shortlist|qualified|negotiation|vendor select|proposal)|advance (the deal )?to|progress (the deal )?to (the )?(next stage|formal eval|shortlist)|reach (formal eval|shortlist|[a-z ]+stage) by/i;
+const moveText = (r: Rec): string => items((r.ai || {}).recommended_moves).map((m: any) => String(m.action || "")).join("  ");
+
 // Build a check over a denominator subset (default: all records).
 function check(key: string, label: string, recs: Rec[], isBad: (r: Rec) => string | false, denom?: (r: Rec) => boolean): DQCheck {
   const scope = denom ? recs.filter(denom) : recs;
@@ -133,7 +143,31 @@ export function computeDataQuality(rawRecords: Rec[], triggerLogs: any[] = []): 
     } as DQCheck] : []),
   ]);
 
-  const dimensions = [completeness, freshness, consistency, meddpicc, avoma, analysis, triggers];
+  // To-Do quality — are the to-dos worth a RevOps head's time? (1) do they move the deal /
+  // de-risk it rather than fill Salesforce, (2) are they grounded in the 12-month enterprise
+  // buying motion (committee + milestones), (3) are moving deals still carrying stale to-dos.
+  const hasMoves = (r: Rec) => items(ai(r).recommended_moves).length > 0;
+  const recent = (d: any, n: number) => { if (!d) return false; const x = daysBetween(d, t); return x >= 0 && x <= n; };
+  const hasMomentum = (r: Rec) => recent(h(r).last_activity_date, 21) || recent(h(r).last_modified_date, 14);
+  const todoQuality = dim("todoq", "To-Do quality (do they move the deal?)", [
+    check("todo_busywork", "To-dos that fill Salesforce instead of moving the deal", recs, (r) => {
+      const m = items(ai(r).recommended_moves).find((x: any) => TODO_BUSYWORK.test(String(x.action || "")));
+      return m ? String(m.action).slice(0, 90) : false;
+    }, hasMoves),
+    check("todo_motion", "To-dos not grounded in the enterprise buying motion (committee / milestone)", recs, (r) => {
+      const txt = moveText(r);
+      if (TODO_FILLER.test(txt)) return "stage-mechanics filler ('advance to next stage')";
+      return (TODO_COMMITTEE.test(txt) || TODO_MILESTONE.test(txt)) ? false : "generic — no committee role or milestone named";
+    }, (r) => hasMoves(r) && !["Initial Interest", "Prospecting"].includes(h(r).stage)),
+    check("todo_stale_active", "Moving deals still showing stale data / to-dos", recs, (r) => {
+      const sw = r.swept_at; const lastChange = [h(r).last_modified_date, h(r).last_activity_date].filter(Boolean).sort().pop();
+      if (sw && lastChange && lastChange > sw) return `moved ${lastChange} after sweep ${sw}`;
+      const pastMove = items(ai(r).recommended_moves).find((x: any) => x.act_by && x.act_by < t);
+      return pastMove ? `to-do past-due (act_by ${pastMove.act_by})` : false;
+    }, hasMomentum),
+  ]);
+
+  const dimensions = [completeness, freshness, consistency, meddpicc, avoma, analysis, triggers, todoQuality];
   const overall = Math.round(dimensions.reduce((s, d) => s + d.score, 0) / dimensions.length);
 
   // Sync activity — how many re-sweeps ran (and from where) vs accounts that
