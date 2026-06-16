@@ -32,10 +32,14 @@ export const CATEGORY_ORDER: BackendCategory[] = [
   "bestPractice",
 ];
 
-// Best-practice flags that are CRM data-entry / field hygiene rather than deal moves.
-// Matches a SF field API name (__c), a boolean/null field state, or a data-entry verb.
+// CRM data-entry / field hygiene dressed as a deal move — never a real action item
+// (the To-Do Scoring Model caps these at 2). Matches a SF field API name (__c), a
+// boolean/null field state, a data-entry verb, or a record-repair / data-integrity
+// task. Applied to BOTH bestPractice flags AND critical "next moves" — a few hygiene
+// tasks (reconstruct deal state, verify opp id/SOQL, diagnose null fields) leak into
+// the critical bucket and must not show as the deal's next move.
 const CRM_HYGIENE_FLAG =
-  /__c\b|\b(is|are)\s+(false|null)\b|[=:]\s*(false|null)\b|amount\s*[=:]\s*0|\bpopulate\b|log (recent )?activity|update salesforce|complete the (crm|salesforce) record|no products scoped|contact roles? in salesforce|no salesforce (opportunity )?data/i;
+  /__c\b|\b(is|are)\s+(false|null)\b|[=:]\s*(false|null)\b|amount\s*[=:]\s*0|\bpopulate\b|log (recent )?activity|update salesforce|complete the (crm|salesforce) record|no products scoped|contact roles? in salesforce|no salesforce (opportunity )?data|reconstruct (the )?deal state|corrupted record|verify (the )?(opp(ortunity)?|record) id|verify and correct|\bmalformed\b|\bsoql\b|data[ -]?(hygiene|integrity)|null fields?\b|resolve .*data (access|integrity)|restore .*record integrity/i;
 
 export type BackendCategory =
   | "critical"
@@ -106,7 +110,7 @@ function annotate(data: unknown): {
       // state, or a "populate/log activity" task). The same deal gaps survive as clean,
       // field-name-free flags and in the rich MEDDPICC panel. This keeps the UI clean now;
       // the v2 sweep stops emitting these, so over time this is just a safety net.
-      if (category === "bestPractice" && CRM_HYGIENE_FLAG.test(text)) continue;
+      if ((category === "bestPractice" || category === "critical") && CRM_HYGIENE_FLAG.test(text)) continue;
       const todoKey = typeof item.todo_key === "string" ? item.todo_key : "";
       const annotated: BackendTodoItem = { ...item, category, text, todoKey };
       arrays[category].push(annotated);
