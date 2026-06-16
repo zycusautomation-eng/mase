@@ -55,8 +55,53 @@ export function bucketsForOpp(flat: BackendTodoItem[], oppId: any): TodoBucket[]
     .filter((b) => b.items.length > 0);
 }
 
-// Renders the category buckets for one deal — each row a checkbox + context
-// chips + the Salesforce push button + confirm modal.
+// Which rolling horizon a next-move falls in: prefer the backend `horizon` tag;
+// otherwise derive from the (always-future) due date. Everything lands in one of
+// the three windows so no move is hidden — the board is re-planned daily.
+type Horizon = "next_7_days" | "next_14_days" | "next_30_days";
+const HORIZON_ORDER: Horizon[] = ["next_7_days", "next_14_days", "next_30_days"];
+const HORIZON_LABEL: Record<Horizon, string> = {
+  next_7_days: "Next 7 days", next_14_days: "Next 14 days", next_30_days: "Next 30 days",
+};
+function horizonOf(it: BackendTodoItem): Horizon {
+  const tag = String((it.horizon as string) || "").toLowerCase();
+  if (tag.includes("7")) return "next_7_days";
+  if (tag.includes("14")) return "next_14_days";
+  if (tag.includes("30")) return "next_30_days";
+  const di = dueInfo(it);
+  if (di?.dueBy) {
+    const days = Math.round((Date.parse(di.dueBy + "T00:00:00Z") - Date.parse(todayISO() + "T00:00:00Z")) / 86400000);
+    if (days <= 7) return "next_7_days";
+    if (days <= 14) return "next_14_days";
+  }
+  return "next_30_days";
+}
+
+// One to-do row — checkbox + text + context chips + AI/Salesforce actions.
+function TodoRow({
+  it, idx, ownerName, done, toggle, sync, backend,
+}: {
+  it: BackendTodoItem; idx: number; ownerName?: string;
+  done: Set<string>; toggle: (id: string) => void; sync: TodoSync; backend: Backend;
+}) {
+  const serverPushed = backend.isPushed(it);
+  const isDone = serverPushed || done.has(it.todoKey);
+  return (
+    <li className={`todo-item ${isDone ? "done" : ""}`} key={`${it.todoKey || it.text}-${idx}`}>
+      <input type="checkbox" checked={isDone} disabled={serverPushed} onChange={() => toggle(it.todoKey)} />
+      <div className="td-body">
+        <div className="td-txt">{it.text}</div>
+        <ContextMeta it={it} />
+      </div>
+      <AgentButton it={it} ownerName={ownerName} />
+      <SfButton it={it} ownerName={ownerName} enabled={done.has(it.todoKey)} sync={sync} backend={backend} serverPushed={serverPushed} />
+    </li>
+  );
+}
+
+// Renders the category buckets for one deal. The "critical / next moves" bucket is
+// split into rolling 7 / 14 / 30-day horizons so there is always a clear plan for
+// each window; other buckets render flat.
 export function DealTodoBuckets({
   buckets, ownerName, done, toggle, sync, backend,
 }: {
@@ -67,29 +112,33 @@ export function DealTodoBuckets({
   sync: TodoSync;
   backend: Backend;
 }) {
+  const rowProps = { ownerName, done, toggle, sync, backend };
   return (
     <>
       {buckets.map((bk) => {
         const meta = CATEGORY_META[bk.category];
+        if (bk.category === "critical" && bk.items.length) {
+          const groups: Record<Horizon, BackendTodoItem[]> = { next_7_days: [], next_14_days: [], next_30_days: [] };
+          bk.items.forEach((it) => groups[horizonOf(it)].push(it));
+          return (
+            <div key={bk.category}>
+              <div className={`todo-grp ${meta.tone}`}>{meta.label} <span className="c">{bk.items.length}</span></div>
+              {HORIZON_ORDER.filter((hz) => groups[hz].length).map((hz) => (
+                <div key={hz}>
+                  <div className="td-meta" style={{ margin: "7px 0 2px", fontWeight: 600, color: "var(--accent)" }}>{HORIZON_LABEL[hz]}</div>
+                  <ul className="todo-list">
+                    {groups[hz].map((it, idx) => <TodoRow key={`${it.todoKey || it.text}-${idx}`} it={it} idx={idx} {...rowProps} />)}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          );
+        }
         return (
           <div key={bk.category}>
             <div className={`todo-grp ${meta.tone}`}>{meta.label} <span className="c">{bk.items.length}</span></div>
             <ul className="todo-list">
-              {bk.items.map((it, idx) => {
-                const serverPushed = backend.isPushed(it);
-                const isDone = serverPushed || done.has(it.todoKey);
-                return (
-                  <li className={`todo-item ${isDone ? "done" : ""}`} key={`${it.todoKey || it.text}-${idx}`}>
-                    <input type="checkbox" checked={isDone} disabled={serverPushed} onChange={() => toggle(it.todoKey)} />
-                    <div className="td-body">
-                      <div className="td-txt">{it.text}</div>
-                      <ContextMeta it={it} />
-                    </div>
-                    <AgentButton it={it} ownerName={ownerName} />
-                    <SfButton it={it} ownerName={ownerName} enabled={done.has(it.todoKey)} sync={sync} backend={backend} serverPushed={serverPushed} />
-                  </li>
-                );
-              })}
+              {bk.items.map((it, idx) => <TodoRow key={`${it.todoKey || it.text}-${idx}`} it={it} idx={idx} {...rowProps} />)}
             </ul>
           </div>
         );
@@ -161,7 +210,7 @@ export function ContextMeta({ it }: { it: BackendTodoItem }) {
   // Drop standalone status-like chips ("overdue" / "open" / "completed" / "no due date") on any
   // field — the future due chip carries the timing now, and a bare "overdue" contradicts it.
   // Narrative triggers (e.g. "5 overdue deliverables") are long, not bare, so they survive.
-  const NOISE = /^(open|overdue|completed|no due date)$/i;
+  const NOISE = /^(open|overdue|completed|no due date|next_\d+_days)$/i;
   const clean = (s: string | undefined) => (s && !NOISE.test(s.trim()) ? s : undefined);
   const trigger = clean(it.trigger as string | undefined);
   const urgency = clean(it.urgency as string | undefined);

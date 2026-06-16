@@ -6,8 +6,8 @@ import {
 } from "@/lib/engine/helpers";
 import { useTodoDone } from "@/lib/engine/useTodoDone";
 import { useTodoSync } from "@/lib/engine/useTodoSync";
-import { useBackendTodos } from "@/lib/engine/useBackendTodos";
-import { DealTodoBuckets, bucketsForOpp } from "@/components/deals/DealTodos";
+import { useBackendTodos, type BackendTodoItem } from "@/lib/engine/useBackendTodos";
+import { DealTodoBuckets, bucketsForOpp, sfKey } from "@/components/deals/DealTodos";
 import { pulseChip, isPulseLive, flagContradictsLivePulse, type PulseLike } from "@/lib/engine/pulse";
 
 // Show the full insight — no truncation. The v2 sweep produces decision-grade prose and
@@ -126,13 +126,42 @@ export default function DealDrawer({
   const pulse = (record?.pulse || null) as PulseLike | null;
   const pulseLive = isPulseLive(pulse);
   const pchip = pulseChip(pulse);
-  const buckets = (record ? bucketsForOpp(backend.flat, record.opp_id) : [])
+
+  // Next-moves plan: when the record carries horizon-tagged recommended_moves, source
+  // the "Critical / next moves" bucket from the FULL ranked plan (not the capped /todo
+  // critical item) so all three rolling horizons render. SF-push state is overlaid from
+  // any matching /todo critical item (matched by action text). Deals without horizon
+  // tags keep the existing /todo critical behaviour.
+  const aiMoves: any[] = Array.isArray((ai.recommended_moves || {}).items) ? ai.recommended_moves.items : [];
+  const useMovesPlan = aiMoves.some((m) => m && m.horizon);
+  const todoCritByText = new Map(
+    backend.flat
+      .filter((it) => it.category === "critical" && record && sfKey(it.opp_id) === sfKey(record.opp_id))
+      .map((it) => [String(it.text || "").trim(), it]),
+  );
+  const moveCriticalItems: BackendTodoItem[] = aiMoves.map((m) => {
+    const match = todoCritByText.get(String(m.action || "").trim());
+    return {
+      ...(match || {}),
+      opp_id: record?.opp_id, account_name: h.account_name, opp_name: h.opp_name, owner_name: h.owner_name,
+      category: "critical", text: String(m.action || ""), todoKey: (match?.todoKey as string) || "",
+      horizon: m.horizon, act_by: m.act_by, intervention_owner: m.owner,
+      trigger: m.trigger, trigger_date: m.trigger_date, expected_effect: m.expected_effect,
+    } as BackendTodoItem;
+  }).filter((it) => it.text && !(pulseLive && flagContradictsLivePulse(it.text, pulse)));
+
+  const otherBuckets = (record ? bucketsForOpp(backend.flat, record.opp_id) : [])
+    .filter((bk) => !(useMovesPlan && bk.category === "critical"))
     .map((bk) =>
       pulseLive && (bk.category === "bestPractice" || bk.category === "critical")
         ? { ...bk, items: bk.items.filter((it) => !flagContradictsLivePulse(it.text, pulse)) }
         : bk,
     )
     .filter((bk) => bk.items.length > 0);
+  const buckets = [
+    ...(useMovesPlan && moveCriticalItems.length ? [{ category: "critical" as const, items: moveCriticalItems }] : []),
+    ...otherBuckets,
+  ];
   const medd = record ? dealMeddpicc(record) : [];
   const champ = ai.champion_strength || {};
   const fit = ai.ai_fit_signal || {};
@@ -154,13 +183,30 @@ export default function DealDrawer({
   const overdue = typeof h.days_to_close === "number" && h.days_to_close < 0;
   const lastDays = daysSince(h.last_activity_date);
 
+  // Recently completed — what the deal team has already actioned and closed (so the
+  // next moves build forward instead of re-issuing done work). Read from the
+  // commitments the sweep marked completed, newest first.
+  const completedItems = (((ai.open_deliverables || {}).items || []) as any[])
+    .filter((d) => String(d.status || "").toLowerCase() === "completed")
+    .sort((a, b) => String(b.date || b.due || "").localeCompare(String(a.date || a.due || "")));
+
   // AI Excitement: SF fields first, topped up by the analyst's AI read.
   const aiCategory = (h.ais_status && h.ais_status !== "—" ? h.ais_status : "") || fit.tier || "";
   const aiScore = h.ais_score != null && h.ais_score !== "" ? `${h.ais_score}/10` : "";
   const aiWhy = (h.ais_why && h.ais_why !== "—") ? h.ais_why : "";
 
-  // Competitors: trust the call evidence over the (often empty) SF field.
-  const compSummary = (ai.competitive_position || {}).summary || "";
+  // Competitors: trust the call evidence over the (often empty) SF field. Render the
+  // full reconciled field ranked by CURRENT threat (high→dormant), then most-recent
+  // date first — so 2026 threats sit above faded 2025 ones.
+  const compPos = ai.competitive_position || {};
+  const compSummary = compPos.summary || "";
+  const THREAT_RANK: Record<string, number> = { high: 0, medium: 1, low: 2, dormant: 3 };
+  const competitors = (Array.isArray(compPos.competitors) ? compPos.competitors : [])
+    .slice()
+    .sort((a: any, b: any) =>
+      (THREAT_RANK[String(a.threat_level)] ?? 2) - (THREAT_RANK[String(b.threat_level)] ?? 2)
+      || String(b.date || "").localeCompare(String(a.date || "")));
+  const threatTone = (t: string) => (t === "high" ? "gap" : t === "medium" ? "weak" : "");
   const compNames = dealComps(h);
 
   return (
@@ -224,6 +270,27 @@ export default function DealDrawer({
                       {riskCats.slice(0, 5).map((c) => <span key={c} className="duechip heavy">{c.replace(/_/g, " ")}</span>)}
                     </div>
                   ) : null}
+                </Section>
+              ) : null}
+
+              {/* Recently completed — what the RSD has already closed, so next moves build forward */}
+              {completedItems.length ? (
+                <Section title="Recently completed">
+                  <ul className="todo-list">
+                    {completedItems.slice(0, 6).map((d, i) => (
+                      <li className="todo-item done" key={i}>
+                        <span style={{ color: "#0F9D6B", fontWeight: 700, marginRight: 6 }}>✓</span>
+                        <div className="td-body">
+                          <div className="td-txt">{cleanText(d.commitment)}</div>
+                          <div className="td-meta">
+                            {d.who ? <span className="ownerchip">{d.who}</span> : null}
+                            {(d.date || d.due) ? <span className="ownerchip">{d.date || d.due}</span> : null}
+                            {d.source ? <span className="td-meta">{cleanText(d.source)}</span> : null}
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
                 </Section>
               ) : null}
 
@@ -299,10 +366,27 @@ export default function DealDrawer({
                 </div>
               </Section>
 
-              {/* Competitors */}
-              <Section title="Competitors">
-                {compNames.length ? <div style={{ marginBottom: 6 }}>{compNames.map((c) => <span className="chip" key={c} style={{ marginRight: 6 }}>{c}</span>)}</div> : null}
-                {compSummary ? <div className="body">{trim(compSummary, 240)}</div> : (!compNames.length ? <div className="body">None logged.</div> : null)}
+              {/* Competition — reconciled, time-weighted; strongest current threat first */}
+              <Section title="Competition">
+                {compSummary ? <div className="body" style={{ marginBottom: competitors.length ? 10 : 0 }}>{trim(compSummary, 320)}</div> : null}
+                {competitors.length ? (
+                  <div>
+                    {competitors.map((c: any, i: number) => (
+                      <div key={i} style={{ padding: "7px 0", borderTop: i ? "1px solid var(--line,#E7ECF3)" : "none" }}>
+                        <div>
+                          <span className="ownerchip vp">{c.name}</span>
+                          {c.threat_level ? <span className={`chip ${threatTone(String(c.threat_level))}`} style={{ marginLeft: 6 }}>{String(c.threat_level)} threat</span> : null}
+                          {c.status ? <span className="duechip" style={{ marginLeft: 6 }}>{String(c.status).replace(/_/g, " ")}</span> : null}
+                          {c.date ? <span className="td-meta" style={{ marginLeft: 6 }}>{c.date}</span> : null}
+                        </div>
+                        {c.quote ? <div className="td-meta" style={{ marginTop: 3 }}>“{cleanText(c.quote)}”</div> : null}
+                        {c.how_we_win ? <div className="body" style={{ marginTop: 3 }}><b>How we win:</b> {cleanText(c.how_we_win)}</div> : null}
+                      </div>
+                    ))}
+                  </div>
+                ) : compNames.length ? (
+                  <div style={{ marginBottom: 6 }}>{compNames.map((c) => <span className="chip" key={c} style={{ marginRight: 6 }}>{c}</span>)}</div>
+                ) : (!compSummary ? <div className="body">None logged.</div> : null)}
               </Section>
             </div>
           </>
