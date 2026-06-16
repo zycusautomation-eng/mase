@@ -15,6 +15,7 @@ const TABS = [
   { href: "/matcha", label: "Matcha" },
   { href: "/chat", label: "Chat" },
   { href: "/sync-quality", label: "Sync Quality" },
+  { href: "/runs", label: "Runs" },
 ];
 
 function Header() {
