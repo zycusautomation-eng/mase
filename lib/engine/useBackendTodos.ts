@@ -224,7 +224,8 @@ export function useBackendTodos() {
   const deleteTodo = useCallback(async (item: BackendTodoItem): Promise<boolean> => {
     if (!item.todoKey) return false;
     setDeletedKeys((p) => ({ ...p, [item.todoKey]: true }));
-    const r = await post("/todo/override", { opp_id: item.opp_id, todo_key: item.todoKey, action: "delete" });
+    const r = await post("/todo/override", { opp_id: item.opp_id, todo_key: item.todoKey, action: "delete",
+      category: item.category, orig_text: item.text });
     if (!r.ok) setDeletedKeys((p) => { const n = { ...p }; delete n[item.todoKey]; return n; });
     return r.ok;
   }, []);
@@ -234,7 +235,8 @@ export function useBackendTodos() {
     if (!item.todoKey || !text.trim()) return false;
     const prev = editedByKey[item.todoKey];
     setEditedByKey((p) => ({ ...p, [item.todoKey]: { text: text.trim(), due } }));
-    const r = await post("/todo/override", { opp_id: item.opp_id, todo_key: item.todoKey, action: "edit", text: text.trim(), due });
+    const r = await post("/todo/override", { opp_id: item.opp_id, todo_key: item.todoKey, action: "edit", text: text.trim(), due,
+      category: item.category, orig_text: item.text });
     if (!r.ok) setEditedByKey((p) => ({ ...p, [item.todoKey]: prev as { text: string; due?: string } }));
     return r.ok;
   }, [editedByKey]);

@@ -16,6 +16,7 @@ const TABS = [
   { href: "/chat", label: "Chat" },
   { href: "/sync-quality", label: "Sync Quality" },
   { href: "/runs", label: "Runs" },
+  { href: "/learnings", label: "Learning" },
 ];
 
 function Header() {
