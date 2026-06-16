@@ -8,6 +8,7 @@ import { useTodoDone } from "@/lib/engine/useTodoDone";
 import { useTodoSync } from "@/lib/engine/useTodoSync";
 import { useBackendTodos } from "@/lib/engine/useBackendTodos";
 import { DealTodoBuckets, bucketsForOpp } from "@/components/deals/DealTodos";
+import { pulseChip, isPulseLive, flagContradictsLivePulse, type PulseLike } from "@/lib/engine/pulse";
 
 // Show the full insight — no truncation. The v2 sweep produces decision-grade prose and
 // the CSS wraps it (.card .body is pre-wrap, .itab td is white-space:normal), so we render
@@ -116,7 +117,22 @@ export default function DealDrawer({
   // filtered to this deal's opp_id — so drawer and Espresso are identical.
   const tier = record ? dealTier(h) : null;
   const deep = tier ? !tier.activatable : false;
-  const buckets = record ? bucketsForOpp(backend.flat, record.opp_id) : [];
+  // The server-computed engagement pulse is the single authoritative read of how
+  // recently/meaningfully this deal is being worked. When it is LIVE, any frozen
+  // best-practice or next-move flag that calls the deal a ghost / dark-for-months /
+  // future-date problem is categorically wrong (the record was swept before pulse
+  // reconciliation existed) — suppress it here so the drawer reflects the pulse,
+  // not the stale agent worldview. Mirrors deal_engine_pulse on the backend.
+  const pulse = (record?.pulse || null) as PulseLike | null;
+  const pulseLive = isPulseLive(pulse);
+  const pchip = pulseChip(pulse);
+  const buckets = (record ? bucketsForOpp(backend.flat, record.opp_id) : [])
+    .map((bk) =>
+      pulseLive && (bk.category === "bestPractice" || bk.category === "critical")
+        ? { ...bk, items: bk.items.filter((it) => !flagContradictsLivePulse(it.text, pulse)) }
+        : bk,
+    )
+    .filter((bk) => bk.items.length > 0);
   const medd = record ? dealMeddpicc(record) : [];
   const champ = ai.champion_strength || {};
   const fit = ai.ai_fit_signal || {};
@@ -128,10 +144,12 @@ export default function DealDrawer({
   // The blocker is ONE combined risk read, capped at 60 words (a seasoned RSD doesn't
   // need stage-tactical filler). Prefer the backend's synthesized vulnerabilities.summary;
   // otherwise stitch the open risks together. Fit to 60 words — no mid-sentence truncation.
-  const riskSummary = wordCap(
+  const riskSummaryRaw = wordCap(
     vuln.summary || openVulns.map((v: any) => cleanText(v.detail)).filter(Boolean).join(" "),
     60,
   );
+  // Drop the blocker entirely if it's a stale ghost/dark read the live pulse refutes.
+  const riskSummary = pulseLive && flagContradictsLivePulse(riskSummaryRaw, pulse) ? "" : riskSummaryRaw;
   const riskCats: string[] = Array.from(new Set(openVulns.map((v: any) => String(v.category || "")).filter((c: string) => !!c)));
   const overdue = typeof h.days_to_close === "number" && h.days_to_close < 0;
   const lastDays = daysSince(h.last_activity_date);
@@ -166,6 +184,18 @@ export default function DealDrawer({
                 <Section title="Verdict">
                   <div>
                     <span className={`chip ${verdictTone(verdict.verdict)}`}>{verdict.verdict}</span>
+                    {pchip ? (
+                      <span
+                        title={pchip.title}
+                        style={{
+                          marginLeft: 6, display: "inline-block", padding: "2px 9px",
+                          borderRadius: 999, fontSize: 11.5, fontWeight: 600,
+                          color: "#fff", background: pchip.color,
+                        }}
+                      >
+                        {pchip.label}
+                      </span>
+                    ) : null}
                     {verdict.forecast_defensible === false && recFcCat ? (
                       <span className="duechip heavy" style={{ marginLeft: 6 }}
                         title={`Current forecast is not defensible on the evidence — recommend ${recFcRaw}`}>
@@ -173,6 +203,11 @@ export default function DealDrawer({
                       </span>
                     ) : null}
                   </div>
+                  {pchip && pulse?.summary ? (
+                    <div className="body" style={{ marginTop: 6, color: "var(--muted,#5A6B82)" }}>
+                      Pulse — {pulse.summary}
+                    </div>
+                  ) : null}
                   {/* The RevOps verdict insight (headline), NOT the SF stage arithmetic (math). */}
                   {(verdict.headline || verdict.math) ? (
                     <div className="body" style={{ marginTop: 6 }}>{trim(verdict.headline || verdict.math)}</div>
