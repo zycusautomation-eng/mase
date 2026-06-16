@@ -1,5 +1,6 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { useState } from "react";
 import {
   dealMeddpicc, cleanText, fmtAmount, verdictTone, daysSince, dealTier,
   dealComps, type Rec, type MeddItem,
@@ -97,6 +98,54 @@ function Meddpicc({ items }: { items: MeddItem[] }) {
   );
 }
 
+// Log a new update on the opportunity as a COMPLETED item: a free-text note + the
+// date it was done. Persists via /todo/update (creates a completed Salesforce Task
+// and stores it in-app), then shows immediately under "Recently completed".
+function AddUpdateForm({ oppId, backend }: { oppId: string; backend: ReturnType<typeof useBackendTodos> }) {
+  const [open, setOpen] = useState(false);
+  const [note, setNote] = useState("");
+  const [doneDate, setDoneDate] = useState(new Date().toISOString().slice(0, 10));
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const submit = async () => {
+    if (!note.trim()) return;
+    setBusy(true); setMsg(null);
+    const r = await backend.addUpdate(oppId, note.trim(), doneDate);
+    setBusy(false);
+    if (r.ok) {
+      setNote(""); setOpen(false);
+      setMsg(r.sfError ? `Saved. Salesforce log failed: ${r.sfError}` : "Logged as a completed update + Salesforce task.");
+    } else {
+      setMsg("Couldn't save the update — try again.");
+    }
+  };
+
+  if (!open) {
+    return (
+      <div style={{ marginTop: 8 }}>
+        <button type="button" className="sfm-btn confirm" onClick={() => { setOpen(true); setMsg(null); }}>+ Add update</button>
+        {msg ? <span className="td-meta" style={{ marginLeft: 8 }}>{msg}</span> : null}
+      </div>
+    );
+  }
+  return (
+    <div style={{ marginTop: 8, padding: 10, border: "1px solid var(--line,#E7ECF3)", borderRadius: 10 }}>
+      <textarea
+        value={note} onChange={(e) => setNote(e.target.value)} rows={3} autoFocus
+        placeholder="What happened on this deal? (logged as a completed update)"
+        style={{ width: "100%", font: "inherit", padding: "6px 8px", borderRadius: 8, border: "1px solid var(--line,#D7DEE8)", resize: "vertical" }}
+      />
+      <div className="td-meta" style={{ marginTop: 6, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+        <label style={{ fontSize: 12 }}>Date done <input type="date" value={doneDate} onChange={(e) => setDoneDate(e.target.value)} style={{ font: "inherit" }} /></label>
+        <button type="button" className="sfm-btn confirm" disabled={busy || !note.trim()} onClick={submit}>{busy ? "Saving…" : "Complete update"}</button>
+        <button type="button" className="sfm-btn cancel" disabled={busy} onClick={() => { setOpen(false); setNote(""); }}>Cancel</button>
+      </div>
+      {msg ? <div className="td-meta" style={{ marginTop: 6 }}>{msg}</div> : null}
+    </div>
+  );
+}
+
 export default function DealDrawer({
   record, records, playbook, onClose,
 }: { record: Rec | null; records: Rec[]; playbook: any; onClose: () => void }) {
@@ -129,22 +178,25 @@ export default function DealDrawer({
 
   // Next-moves plan: when the record carries horizon-tagged recommended_moves, source
   // the "Critical / next moves" bucket from the FULL ranked plan (not the capped /todo
-  // critical item) so all three rolling horizons render. SF-push state is overlaid from
-  // any matching /todo critical item (matched by action text). Deals without horizon
-  // tags keep the existing /todo critical behaviour.
+  // critical item) so all three rolling horizons render for EVERY deal. Each move is
+  // stamped server-side with its todo_key (and edit/delete overrides already applied),
+  // so Edit/Delete work here too. SF-push state is overlaid from the /todo critical
+  // ledger by todo_key. Deals without horizon tags keep the existing /todo behaviour.
   const aiMoves: any[] = Array.isArray((ai.recommended_moves || {}).items) ? ai.recommended_moves.items : [];
   const useMovesPlan = aiMoves.some((m) => m && m.horizon);
-  const todoCritByText = new Map(
+  const todoCritByKey = new Map(
     backend.flat
       .filter((it) => it.category === "critical" && record && sfKey(it.opp_id) === sfKey(record.opp_id))
-      .map((it) => [String(it.text || "").trim(), it]),
+      .map((it) => [it.todoKey, it]),
   );
   const moveCriticalItems: BackendTodoItem[] = aiMoves.map((m) => {
-    const match = todoCritByText.get(String(m.action || "").trim());
+    const key = String(m.todo_key || "");
+    const match = key ? todoCritByKey.get(key) : undefined;
     return {
       ...(match || {}),
       opp_id: record?.opp_id, account_name: h.account_name, opp_name: h.opp_name, owner_name: h.owner_name,
-      category: "critical", text: String(m.action || ""), todoKey: (match?.todoKey as string) || "",
+      category: "critical", text: String(m.action || ""), todoKey: key,
+      edited: !!m.edited,
       horizon: m.horizon, act_by: m.act_by, intervention_owner: m.owner,
       trigger: m.trigger, trigger_date: m.trigger_date, expected_effect: m.expected_effect,
     } as BackendTodoItem;
@@ -184,10 +236,16 @@ export default function DealDrawer({
   const lastDays = daysSince(h.last_activity_date);
 
   // Recently completed — what the deal team has already actioned and closed (so the
-  // next moves build forward instead of re-issuing done work). Read from the
-  // commitments the sweep marked completed, newest first.
-  const completedItems = (((ai.open_deliverables || {}).items || []) as any[])
-    .filter((d) => String(d.status || "").toLowerCase() === "completed")
+  // next moves build forward instead of re-issuing done work). Merges the sweep's
+  // completed commitments with the user's manually-logged updates, newest first.
+  const sweptCompleted = (((ai.open_deliverables || {}).items || []) as any[])
+    .filter((d) => String(d.status || "").toLowerCase() === "completed");
+  const manualCompleted = (record ? backend.manualForOpp(record.opp_id) : []).map((m) => ({
+    commitment: m.note, who: m.created_by || "Logged update", date: m.done_date,
+    source: m.sf_task_id ? `Salesforce Task ${m.sf_task_id}` : "Logged in MASE",
+    manual: true,
+  }));
+  const completedItems = [...manualCompleted, ...sweptCompleted]
     .sort((a, b) => String(b.date || b.due || "").localeCompare(String(a.date || a.due || "")));
 
   // AI Excitement: SF fields first, topped up by the analyst's AI read.
@@ -273,15 +331,19 @@ export default function DealDrawer({
                 </Section>
               ) : null}
 
-              {/* Recently completed — what the RSD has already closed, so next moves build forward */}
-              {completedItems.length ? (
-                <Section title="Recently completed">
+              {/* Recently completed — what the RSD has already closed (sweep + manually
+                  logged updates), so next moves build forward. Hosts "Add update". */}
+              <Section title="Recently completed">
+                {completedItems.length ? (
                   <ul className="todo-list">
-                    {completedItems.slice(0, 6).map((d, i) => (
+                    {completedItems.slice(0, 8).map((d, i) => (
                       <li className="todo-item done" key={i}>
                         <span style={{ color: "#0F9D6B", fontWeight: 700, marginRight: 6 }}>✓</span>
                         <div className="td-body">
-                          <div className="td-txt">{cleanText(d.commitment)}</div>
+                          <div className="td-txt">
+                            {cleanText(d.commitment)}
+                            {(d as any).manual ? <span className="ownerchip" style={{ marginLeft: 6 }}>logged</span> : null}
+                          </div>
                           <div className="td-meta">
                             {d.who ? <span className="ownerchip">{d.who}</span> : null}
                             {(d.date || d.due) ? <span className="ownerchip">{d.date || d.due}</span> : null}
@@ -291,8 +353,11 @@ export default function DealDrawer({
                       </li>
                     ))}
                   </ul>
-                </Section>
-              ) : null}
+                ) : (
+                  <div className="body">Nothing logged yet.</div>
+                )}
+                <AddUpdateForm oppId={record.opp_id} backend={backend} />
+              </Section>
 
               {/* To-dos — IDENTICAL to this deal's Espresso to-dos: same backend
                   GET /todo arrays, same todo_key, same Salesforce push. */}

@@ -77,7 +77,15 @@ function horizonOf(it: BackendTodoItem): Horizon {
   return "next_30_days";
 }
 
-// One to-do row — checkbox + text + context chips + AI/Salesforce actions.
+const TD_ICONBTN: React.CSSProperties = {
+  background: "none", border: "none", cursor: "pointer", color: "var(--muted,#7E8DA1)",
+  fontSize: 12, padding: "2px 6px", borderRadius: 6, whiteSpace: "nowrap",
+};
+
+// One to-do row — checkbox + text + context chips + Edit/Delete + AI/Salesforce
+// actions. Edit/Delete persist to the backend overrides layer (sticky across
+// re-sweeps); editing opens an inline editor (text + optional due date). A to-do
+// already logged to Salesforce (pushed) is locked from edit/delete.
 function TodoRow({
   it, idx, ownerName, done, toggle, sync, backend,
 }: {
@@ -86,13 +94,56 @@ function TodoRow({
 }) {
   const serverPushed = backend.isPushed(it);
   const isDone = serverPushed || done.has(it.todoKey);
+  const canModify = !!it.todoKey && !serverPushed;
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(it.text);
+  const [draftDue, setDraftDue] = useState<string>(String(it.act_by || it.due || ""));
+  const [busy, setBusy] = useState(false);
+
+  const openEdit = () => { setDraft(it.text); setDraftDue(String(it.act_by || it.due || "")); setEditing(true); };
+  const saveEdit = async () => {
+    if (!draft.trim()) return;
+    setBusy(true);
+    await backend.editTodo(it, draft, draftDue || undefined);
+    setBusy(false); setEditing(false);
+  };
+  const doDelete = async () => {
+    if (!window.confirm("Delete this to-do? It stays deleted across future syncs.")) return;
+    setBusy(true);
+    await backend.deleteTodo(it);
+    setBusy(false);
+  };
+
+  if (editing) {
+    return (
+      <li className="todo-item">
+        <div className="td-body" style={{ width: "100%" }}>
+          <textarea
+            value={draft} onChange={(e) => setDraft(e.target.value)} rows={3}
+            style={{ width: "100%", font: "inherit", padding: "6px 8px", borderRadius: 8, border: "1px solid var(--line,#D7DEE8)", resize: "vertical" }}
+          />
+          <div className="td-meta" style={{ marginTop: 6, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            <label style={{ fontSize: 12 }}>Due <input type="date" value={draftDue} onChange={(e) => setDraftDue(e.target.value)} style={{ font: "inherit" }} /></label>
+            <button type="button" className="sfm-btn confirm" disabled={busy || !draft.trim()} onClick={saveEdit}>Save</button>
+            <button type="button" className="sfm-btn cancel" disabled={busy} onClick={() => setEditing(false)}>Cancel</button>
+          </div>
+        </div>
+      </li>
+    );
+  }
+
   return (
     <li className={`todo-item ${isDone ? "done" : ""}`} key={`${it.todoKey || it.text}-${idx}`}>
       <input type="checkbox" checked={isDone} disabled={serverPushed} onChange={() => toggle(it.todoKey)} />
       <div className="td-body">
-        <div className="td-txt">{it.text}</div>
+        <div className="td-txt">
+          {it.text}
+          {it.edited ? <span className="ownerchip" style={{ marginLeft: 6 }}>edited</span> : null}
+        </div>
         <ContextMeta it={it} />
       </div>
+      {canModify ? <button type="button" style={TD_ICONBTN} title="Edit this to-do" aria-label="Edit" onClick={openEdit}>Edit</button> : null}
+      {canModify ? <button type="button" style={TD_ICONBTN} title="Delete this to-do" aria-label="Delete" disabled={busy} onClick={doDelete}>Delete</button> : null}
       <AgentButton it={it} ownerName={ownerName} />
       <SfButton it={it} ownerName={ownerName} enabled={done.has(it.todoKey)} sync={sync} backend={backend} serverPushed={serverPushed} />
     </li>
@@ -113,16 +164,28 @@ export function DealTodoBuckets({
   backend: Backend;
 }) {
   const rowProps = { ownerName, done, toggle, sync, backend };
+  // Apply optimistic edit/delete overlays so a row vanishes/updates instantly
+  // (the server applies the same overrides, so a later reload stays consistent).
+  const effItems = (items: BackendTodoItem[]): BackendTodoItem[] =>
+    items
+      .filter((it) => !backend.isDeleted(it))
+      .map((it) => {
+        const ed = backend.editedTextFor(it);
+        if (!ed) return it;
+        return { ...it, text: ed.text, edited: true, ...(ed.due ? { due: ed.due, act_by: ed.due } : {}) };
+      });
   return (
     <>
       {buckets.map((bk) => {
         const meta = CATEGORY_META[bk.category];
-        if (bk.category === "critical" && bk.items.length) {
+        const items = effItems(bk.items);
+        if (!items.length) return null;
+        if (bk.category === "critical") {
           const groups: Record<Horizon, BackendTodoItem[]> = { next_7_days: [], next_14_days: [], next_30_days: [] };
-          bk.items.forEach((it) => groups[horizonOf(it)].push(it));
+          items.forEach((it) => groups[horizonOf(it)].push(it));
           return (
             <div key={bk.category}>
-              <div className={`todo-grp ${meta.tone}`}>{meta.label} <span className="c">{bk.items.length}</span></div>
+              <div className={`todo-grp ${meta.tone}`}>{meta.label} <span className="c">{items.length}</span></div>
               {HORIZON_ORDER.filter((hz) => groups[hz].length).map((hz) => (
                 <div key={hz}>
                   <div className="td-meta" style={{ margin: "7px 0 2px", fontWeight: 600, color: "var(--accent)" }}>{HORIZON_LABEL[hz]}</div>
@@ -136,9 +199,9 @@ export function DealTodoBuckets({
         }
         return (
           <div key={bk.category}>
-            <div className={`todo-grp ${meta.tone}`}>{meta.label} <span className="c">{bk.items.length}</span></div>
+            <div className={`todo-grp ${meta.tone}`}>{meta.label} <span className="c">{items.length}</span></div>
             <ul className="todo-list">
-              {bk.items.map((it, idx) => <TodoRow key={`${it.todoKey || it.text}-${idx}`} it={it} idx={idx} {...rowProps} />)}
+              {items.map((it, idx) => <TodoRow key={`${it.todoKey || it.text}-${idx}`} it={it} idx={idx} {...rowProps} />)}
             </ul>
           </div>
         );

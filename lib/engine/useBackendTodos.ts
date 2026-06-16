@@ -76,10 +76,24 @@ export interface BackendTodoItem extends BackendTodoRaw {
   todoKey: string;
 }
 
+// A manually-added completed update (logged via "Add update"): a note + the date
+// it was done, optionally backed by a Salesforce Task. Surfaces in the drawer's
+// "Recently completed" list. Carries opp_id so the drawer can filter by deal.
+export interface ManualUpdate {
+  id?: string;
+  opp_id?: string;
+  note?: string;
+  done_date?: string | null;
+  sf_task_id?: string | null;
+  created_by?: string | null;
+  created_at?: string | null;
+}
+
 function annotate(data: unknown): {
   arrays: Record<BackendCategory, BackendTodoItem[]>;
   flat: BackendTodoItem[];
   owner: string | null;
+  manualCompleted: ManualUpdate[];
 } {
   const arrays: Record<BackendCategory, BackendTodoItem[]> = {
     critical: [],
@@ -90,9 +104,12 @@ function annotate(data: unknown): {
   };
   const flat: BackendTodoItem[] = [];
   let owner: string | null = null;
-  if (!data || typeof data !== "object") return { arrays, flat, owner };
+  if (!data || typeof data !== "object") return { arrays, flat, owner, manualCompleted: [] };
   const book = data as Record<string, unknown>;
   if (typeof book.owner === "string") owner = book.owner;
+  const manualCompleted: ManualUpdate[] = Array.isArray(book.manualCompleted)
+    ? (book.manualCompleted as ManualUpdate[])
+    : [];
   for (const category of CATEGORY_ORDER) {
     const field = CATEGORY_TEXT_FIELD[category];
     const items = book[category];
@@ -117,7 +134,7 @@ function annotate(data: unknown): {
       flat.push(annotated);
     }
   }
-  return { arrays, flat, owner };
+  return { arrays, flat, owner, manualCompleted };
 }
 
 export function useBackendTodos() {
@@ -130,12 +147,19 @@ export function useBackendTodos() {
   }));
   const [flat, setFlat] = useState<BackendTodoItem[]>([]);
   const [owner, setOwner] = useState<string | null>(null);
+  const [manualCompleted, setManualCompleted] = useState<ManualUpdate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Per-todo_key optimistic override for pushed state. A successful push flips
   // the row green without waiting for a refetch.
   const [pushedOverride, setPushedOverride] = useState<Record<string, { pushed: true; sf_task_id?: string }>>({});
+  // Optimistic edit/delete state so a row updates/vanishes instantly. The server
+  // (derive_todo) also applies these, so a later reload stays consistent.
+  const [deletedKeys, setDeletedKeys] = useState<Record<string, true>>({});
+  const [editedByKey, setEditedByKey] = useState<Record<string, { text: string; due?: string }>>({});
+  // Optimistically-added manual updates (appended to the server list until reload).
+  const [addedUpdates, setAddedUpdates] = useState<ManualUpdate[]>([]);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -145,10 +169,15 @@ export function useBackendTodos() {
       let body: unknown = null;
       try { body = await res.json(); } catch { /* non-JSON / empty */ }
       if (res.ok) {
-        const { arrays, flat, owner } = annotate(body);
+        const { arrays, flat, owner, manualCompleted } = annotate(body);
         setArrays(arrays);
         setFlat(flat);
         setOwner(owner);
+        setManualCompleted(manualCompleted);
+        // Server state now reflects any prior edit/delete/add — clear optimistic layers.
+        setDeletedKeys({});
+        setEditedByKey({});
+        setAddedUpdates([]);
       } else {
         setError(`Request failed (${res.status})`);
       }
@@ -177,8 +206,62 @@ export function useBackendTodos() {
     [pushedOverride],
   );
 
+  // --- Edit / delete / add-update actions (persist to the backend overrides layer) ---
+  const post = async (path: string, body: unknown): Promise<{ ok: boolean; data: any }> => {
+    try {
+      const res = await fetch(`/api/deal-engine${path}`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      let data: any = null; try { data = await res.json(); } catch { /* empty */ }
+      return { ok: res.ok && data?.ok !== false, data };
+    } catch (e) {
+      return { ok: false, data: { error: e instanceof Error ? e.message : String(e) } };
+    }
+  };
+
+  // Delete a to-do (sticky across re-sweeps). Optimistically hides the row.
+  const deleteTodo = useCallback(async (item: BackendTodoItem): Promise<boolean> => {
+    if (!item.todoKey) return false;
+    setDeletedKeys((p) => ({ ...p, [item.todoKey]: true }));
+    const r = await post("/todo/override", { opp_id: item.opp_id, todo_key: item.todoKey, action: "delete" });
+    if (!r.ok) setDeletedKeys((p) => { const n = { ...p }; delete n[item.todoKey]; return n; });
+    return r.ok;
+  }, []);
+
+  // Edit a to-do's text (and optional due date). Optimistically shows the new text.
+  const editTodo = useCallback(async (item: BackendTodoItem, text: string, due?: string): Promise<boolean> => {
+    if (!item.todoKey || !text.trim()) return false;
+    const prev = editedByKey[item.todoKey];
+    setEditedByKey((p) => ({ ...p, [item.todoKey]: { text: text.trim(), due } }));
+    const r = await post("/todo/override", { opp_id: item.opp_id, todo_key: item.todoKey, action: "edit", text: text.trim(), due });
+    if (!r.ok) setEditedByKey((p) => ({ ...p, [item.todoKey]: prev as { text: string; due?: string } }));
+    return r.ok;
+  }, [editedByKey]);
+
+  // Add a manual completed update (logs a completed SF Task + shows in Recently completed).
+  const addUpdate = useCallback(async (oppId: string, note: string, doneDate: string): Promise<{ ok: boolean; sfTaskId?: string; sfError?: string }> => {
+    const r = await post("/todo/update", { opp_id: oppId, note, done_date: doneDate });
+    if (r.ok) {
+      const row: ManualUpdate = (r.data?.update as ManualUpdate) || { opp_id: oppId, note, done_date: doneDate, sf_task_id: r.data?.sf_task_id };
+      setAddedUpdates((p) => [row, ...p]);
+    }
+    return { ok: r.ok, sfTaskId: r.data?.sf_task_id, sfError: r.data?.sf_error };
+  }, []);
+
+  const isDeleted = useCallback((item: BackendTodoItem) => !!deletedKeys[item.todoKey], [deletedKeys]);
+  const editedTextFor = useCallback((item: BackendTodoItem) => editedByKey[item.todoKey], [editedByKey]);
+  // Effective manual updates for one opp (server + optimistic), newest done-date first.
+  const manualForOpp = useCallback((oppId: unknown): ManualUpdate[] => {
+    const k = String(oppId || "").slice(0, 15);
+    const all = [...addedUpdates, ...manualCompleted].filter((m) => String(m.opp_id || "").slice(0, 15) === k);
+    return all.sort((a, b) => String(b.done_date || b.created_at || "").localeCompare(String(a.done_date || a.created_at || "")));
+  }, [addedUpdates, manualCompleted]);
+
   return useMemo(
-    () => ({ arrays, flat, owner, loading, error, reload, markPushed, isPushed, sfTaskIdFor, pushedOverride }),
-    [arrays, flat, owner, loading, error, reload, markPushed, isPushed, sfTaskIdFor, pushedOverride],
+    () => ({ arrays, flat, owner, loading, error, reload, markPushed, isPushed, sfTaskIdFor, pushedOverride,
+             deleteTodo, editTodo, addUpdate, isDeleted, editedTextFor, manualForOpp }),
+    [arrays, flat, owner, loading, error, reload, markPushed, isPushed, sfTaskIdFor, pushedOverride,
+     deleteTodo, editTodo, addUpdate, isDeleted, editedTextFor, manualForOpp],
   );
 }
