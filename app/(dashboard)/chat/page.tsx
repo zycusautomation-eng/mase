@@ -197,7 +197,7 @@ function AdminPromptPanel() {
 }
 
 export default function ChatPage() {
-  const { records: allRecords, scoped: scopedRecords, locked, blocked, scopeName, realIsAdmin } = useDashboard();
+  const { records: allRecords, scoped: scopedRecords, locked, blocked, scopeName, isAdminView } = useDashboard();
   // When the user is locked to their own scope, the strategist may only ever see
   // their deals — use the scoped set as the entire book for chat.
   const records = locked ? scopedRecords : allRecords;
@@ -303,7 +303,7 @@ export default function ChatPage() {
         {/* Admin editor — only when the EFFECTIVE viewer is an admin. `locked` is
             simulation-aware (true when simulating a scoped VP/rep), so the panel
             correctly disappears while previewing a non-admin's view. */}
-        {realIsAdmin && !locked && <AdminPromptPanel />}
+        {isAdminView && !locked && <AdminPromptPanel />}
         <div className="chatscope">
           {locked ? (
             <span className="scopelock" title="The strategist only sees your deals">

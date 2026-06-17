@@ -301,9 +301,8 @@ export function ContextMeta({ it }: { it: BackendTodoItem }) {
 // (the preview matches what that user actually sees: nothing).
 export function AgentButton({ it, ownerName }: { it: BackendTodoItem; ownerName?: string }) {
   const { start } = useAgentRun();
-  const { realIsAdmin, simEmail } = useDashboard();
-  const canRunAI = realIsAdmin && simEmail == null;
-  if (!canRunAI) return null;
+  const { isAdminView } = useDashboard();
+  if (!isAdminView) return null;
   return (
     <button
       type="button"

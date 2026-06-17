@@ -150,7 +150,7 @@ function DocumentsSection() {
         <input type="file" accept={ACCEPT_EXT.join(",")} onChange={onFile} />
         {fileName && <span className="admin-meta">{fileName}{content ? ` · ${content.length.toLocaleString()} chars` : fileB64 ? " · binary (server-extracted)" : ""}</span>}
       </div>
-      <textarea className="admin-textarea" value={content} onChange={(e) => setContent(e.target.value)} placeholder="…or paste the document text here" rows={8} />
+      <textarea className="admin-textarea" value={content} onChange={(e) => { setContent(e.target.value); if (fileB64) { setFileB64(""); setFileName(""); } }} placeholder="…or paste the document text here" rows={8} />
       <div className="admin-actions">
         <button className="admin-btn primary" onClick={upload} disabled={busy}>{busy ? "Uploading…" : "Upload to corpus"}</button>
         {note && <span className="admin-note">{note}</span>}
