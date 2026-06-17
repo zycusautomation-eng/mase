@@ -34,18 +34,19 @@ export default function AdminPage() {
 }
 
 function AdminInner() {
-  const [tab, setTab] = useState<"docs" | "instructions" | "execution" | "access">("docs");
+  const [tab, setTab] = useState<"docs" | "instructions" | "sweep" | "execution" | "access">("docs");
   return (
     <div id="adminview">
-      <div className="todo-top"><div className="ttl"><b>Agent Control</b> — manage the task-completion agent: knowledge, instructions, execution, and access.</div></div>
+      <div className="todo-top"><div className="ttl"><b>Agent Control</b> — manage the agents: knowledge, instructions, deal-sweep prompt, execution, and access.</div></div>
       <div className="admin-tabs">
-        {([["docs", "Knowledge"], ["instructions", "Instructions"], ["execution", "Execution"], ["access", "Access & Config"]] as const).map(([k, label]) => (
+        {([["docs", "Knowledge"], ["instructions", "Instructions"], ["sweep", "Deal Sweep"], ["execution", "Execution"], ["access", "Access & Config"]] as const).map(([k, label]) => (
           <button key={k} className={`admin-tab ${tab === k ? "active" : ""}`} onClick={() => setTab(k)}>{label}</button>
         ))}
       </div>
       <div className="admin-body">
         {tab === "docs" && <DocumentsSection />}
         {tab === "instructions" && <InstructionsSection />}
+        {tab === "sweep" && <SweepPromptSection />}
         {tab === "execution" && <ExecutionSection />}
         {tab === "access" && <AccessSection />}
       </div>
@@ -171,7 +172,13 @@ function DocumentsSection() {
 }
 
 // ── 2. Instructions (system prompt) ─────────────────────────────────────────
-function InstructionsSection() {
+// A reusable system-prompt editor. The backend stores every agent prompt in
+// Supabase (the runtime source of truth) and returns {prompt, default, is_override}
+// from `endpoint`; an empty save clears the override and falls back to the shipped
+// default. Used for BOTH the chat/todo-runner agent and the deal-sweep agent.
+function PromptEditor({ endpoint, heading, description, saveLabel, savedMsg, rows = 18 }: {
+  endpoint: string; heading: string; description: string; saveLabel: string; savedMsg: string; rows?: number;
+}) {
   const [prompt, setPrompt] = useState("");
   const [serverPrompt, setServerPrompt] = useState("");
   const [defaultPrompt, setDefaultPrompt] = useState("");
@@ -183,7 +190,7 @@ function InstructionsSection() {
   const load = useCallback(async () => {
     setLoading(true); setNote(null);
     try {
-      const r = await fetch("/api/deal-engine/chat/prompt", { cache: "no-store" });
+      const r = await fetch(endpoint, { cache: "no-store" });
       const j = await r.json();
       if (!r.ok || j.error) setNote(j.error || `Error ${r.status}`);
       else {
@@ -192,13 +199,13 @@ function InstructionsSection() {
       }
     } catch (e: any) { setNote(e?.message || String(e)); }
     setLoading(false);
-  }, []);
+  }, [endpoint]);
   useEffect(() => { void load(); }, [load]);
 
   async function save(value: string) {
     setSaving(true); setNote(null);
     try {
-      const r = await fetch("/api/deal-engine/chat/prompt", {
+      const r = await fetch(endpoint, {
         method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify({ prompt: value }),
       });
@@ -207,7 +214,7 @@ function InstructionsSection() {
       else {
         const applied = value.trim() ? value : defaultPrompt;
         setServerPrompt(applied); setPrompt(applied); setIsOverride(!!j.is_override);
-        setNote(value.trim() ? "Saved — applies to every agent run on the next message." : "Reset to the built-in default.");
+        setNote(value.trim() ? savedMsg : "Reset to the built-in default.");
       }
     } catch (e: any) { setNote(e?.message || String(e)); }
     setSaving(false);
@@ -216,13 +223,13 @@ function InstructionsSection() {
   const dirty = prompt !== serverPrompt;
   return (
     <div className="admin-card">
-      <h3>Agent instructions {isOverride && <span className="ap-tag ap-custom">custom</span>}</h3>
-      <p className="admin-desc">The system prompt that governs how the agent behaves for everyone. Edits apply to the next message of every run. Leave empty + save to reset to the built-in default.</p>
+      <h3>{heading} {isOverride && <span className="ap-tag ap-custom">custom</span>}</h3>
+      <p className="admin-desc">{description}</p>
       {loading ? <div className="admin-meta">Loading…</div> : (
         <>
-          <textarea className="admin-textarea mono" value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={18} />
+          <textarea className="admin-textarea mono" value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={rows} />
           <div className="admin-actions">
-            <button className="admin-btn primary" onClick={() => save(prompt)} disabled={saving || !dirty}>{saving ? "Saving…" : "Save instructions"}</button>
+            <button className="admin-btn primary" onClick={() => save(prompt)} disabled={saving || !dirty}>{saving ? "Saving…" : saveLabel}</button>
             <button className="admin-btn" onClick={() => save("")} disabled={saving}>Reset to default</button>
             {dirty && <span className="admin-meta">unsaved changes</span>}
             {note && <span className="admin-note">{note}</span>}
@@ -230,6 +237,35 @@ function InstructionsSection() {
         </>
       )}
     </div>
+  );
+}
+
+function InstructionsSection() {
+  return (
+    <PromptEditor
+      endpoint="/api/deal-engine/chat/prompt"
+      heading="Task-completion agent (chat) instructions"
+      description="The system prompt that governs how the chat / to-do-runner agent behaves for everyone. Edits apply to the next message of every run. Leave empty + save to reset to the built-in default. (This is separate from the Deal Sweep prompt.)"
+      saveLabel="Save instructions"
+      savedMsg="Saved — applies to every agent run on the next message."
+      rows={18}
+    />
+  );
+}
+
+// The Deal Intelligence Engine SWEEP agent's system prompt — the agent that reads
+// Salesforce + Avoma per opportunity and writes the canonical deal record. Distinct
+// from the chat/todo-runner agent above. Stored in Supabase (key mase_deal_sweep).
+function SweepPromptSection() {
+  return (
+    <PromptEditor
+      endpoint="/api/deal-engine/sweep/prompt"
+      heading="Deal Sweep agent system prompt"
+      description="Governs the Deal Intelligence Engine sweep: the agent that analyses one opportunity end-to-end against live Salesforce + Avoma (transcripts, MEDDPICC, competition) and emits the canonical deal record the Deals / Espresso / Matcha views read. Stored in Supabase and applied on the next opportunity swept — no redeploy. Leave empty + save to fall back to the shipped default. This is NOT the chat / to-do-runner agent."
+      saveLabel="Save sweep prompt"
+      savedMsg="Saved — applies to the next opportunity swept."
+      rows={28}
+    />
   );
 }
 

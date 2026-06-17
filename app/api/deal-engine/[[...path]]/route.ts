@@ -12,12 +12,15 @@ const TOKEN = process.env.DEAL_ENGINE_TOKEN;
 
 export const dynamic = "force-dynamic"; // never cache deal data at the proxy layer
 
-// The chat agent's system-prompt editor (chat/prompt) edits behaviour for the
-// whole team, so it must be ADMIN-only. The backend sits behind a single shared
-// token (every user proxies with it), so per-user admin enforcement has to live
-// HERE, where the Supabase session identifies the caller.
+// The agent system-prompt editors edit behaviour for the whole team, so they must
+// be ADMIN-only — both the chat / todo-runner agent (chat/prompt) and the Deal
+// Intelligence Engine sweep agent (sweep/prompt). The backend sits behind a single
+// shared token (every user proxies with it), so per-user admin enforcement has to
+// live HERE, where the Supabase session identifies the caller. Covers GET (reading
+// the prompt) and POST (writing it).
 function isPromptPath(path?: string[]): boolean {
-  return !!path && path.length === 2 && path[0] === "chat" && path[1] === "prompt";
+  return !!path && path.length === 2 && path[1] === "prompt"
+    && (path[0] === "chat" || path[0] === "sweep");
 }
 
 // The to-do push: /api/deal-engine/todo/push. We enrich its body with the
