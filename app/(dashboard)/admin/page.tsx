@@ -18,6 +18,8 @@ const CORPORA = [
 ];
 const DOC_TYPES = ["playbook", "guide", "email_template", "transcript", "showpad_asset", "other"];
 const TEXT_EXT = [".txt", ".md", ".markdown", ".csv", ".json", ".html"];
+const BIN_EXT = [".pdf", ".docx"]; // extracted server-side via pypdf / python-docx
+const ACCEPT_EXT = [...TEXT_EXT, ...BIN_EXT];
 
 export default function AdminPage() {
   const { realIsAdmin } = useDashboard();
@@ -57,6 +59,7 @@ function DocumentsSection() {
   const [docType, setDocType] = useState(DOC_TYPES[0]);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [fileB64, setFileB64] = useState("");
   const [fileName, setFileName] = useState("");
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -78,33 +81,46 @@ function DocumentsSection() {
     const f = e.target.files?.[0];
     if (!f) return;
     const lower = f.name.toLowerCase();
-    if (!TEXT_EXT.some((x) => lower.endsWith(x))) {
-      setNote(`Only text files (${TEXT_EXT.join(", ")}) + paste are supported in v1. PDF/DOCX extraction is coming with the ingestion upgrade — for now paste the text.`);
+    if (!ACCEPT_EXT.some((x) => lower.endsWith(x))) {
+      setNote(`Unsupported file. Allowed: ${ACCEPT_EXT.join(", ")} — or paste text.`);
       return;
     }
-    if (f.size > 2_000_000) { setNote("File too large (>2 MB of text). Split it."); return; }
+    if (f.size > 15_000_000) { setNote("File too large (>15 MB). Split it."); return; }
+    setNote(null);
+    setFileName(f.name);
+    if (!title) setTitle(f.name.replace(/\.[^.]+$/, ""));
+    const isBin = BIN_EXT.some((x) => lower.endsWith(x));
     const reader = new FileReader();
-    reader.onload = () => { setContent(String(reader.result || "")); setFileName(f.name); if (!title) setTitle(f.name.replace(/\.[^.]+$/, "")); setNote(null); };
-    reader.readAsText(f);
+    if (isBin) {
+      // PDF/DOCX → base64; the server extracts the text (pypdf / python-docx).
+      reader.onload = () => { const s = String(reader.result || ""); setFileB64(s.includes(",") ? s.split(",")[1] : s); setContent(""); };
+      reader.readAsDataURL(f);
+    } else {
+      reader.onload = () => { setContent(String(reader.result || "")); setFileB64(""); };
+      reader.readAsText(f);
+    }
   }
 
   async function upload() {
-    if (!content.trim()) { setNote("Add content (upload a text file or paste)."); return; }
+    if (!content.trim() && !fileB64) { setNote("Add content (upload a file or paste text)."); return; }
     if (!title.trim()) { setNote("Give the document a title."); return; }
     setBusy(true); setNote(null);
     try {
-      // doc_type is encoded into the name until the document_chunks schema gains a
-      // doc_type column (P1) — so it stays visible/filterable in retrieval results.
-      const name = `[${docType}] ${title.trim()}`;
+      // Send doc_type as a real field + a clean title. The backend stores doc_type
+      // natively once the column exists, else encodes it into the name. PDF/DOCX go
+      // as base64 (file_b64 + filename) for server-side extraction.
+      const body: Record<string, unknown> = { name: title.trim(), project_id: corpus, doc_type: docType };
+      if (fileB64) { body.file_b64 = fileB64; body.filename = fileName; }
+      else body.content = content;
       const r = await fetch("/api/documents/upload", {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name, content, project_id: corpus }),
+        body: JSON.stringify(body),
       });
       const j = await r.json();
       if (!r.ok || j.error) setNote(j.error || `Upload failed (${r.status})`);
       else {
-        setNote(`Uploaded "${name}" — chunked + embedded into the corpus.`);
-        setTitle(""); setContent(""); setFileName("");
+        setNote(`Uploaded "${title.trim()}" — chunked + embedded into the corpus.`);
+        setTitle(""); setContent(""); setFileB64(""); setFileName("");
         void loadDocs();
       }
     } catch (e: any) { setNote(e?.message || String(e)); }
@@ -114,7 +130,7 @@ function DocumentsSection() {
   return (
     <div className="admin-card">
       <h3>Upload knowledge</h3>
-      <p className="admin-desc">Docs you upload here are chunked, embedded, and stored in the chosen corpus — the agent retrieves them via search_knowledge when completing tasks. Tag the type so retrieval can route by it.</p>
+      <p className="admin-desc">Docs you upload here are chunked, embedded, and stored in the chosen corpus — the agent retrieves them via search_knowledge when completing tasks. Tag the type so retrieval can route by it. Supports text, Markdown, CSV, PDF, and DOCX (or paste text).</p>
       <div className="admin-row">
         <label>Corpus
           <select value={corpus} onChange={(e) => setCorpus(e.target.value)}>
@@ -131,8 +147,8 @@ function DocumentsSection() {
         </label>
       </div>
       <div className="admin-row">
-        <input type="file" accept={TEXT_EXT.join(",")} onChange={onFile} />
-        {fileName && <span className="admin-meta">{fileName} · {content.length.toLocaleString()} chars</span>}
+        <input type="file" accept={ACCEPT_EXT.join(",")} onChange={onFile} />
+        {fileName && <span className="admin-meta">{fileName}{content ? ` · ${content.length.toLocaleString()} chars` : fileB64 ? " · binary (server-extracted)" : ""}</span>}
       </div>
       <textarea className="admin-textarea" value={content} onChange={(e) => setContent(e.target.value)} placeholder="…or paste the document text here" rows={8} />
       <div className="admin-actions">
@@ -144,7 +160,10 @@ function DocumentsSection() {
       <div className="admin-doclist">
         {docs.length === 0 && !listLoading ? <div className="admin-meta">No documents in this corpus yet.</div> :
           docs.slice(0, 200).map((d, i) => (
-            <div key={d.id || i} className="admin-docrow"><span className="admin-docname">{d.name || d.title || d.id}</span></div>
+            <div key={d.id || i} className="admin-docrow">
+              <span className="admin-docname">{d.name || d.title || d.id}</span>
+              {d.doc_type && <span className="admin-meta">{d.doc_type}</span>}
+            </div>
           ))}
       </div>
     </div>
