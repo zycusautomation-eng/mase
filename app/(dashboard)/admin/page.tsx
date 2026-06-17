@@ -272,21 +272,31 @@ function SweepPromptSection() {
   );
 }
 
-// ── 3. Execution (runs + sweep) ─────────────────────────────────────────────
+// ── 3. Execution — two separate run feeds: Deal Sweep + Todo Runner ──────────
+const TR_STATUS: Record<string, { label: string; color?: string }> = {
+  draft_ready: { label: "✓ draft ready", color: "var(--green-ink)" },
+  needs_human: { label: "⚠ needs human", color: "var(--red-ink)" },
+  error: { label: "error", color: "var(--red-ink)" },
+  running: { label: "running…" },
+};
+
 function ExecutionSection() {
   const [sweep, setSweep] = useState<any>(null);
   const [logs, setLogs] = useState<any[]>([]);
+  const [runs, setRuns] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [s, t] = await Promise.all([
+      const [s, t, r] = await Promise.all([
         fetch("/api/deal-engine/sweep/status", { cache: "no-store" }).then((r) => r.json()).catch(() => null),
         fetch("/api/deal-engine/trigger-logs", { cache: "no-store" }).then((r) => r.json()).catch(() => null),
+        fetch("/api/deal-engine/todo-runner/runs", { cache: "no-store" }).then((r) => r.json()).catch(() => null),
       ]);
       setSweep(s);
       setLogs((t?.rows || (Array.isArray(t) ? t : [])).slice(0, 25));
+      setRuns(r?.runs || []);
     } catch { /* */ }
     setLoading(false);
   }, []);
@@ -297,29 +307,54 @@ function ExecutionSection() {
     waiting: sweep.waiting || 0, status: sweep.status,
   } : null;
   return (
-    <div className="admin-card">
-      <h3>Agent execution</h3>
-      <p className="admin-desc">Live state of the sweep worker (the engine that runs the agent per deal) and the most recent runs. Full detail + per-deal records on the <a href="/runs">Runs</a> tab.</p>
-      {c && (
-        <div className="dq-sync" style={{ flexWrap: "wrap", marginBottom: 12 }}>
-          <div className="dq-stat"><b style={{ color: c.status === "running" ? "var(--green-ink)" : undefined }}>{c.status || "idle"}</b><span>worker</span></div>
-          <div className="dq-stat"><b>{c.done}</b><span>done</span></div>
-          <div className="dq-stat"><b>{c.working}</b><span>in flight</span></div>
-          <div className="dq-stat"><b>{c.waiting}</b><span>waiting</span></div>
-          <div className="dq-stat"><b style={c.failed ? { color: "var(--red-ink)" } : undefined}>{c.failed}</b><span>failed</span></div>
-        </div>
-      )}
-      <div className="admin-actions"><button className="admin-btn" onClick={load} disabled={loading}>{loading ? "Refreshing…" : "↻ Refresh"}</button></div>
-      <div className="admin-doclist" style={{ marginTop: 12 }}>
-        {logs.length === 0 ? <div className="admin-meta">No recent runs.</div> :
-          logs.map((r, i) => (
-            <div key={i} className="admin-docrow">
-              <span className="admin-docname">{(r.opp_name || r.account_name || r.opp_id || "—")}</span>
-              <span className="admin-meta">{r.source || ""} · {r.status || ""} · {r.created_at ? String(r.created_at).slice(0, 16).replace("T", " ") : ""}</span>
-            </div>
-          ))}
+    <>
+      <div className="admin-actions" style={{ marginBottom: 12 }}>
+        <button className="admin-btn" onClick={load} disabled={loading}>{loading ? "Refreshing…" : "↻ Refresh both"}</button>
       </div>
-    </div>
+
+      {/* Deal Sweep agent runs */}
+      <div className="admin-card">
+        <h3>Deal Sweep runs</h3>
+        <p className="admin-desc">The Deal Intelligence Engine sweep — the agent that reads Salesforce + Avoma per opportunity and writes the canonical deal record. Full per-deal detail on the <a href="/runs">Runs</a> tab.</p>
+        {c && (
+          <div className="dq-sync" style={{ flexWrap: "wrap", marginBottom: 12 }}>
+            <div className="dq-stat"><b style={{ color: c.status === "running" ? "var(--green-ink)" : undefined }}>{c.status || "idle"}</b><span>worker</span></div>
+            <div className="dq-stat"><b>{c.done}</b><span>done</span></div>
+            <div className="dq-stat"><b>{c.working}</b><span>in flight</span></div>
+            <div className="dq-stat"><b>{c.waiting}</b><span>waiting</span></div>
+            <div className="dq-stat"><b style={c.failed ? { color: "var(--red-ink)" } : undefined}>{c.failed}</b><span>failed</span></div>
+          </div>
+        )}
+        <div className="admin-doclist">
+          {logs.length === 0 ? <div className="admin-meta">No recent sweep runs.</div> :
+            logs.map((r, i) => (
+              <div key={i} className="admin-docrow">
+                <span className="admin-docname">{(r.opp_name || r.account_name || r.opp_id || "—")}</span>
+                <span className="admin-meta">{r.source || ""} · {r.status || ""} · {r.created_at ? String(r.created_at).slice(0, 16).replace("T", " ") : ""}</span>
+              </div>
+            ))}
+        </div>
+      </div>
+
+      {/* Todo Runner agent runs (the task-completion / "Run with AI" agent) */}
+      <div className="admin-card">
+        <h3>Todo Runner runs</h3>
+        <p className="admin-desc">The Tactical Fulfillment agent behind “Run with AI” on a to-do — it drafts an outbound email for a rep to review. Most recent runs across the team.</p>
+        <div className="admin-doclist">
+          {runs.length === 0 ? <div className="admin-meta">No “Run with AI” runs yet.</div> :
+            runs.map((r, i) => {
+              const st = TR_STATUS[r.status] || { label: r.status || "—" };
+              const todo = String(r.todo || "");
+              return (
+                <div key={r.chat_id || i} className="admin-docrow">
+                  <span className="admin-docname">{r.account || r.opp || "—"}{todo ? <span className="admin-meta"> — {todo.slice(0, 70)}{todo.length > 70 ? "…" : ""}</span> : null}</span>
+                  <span className="admin-meta"><b style={{ color: st.color }}>{st.label}</b>{r.owner ? " · " + r.owner : ""}{r.created_at ? " · " + String(r.created_at).slice(0, 16).replace("T", " ") : ""}</span>
+                </div>
+              );
+            })}
+        </div>
+      </div>
+    </>
   );
 }
 

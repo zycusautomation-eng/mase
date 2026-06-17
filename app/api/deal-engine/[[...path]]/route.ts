@@ -44,6 +44,12 @@ function isTodoRunnerPromptPath(path?: string[]): boolean {
   return !!path && path.length === 2 && path[0] === "todo-runner" && path[1] === "prompt";
 }
 
+// The todo-runner runs feed (Admin -> Execution) lists what reps ran — admin-only
+// to READ (gated on GET, below). It is read-only so there's no POST to gate.
+function isTodoRunnerRunsPath(path?: string[]): boolean {
+  return !!path && path.length === 2 && path[0] === "todo-runner" && path[1] === "runs";
+}
+
 async function callerIsAdmin(): Promise<boolean> {
   try {
     const supabase = await createClient();
@@ -96,9 +102,10 @@ type Ctx = { params: Promise<{ path?: string[] }> };
 
 export async function GET(req: NextRequest, ctx: Ctx) {
   const { path } = await ctx.params;
-  // The system prompt is the team-wide agent instruction set (may encode strategy
-  // / guardrails), so reading it is admin-only too. Other GETs stay open.
-  if (isPromptPath(path) && !(await callerIsAdmin())) {
+  // Admin-only reads: the team-wide chat/sweep system prompts (may encode strategy
+  // / guardrails) and the todo-runner runs feed (shows what reps ran). The
+  // todo-runner PROMPT GET stays open (reps' runs fetch it). Other GETs stay open.
+  if ((isPromptPath(path) || isTodoRunnerRunsPath(path)) && !(await callerIsAdmin())) {
     return NextResponse.json({ error: "Admin only." }, { status: 403 });
   }
   return forward(req, path);
