@@ -6,6 +6,14 @@
 
 ---
 
+## 2026-06-18 — Agent onboarding: AGENTS.md + CLAUDE.md
+
+**What / why.** Added `AGENTS.md` (the guide coding agents auto-load) + a `CLAUDE.md`
+pointer, with copy-paste prompts (session catch-up, post-pull "what changed", pre-push
+wrap-up), so every agent understands changes that come with each push. **Start every
+session by reading `AGENTS.md` then `CHANGELOG.md`.** Reminder: pushing `main`
+auto-deploys to Vercel — keep `npx tsc --noEmit` clean.
+
 ## 2026-06-18 — Agent system prompts are edited in the app, stored in Supabase
 
 **What.** Admin → Agent Control has two prompt editors — **Todo Runner** (the "Run
