@@ -306,6 +306,7 @@ export const ADMIN_EMAILS = new Set<string>([
   "singh.aditya@zycus.com",
   "ankit.malhotra@zycus.com",
   "sutithi.das@zycus.com",
+  "rishabh.tickoo@zycus.com",
 ]);
 
 // Resolve the logged-in email into an access decision:

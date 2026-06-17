@@ -21,8 +21,11 @@ const TABS = [
 
 function Header() {
   const pathname = usePathname();
-  const { query, setQuery } = useDashboard();
+  const { query, setQuery, realIsAdmin } = useDashboard();
   const onDeals = pathname.startsWith("/deals");
+  // Sync Quality is an admin-only diagnostics surface — hide the tab for
+  // everyone else (the page itself also gates on realIsAdmin as a backstop).
+  const tabs = TABS.filter((t) => t.href !== "/sync-quality" || realIsAdmin);
   // The header search is a Deals-only filter. `query` lives in the shared
   // DashboardContext and feeds `filtered`, which Matcha/Espresso also use — so a
   // leftover search would silently narrow those tabs too. Clear it whenever we
@@ -35,7 +38,7 @@ function Header() {
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img className="brandmark-img" src="/mase-logo.svg" alt="MASE — Agents that close with you" />
       <div className="tabs">
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <Link key={t.href} href={t.href} className={`tab ${pathname.startsWith(t.href) ? "active" : ""}`}>
             {t.label}
           </Link>

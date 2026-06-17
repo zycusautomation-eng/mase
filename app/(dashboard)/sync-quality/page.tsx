@@ -2,11 +2,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useCallback, useEffect, useState } from "react";
 import { computeDataQuality, dqToCsv, type DQResult } from "@/lib/engine/dataQuality";
+import { useDashboard } from "@/lib/engine/DashboardContext";
 
-// Soft client-side gate (keeps casual eyes out — not real security; the data
-// loads in the other tabs too). Change via NEXT_PUBLIC_DQ_PASSCODE on the host.
-const PASS = process.env.NEXT_PUBLIC_DQ_PASSCODE || "Mased@123";
-const UNLOCK_KEY = "mase_dq_unlocked";
 const tone = (s: number) => (s >= 85 ? "good" : s >= 65 ? "warn" : "bad");
 
 // Live sweep-queue progress. Reads GET /api/deal-engine/sweep/status and polls while a run
@@ -65,17 +62,13 @@ function SweepQueuePanel() {
 }
 
 export default function DataQualityPage() {
-  const [unlocked, setUnlocked] = useState(false);
-  const [pw, setPw] = useState("");
-  const [pwErr, setPwErr] = useState(false);
+  const { realIsAdmin } = useDashboard();
   const [res, setRes] = useState<DQResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [checkedAt, setCheckedAt] = useState("");
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [showLag, setShowLag] = useState(false);
-
-  useEffect(() => { try { if (sessionStorage.getItem(UNLOCK_KEY) === "1") setUnlocked(true); } catch {} }, []);
 
   const run = useCallback(async () => {
     setLoading(true); setError(null);
@@ -94,13 +87,8 @@ export default function DataQualityPage() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { if (unlocked && !res && !loading) run(); }, [unlocked, res, loading, run]);
+  useEffect(() => { if (realIsAdmin && !res && !loading) run(); }, [realIsAdmin, res, loading, run]);
 
-  function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (pw === PASS) { setUnlocked(true); try { sessionStorage.setItem(UNLOCK_KEY, "1"); } catch {} }
-    else setPwErr(true);
-  }
   function exportCsv() {
     if (!res) return;
     const blob = new Blob([dqToCsv(res)], { type: "text/csv" });
@@ -109,16 +97,13 @@ export default function DataQualityPage() {
     URL.revokeObjectURL(a.href);
   }
 
-  if (!unlocked) {
+  if (!realIsAdmin) {
     return (
       <div className="dq-lock">
-        <form className="dq-lock-card" onSubmit={submit}>
+        <div className="dq-lock-card">
           <div className="dq-lock-ttl">🔒 Sync Quality</div>
-          <div className="dq-lock-sub">Enter the passcode to view sync-quality diagnostics.</div>
-          <input type="password" autoFocus value={pw} onChange={(e) => { setPw(e.target.value); setPwErr(false); }} placeholder="Passcode" />
-          {pwErr ? <div className="dq-lock-err">Incorrect passcode.</div> : null}
-          <button type="submit">Unlock</button>
-        </form>
+          <div className="dq-lock-sub">This diagnostics view is restricted to admins.</div>
+        </div>
       </div>
     );
   }
