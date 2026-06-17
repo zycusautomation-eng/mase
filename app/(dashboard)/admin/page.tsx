@@ -22,8 +22,8 @@ const BIN_EXT = [".pdf", ".docx"]; // extracted server-side via pypdf / python-d
 const ACCEPT_EXT = [...TEXT_EXT, ...BIN_EXT];
 
 export default function AdminPage() {
-  const { realIsAdmin } = useDashboard();
-  if (!realIsAdmin)
+  const { isAdminView } = useDashboard();
+  if (!isAdminView)
     return (
       <div className="dq-lock"><div className="dq-lock-card">
         <div className="dq-lock-ttl">🔒 Admin</div>

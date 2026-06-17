@@ -62,7 +62,7 @@ function SweepQueuePanel() {
 }
 
 export default function DataQualityPage() {
-  const { realIsAdmin } = useDashboard();
+  const { isAdminView } = useDashboard();
   const [res, setRes] = useState<DQResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -87,7 +87,7 @@ export default function DataQualityPage() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { if (realIsAdmin && !res && !loading) run(); }, [realIsAdmin, res, loading, run]);
+  useEffect(() => { if (isAdminView && !res && !loading) run(); }, [isAdminView, res, loading, run]);
 
   function exportCsv() {
     if (!res) return;
@@ -97,7 +97,7 @@ export default function DataQualityPage() {
     URL.revokeObjectURL(a.href);
   }
 
-  if (!realIsAdmin) {
+  if (!isAdminView) {
     return (
       <div className="dq-lock">
         <div className="dq-lock-card">

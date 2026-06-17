@@ -42,6 +42,10 @@ interface DashboardState {
   realIsAdmin: boolean;
   // email currently being simulated (null = the admin's own whole-book view)
   simEmail: string | null;
+  // gates admin-only surfaces (Admin/Runs/Learning/Sync Quality): the real user is
+  // an admin AND is NOT simulating a non-admin view, so a simulated rep/VP view
+  // hides them exactly as that user would see.
+  isAdminView: boolean;
   // admins: re-scope the whole UI as if `email` were logged in. null resets.
   simulateAs: (email: string | null) => void;
 }
@@ -193,7 +197,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     setVps, setRsds, setFilter, clearFilters, setQuery,
     scoped, filtered,
     locked, blocked, scopeName,
-    realIsAdmin, simEmail, simulateAs,
+    realIsAdmin, simEmail, isAdminView: realIsAdmin && !simEmail, simulateAs,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

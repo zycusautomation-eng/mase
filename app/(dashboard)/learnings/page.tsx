@@ -41,8 +41,8 @@ function chip(text: string, color: string, key?: any) {
 // Admin-only gate: the Learning Observatory is an admin surface. Non-admins are
 // blocked even on a direct URL (the nav tab is also hidden in the layout).
 export default function LearningsPage() {
-  const { realIsAdmin } = useDashboard();
-  if (!realIsAdmin)
+  const { isAdminView } = useDashboard();
+  if (!isAdminView)
     return (
       <div className="dq-lock"><div className="dq-lock-card">
         <div className="dq-lock-ttl">🔒 Learning</div>

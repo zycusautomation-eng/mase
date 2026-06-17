@@ -22,12 +22,13 @@ const TABS = [
 
 function Header() {
   const pathname = usePathname();
-  const { query, setQuery, realIsAdmin } = useDashboard();
+  const { query, setQuery, isAdminView } = useDashboard();
   const onDeals = pathname.startsWith("/deals");
   // Admin-only surfaces — hidden from the nav for everyone else (each page also
-  // gates on realIsAdmin as a backstop so a direct URL can't reach them).
+  // gates as a backstop so a direct URL can't reach them). isAdminView is false
+  // while an admin SIMULATES a rep/VP, so the simulated view hides these too.
   const ADMIN_ONLY_TABS = new Set(["/sync-quality", "/runs", "/learnings", "/admin"]);
-  const tabs = TABS.filter((t) => !ADMIN_ONLY_TABS.has(t.href) || realIsAdmin);
+  const tabs = TABS.filter((t) => !ADMIN_ONLY_TABS.has(t.href) || isAdminView);
   // The header search is a Deals-only filter. `query` lives in the shared
   // DashboardContext and feeds `filtered`, which Matcha/Espresso also use — so a
   // leftover search would silently narrow those tabs too. Clear it whenever we

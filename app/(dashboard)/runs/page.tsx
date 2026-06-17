@@ -18,8 +18,8 @@ const pulseColor = (s?: string) =>
 // Admin-only gate: Runs is a diagnostics surface. Non-admins are blocked even on
 // a direct URL (the nav tab is also hidden in the dashboard layout).
 export default function RunsPage() {
-  const { realIsAdmin } = useDashboard();
-  if (!realIsAdmin)
+  const { isAdminView } = useDashboard();
+  if (!isAdminView)
     return (
       <div className="dq-lock"><div className="dq-lock-card">
         <div className="dq-lock-ttl">🔒 Runs</div>
