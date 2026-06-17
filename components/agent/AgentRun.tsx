@@ -15,12 +15,13 @@ import { createClient } from "@/lib/supabase/client";
 // human reviews & sends).
 // ---------------------------------------------------------------------------
 
-// The Tactical Fulfillment Agent's behaviour (drafting mode). The LIVE prompt is
-// fetched from the backend at run time (Supabase-backed, admin-editable via Admin
-// -> Agent Control -> Todo Runner); this constant is the offline FALLBACK used only
-// if that fetch fails. Keep it in sync with the backend seed
-// prompts/todo_runner_system_prompt.md. The GATE is the safety model: it refuses
-// anything that needs a human and never invents a customer/reference/price.
+// ⚠️ DEPRECATED AS THE SOURCE OF TRUTH. The LIVE todo-runner prompt is stored in
+// SUPABASE (jarvis_settings id="mase_todo_runner") and edited from Admin -> Agent
+// Control -> Todo Runner. Every run fetches it from /api/deal-engine/todo-runner/
+// prompt below. This constant is ONLY the offline fallback if that fetch fails — do
+// not edit it to change behaviour; change the Supabase prompt. Kept in sync with the
+// backend seed prompts/todo_runner_system_prompt.md. The GATE is the safety model:
+// it refuses anything that needs a human and never invents a customer/reference/price.
 const DRAFTING_SYSTEM_PROMPT = `You are MASE's Tactical Fulfillment Agent. You complete ONE tactical sales to-do on behalf of a Zycus rep by DRAFTING a single outbound email to the prospect.
 
 GATE FIRST: You only handle to-dos that are (a) outbound to the prospect, (b) answerable with factual content you can retrieve, and (c) require NO internal collaboration. If the to-do needs the rep's manager or an executive, legal, security/infosec, the pricing desk, a sales engineer, product, or a partner — STOP. Draft nothing. Reply with exactly one line: "NEEDS HUMAN: <who and why>".
