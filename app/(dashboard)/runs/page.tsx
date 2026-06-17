@@ -1,6 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useDashboard } from "@/lib/engine/DashboardContext";
 
 // Runs / inspection dashboard. Reads the AWS backend (via the same-origin proxy)
 // and shows every tracked opportunity, when it was last swept / triggered, the
@@ -14,7 +15,21 @@ const items = (v: any): any[] => (Array.isArray(v) ? v : (v && v.items) || []);
 const pulseColor = (s?: string) =>
   s === "live" ? "#0F9D6B" : s === "cooling" ? "#C9881A" : s === "dark" ? "#D6453B" : "#7E8DA1";
 
+// Admin-only gate: Runs is a diagnostics surface. Non-admins are blocked even on
+// a direct URL (the nav tab is also hidden in the dashboard layout).
 export default function RunsPage() {
+  const { realIsAdmin } = useDashboard();
+  if (!realIsAdmin)
+    return (
+      <div className="dq-lock"><div className="dq-lock-card">
+        <div className="dq-lock-ttl">🔒 Runs</div>
+        <div className="dq-lock-sub">This view is restricted to admins.</div>
+      </div></div>
+    );
+  return <RunsPageInner />;
+}
+
+function RunsPageInner() {
   const [recs, setRecs] = useState<any[]>([]);
   const [logs, setLogs] = useState<any[]>([]);
   const [sweep, setSweep] = useState<any>(null);

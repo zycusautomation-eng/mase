@@ -1,6 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useDashboard } from "@/lib/engine/DashboardContext";
 
 // Learning Observatory — the place where Deal Sweep gets smarter over time.
 // Reads the operator-behaviour SIGNALS (what people delete / finish / log, by stage)
@@ -37,7 +38,21 @@ function chip(text: string, color: string, key?: any) {
   );
 }
 
+// Admin-only gate: the Learning Observatory is an admin surface. Non-admins are
+// blocked even on a direct URL (the nav tab is also hidden in the layout).
 export default function LearningsPage() {
+  const { realIsAdmin } = useDashboard();
+  if (!realIsAdmin)
+    return (
+      <div className="dq-lock"><div className="dq-lock-card">
+        <div className="dq-lock-ttl">🔒 Learning</div>
+        <div className="dq-lock-sub">This view is restricted to admins.</div>
+      </div></div>
+    );
+  return <LearningsPageInner />;
+}
+
+function LearningsPageInner() {
   const [learnings, setLearnings] = useState<any[]>([]);
   const [signals, setSignals] = useState<any>(null);
   const [loading, setLoading] = useState(false);
