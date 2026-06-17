@@ -288,6 +288,17 @@ export default function DealDrawer({
                 <Section title="Verdict">
                   <div>
                     <span className={`chip ${verdictTone(verdict.verdict)}`}>{verdict.verdict}</span>
+                    {verdict.trajectory && verdict.trajectory !== "new" ? (
+                      <span
+                        title={`Verdict ${verdict.trajectory} vs last sweep${verdict.prior_verdict ? ` (was ${verdict.prior_verdict})` : ""}`}
+                        style={{
+                          marginLeft: 6, fontSize: 12, fontWeight: 700,
+                          color: verdict.trajectory === "stronger" ? "#0F9D6B" : verdict.trajectory === "weaker" ? "#D6453B" : "#7E8DA1",
+                        }}
+                      >
+                        {verdict.trajectory === "stronger" ? "↑ stronger" : verdict.trajectory === "weaker" ? "↓ weaker" : "→ steady"}
+                      </span>
+                    ) : null}
                     {pchip ? (
                       <span
                         title={pchip.title}
@@ -442,7 +453,9 @@ export default function DealDrawer({
                           <span className="ownerchip vp">{c.name}</span>
                           {c.threat_level ? <span className={`chip ${threatTone(String(c.threat_level))}`} style={{ marginLeft: 6 }}>{String(c.threat_level)} threat</span> : null}
                           {c.status ? <span className="duechip" style={{ marginLeft: 6 }}>{String(c.status).replace(/_/g, " ")}</span> : null}
-                          {c.date ? <span className="td-meta" style={{ marginLeft: 6 }}>{c.date}</span> : null}
+                          {c.change === "new" ? <span style={{ marginLeft: 6, fontSize: 10.5, fontWeight: 700, color: "#fff", background: "#0F9D6B", padding: "1px 7px", borderRadius: 999 }}>NEW</span> : null}
+                          {c.change === "updated" ? <span style={{ marginLeft: 6, fontSize: 10.5, fontWeight: 700, color: "#fff", background: "#6D4AED", padding: "1px 7px", borderRadius: 999 }}>UPDATED</span> : null}
+                          {c.first_seen ? <span className="td-meta" style={{ marginLeft: 6 }}>since {c.first_seen}</span> : (c.date ? <span className="td-meta" style={{ marginLeft: 6 }}>{c.date}</span> : null)}
                         </div>
                         {c.quote ? <div className="td-meta" style={{ marginTop: 3 }}>“{cleanText(c.quote)}”</div> : null}
                         {c.how_we_win ? <div className="body" style={{ marginTop: 3 }}><b>How we win:</b> {cleanText(c.how_we_win)}</div> : null}
