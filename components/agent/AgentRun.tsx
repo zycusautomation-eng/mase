@@ -15,8 +15,11 @@ import { createClient } from "@/lib/supabase/client";
 // human reviews & sends).
 // ---------------------------------------------------------------------------
 
-// The Tactical Fulfillment Agent's behaviour (drafting mode). Passed as the
-// agent's system prompt for this run. The GATE is the safety model: it refuses
+// The Tactical Fulfillment Agent's behaviour (drafting mode). The LIVE prompt is
+// fetched from the backend at run time (Supabase-backed, admin-editable via Admin
+// -> Agent Control -> Todo Runner); this constant is the offline FALLBACK used only
+// if that fetch fails. Keep it in sync with the backend seed
+// prompts/todo_runner_system_prompt.md. The GATE is the safety model: it refuses
 // anything that needs a human and never invents a customer/reference/price.
 const DRAFTING_SYSTEM_PROMPT = `You are MASE's Tactical Fulfillment Agent. You complete ONE tactical sales to-do on behalf of a Zycus rep by DRAFTING a single outbound email to the prospect.
 
@@ -127,21 +130,42 @@ function AgentRunPanel({ run, onClose }: { run: ActiveRun; onClose: () => void }
   useEffect(() => {
     let cancelled = false;
     setPhase("running");
-    fetch("/api/agent/async", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        headless: false,
-        system_prompt: DRAFTING_SYSTEM_PROMPT,
-        messages: [{ role: "user", content: buildSeedPrompt({ ...todo, owner_name: todo.owner_name || ownerName }) }],
-      }),
-    }).then(async (r) => {
-      if (!r.ok && !cancelled) {
-        const j = await r.json().catch(() => ({}));
-        setPhase("error"); setErr(j.error || `Start failed (${r.status})`);
-      }
-    }).catch((e) => { if (!cancelled) { setPhase("error"); setErr(String(e?.message || e)); } });
+    (async () => {
+      // The todo-runner system prompt lives in Supabase (admin-editable). Fetch the
+      // effective prompt so runs pick up admin edits; fall back to the baked-in
+      // default if the fetch fails so a run never breaks.
+      let sysPrompt = DRAFTING_SYSTEM_PROMPT;
+      try {
+        // Bound the fetch (~4s) so a slow/unreachable settings backend can't delay
+        // the run; on abort the catch falls through to the baked-in default.
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 4000);
+        const pr = await fetch("/api/deal-engine/todo-runner/prompt", { cache: "no-store", signal: ctrl.signal });
+        clearTimeout(t);
+        if (pr.ok) {
+          const pj = await pr.json();
+          const eff = ((pj.is_override ? pj.prompt : pj.default) || "").trim();
+          if (eff) sysPrompt = eff;
+        }
+      } catch { /* timeout/network/parse — use the baked-in default */ }
+      if (cancelled) return;
+      try {
+        const r = await fetch("/api/agent/async", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            chat_id: chatId,
+            headless: false,
+            system_prompt: sysPrompt,
+            messages: [{ role: "user", content: buildSeedPrompt({ ...todo, owner_name: todo.owner_name || ownerName }) }],
+          }),
+        });
+        if (!r.ok && !cancelled) {
+          const j = await r.json().catch(() => ({}));
+          setPhase("error"); setErr(j.error || `Start failed (${r.status})`);
+        }
+      } catch (e: any) { if (!cancelled) { setPhase("error"); setErr(String(e?.message || e)); } }
+    })();
     return () => { cancelled = true; };
   }, [chatId, todo, ownerName]);
 

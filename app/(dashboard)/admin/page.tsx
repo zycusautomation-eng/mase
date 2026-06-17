@@ -4,11 +4,11 @@ import { useCallback, useEffect, useState } from "react";
 import { useDashboard } from "@/lib/engine/DashboardContext";
 import { ADMIN_EMAILS } from "@/lib/engine/helpers";
 
-// Admin → Agent Control. The single place admins manage the task-completion
-// agent: its KNOWLEDGE (uploaded docs), its INSTRUCTIONS (system prompt), its
-// EXECUTION (runs + sweep), and access. Admin-only — the page gates on
-// realIsAdmin and the nav tab is hidden for everyone else; the /api/documents
-// and /api/deal-engine/chat/prompt proxies enforce admin server-side too.
+// Admin → Agent Control. The single place admins manage MASE's agents: KNOWLEDGE
+// (uploaded docs), the TODO RUNNER prompt, the DEAL SWEEP prompt, EXECUTION (runs +
+// sweep), and access. Admin-only — the page gates on isAdminView and the nav tab is
+// hidden for everyone else; the /api/documents, /api/deal-engine/todo-runner/prompt
+// (POST-only) and /api/deal-engine/sweep/prompt proxies enforce admin server-side too.
 
 // Known knowledge corpora (Supabase project_ids). Uploaded docs are scoped to a
 // project; the agent's search_knowledge tool retrieves within the active project.
@@ -34,18 +34,18 @@ export default function AdminPage() {
 }
 
 function AdminInner() {
-  const [tab, setTab] = useState<"docs" | "instructions" | "sweep" | "execution" | "access">("docs");
+  const [tab, setTab] = useState<"docs" | "todorunner" | "sweep" | "execution" | "access">("docs");
   return (
     <div id="adminview">
-      <div className="todo-top"><div className="ttl"><b>Agent Control</b> — manage the agents: knowledge, instructions, deal-sweep prompt, execution, and access.</div></div>
+      <div className="todo-top"><div className="ttl"><b>Agent Control</b> — manage the agents: knowledge, the todo-runner prompt, the deal-sweep prompt, execution, and access.</div></div>
       <div className="admin-tabs">
-        {([["docs", "Knowledge"], ["instructions", "Instructions"], ["sweep", "Deal Sweep"], ["execution", "Execution"], ["access", "Access & Config"]] as const).map(([k, label]) => (
+        {([["docs", "Knowledge"], ["todorunner", "Todo Runner"], ["sweep", "Deal Sweep"], ["execution", "Execution"], ["access", "Access & Config"]] as const).map(([k, label]) => (
           <button key={k} className={`admin-tab ${tab === k ? "active" : ""}`} onClick={() => setTab(k)}>{label}</button>
         ))}
       </div>
       <div className="admin-body">
         {tab === "docs" && <DocumentsSection />}
-        {tab === "instructions" && <InstructionsSection />}
+        {tab === "todorunner" && <TodoRunnerSection />}
         {tab === "sweep" && <SweepPromptSection />}
         {tab === "execution" && <ExecutionSection />}
         {tab === "access" && <AccessSection />}
@@ -171,7 +171,7 @@ function DocumentsSection() {
   );
 }
 
-// ── 2. Instructions (system prompt) ─────────────────────────────────────────
+// ── 2. Agent system prompts (Todo Runner + Deal Sweep) ──────────────────────
 // A reusable system-prompt editor. The backend stores every agent prompt in
 // Supabase (the runtime source of truth) and returns {prompt, default, is_override}
 // from `endpoint`; an empty save clears the override and falls back to the shipped
@@ -240,15 +240,18 @@ function PromptEditor({ endpoint, heading, description, saveLabel, savedMsg, row
   );
 }
 
-function InstructionsSection() {
+// The Todo Runner — MASE's Tactical Fulfillment / "Run with AI" agent that drafts
+// an outbound email to complete a single to-do. Stored in Supabase (key
+// mase_todo_runner). Distinct from the Deal Sweep agent below.
+function TodoRunnerSection() {
   return (
     <PromptEditor
-      endpoint="/api/deal-engine/chat/prompt"
-      heading="Task-completion agent (chat) instructions"
-      description="The system prompt that governs how the chat / to-do-runner agent behaves for everyone. Edits apply to the next message of every run. Leave empty + save to reset to the built-in default. (This is separate from the Deal Sweep prompt.)"
-      saveLabel="Save instructions"
-      savedMsg="Saved — applies to every agent run on the next message."
-      rows={18}
+      endpoint="/api/deal-engine/todo-runner/prompt"
+      heading="Todo Runner agent system prompt"
+      description="Governs the Tactical Fulfillment agent behind 'Run with AI' on a to-do: it gathers facts (Showpad, Salesforce, knowledge base), refuses anything that needs a human, and drafts ONE outbound email for the rep to review. Stored in Supabase and applied on the next 'Run with AI' — no redeploy. Leave empty + save to fall back to the shipped default. This is NOT the Deal Sweep agent. Note: every rep's run reads this prompt at run time, so don't paste secrets or credentials into it."
+      saveLabel="Save todo-runner prompt"
+      savedMsg="Saved — applies to the next 'Run with AI'."
+      rows={20}
     />
   );
 }

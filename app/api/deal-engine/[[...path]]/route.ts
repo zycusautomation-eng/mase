@@ -37,6 +37,13 @@ function isLearningsWritePath(path?: string[]): boolean {
   return !!path && path.length >= 1 && path[0] === "learnings";
 }
 
+// The todo-runner ('Run with AI') agent prompt: WRITE is admin-only, but the GET
+// must stay open because every rep's run fetches the effective prompt to send it.
+// So this gates POST only (not GET, unlike isPromptPath for chat/sweep).
+function isTodoRunnerPromptPath(path?: string[]): boolean {
+  return !!path && path.length === 2 && path[0] === "todo-runner" && path[1] === "prompt";
+}
+
 async function callerIsAdmin(): Promise<boolean> {
   try {
     const supabase = await createClient();
@@ -99,9 +106,11 @@ export async function GET(req: NextRequest, ctx: Ctx) {
 
 export async function POST(req: NextRequest, ctx: Ctx) {
   const { path } = await ctx.params;
-  // Admin-only writes: the team-wide system prompt and Learning Observatory
-  // mutations. The backend trusts the shared token, so this proxy is the real gate.
-  if ((isPromptPath(path) || isLearningsWritePath(path)) && !(await callerIsAdmin())) {
+  // Admin-only writes: the team-wide system prompts (chat/sweep + the todo-runner)
+  // and Learning Observatory mutations. The backend trusts the shared token, so
+  // this proxy is the real gate.
+  if ((isPromptPath(path) || isTodoRunnerPromptPath(path) || isLearningsWritePath(path))
+      && !(await callerIsAdmin())) {
     return NextResponse.json({ error: "Admin only." }, { status: 403 });
   }
   // To-do push: inject the caller's Salesforce token so the Task is created as
