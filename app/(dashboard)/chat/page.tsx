@@ -11,7 +11,7 @@
 // realtime (with a polling fallback + watchdog) and renders the agent's live
 // thinking + tool trace, ending in the final answer. Ported from VIBE's
 // ChatInterface realtime architecture.
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { createClient } from "@/lib/supabase/client";
@@ -22,8 +22,9 @@ import {
 } from "@/lib/engine/helpers";
 import MultiSelect, { type Opt } from "@/components/MultiSelect";
 
-// A tool step in the live "agent working" trace.
-interface Step { type: "thinking" | "tool_call" | "tool_result"; tool?: string; args?: string; content?: string }
+// A tool step in the live "agent working" trace. `group:"todo"` marks a step
+// emitted by the nested Todo Runner sub-agent (rendered in its own sub-accordion).
+interface Step { type: "thinking" | "tool_call" | "tool_result"; tool?: string; args?: string; content?: string; group?: "todo" }
 // A chat message. `thinkingSteps`/`isProcessing` are present only on a live
 // assistant turn; persisted chats keep just {role, content}.
 interface Msg { role: "user" | "assistant"; content: string; thinkingSteps?: Step[]; isProcessing?: boolean }
@@ -125,10 +126,31 @@ function AgentTrace({ steps, processing }: { steps: Step[]; processing: boolean 
     ) : null;
   }
 
-  const toolCount = steps.filter((s) => s.type === "tool_call").length;
+  // Only the chat's OWN steps count toward the headline tool count; the nested
+  // Todo Runner steps are summarised separately inside their sub-accordion.
+  const toolCount = steps.filter((s) => s.type === "tool_call" && s.group !== "todo").length;
   const summary = processing
     ? "Agent working…"
     : `Agent steps${toolCount ? ` · ${toolCount} tool call${toolCount === 1 ? "" : "s"}` : ""}`;
+
+  // Render the steps in order, but collapse each contiguous run of todo-group
+  // steps into ONE nested "Todo Runner working…" sub-accordion. Non-todo steps
+  // render inline as before. (Runs are contiguous because the Todo Runner's
+  // sub-rows are sequenced between the parent's run_todo call and result.)
+  const blocks: React.ReactNode[] = [];
+  let todoRun: Step[] = [];
+  let todoKey = 0;
+  const flushTodo = () => {
+    if (todoRun.length === 0) return;
+    blocks.push(<TodoSubTrace key={`todo-${todoKey++}`} steps={todoRun} processing={processing} />);
+    todoRun = [];
+  };
+  steps.forEach((s, i) => {
+    if (s.group === "todo") { todoRun.push(s); return; }
+    flushTodo();
+    blocks.push(<StepRow key={i} step={s} />);
+  });
+  flushTodo();
 
   return (
     <div className={`chat-trace ${open ? "open" : ""}`}>
@@ -137,28 +159,52 @@ function AgentTrace({ steps, processing }: { steps: Step[]; processing: boolean 
         {processing ? <span className="typing"><span /><span /><span /></span> : null}
         <span className="ct-summary">{summary}</span>
       </button>
+      {open ? <div className="ct-steps">{blocks}</div> : null}
+    </div>
+  );
+}
+
+// One thinking / tool_call / tool_result row (shared by the main trace and the
+// nested Todo Runner sub-trace).
+function StepRow({ step: s }: { step: Step }) {
+  if (s.type === "thinking") {
+    return <div className="ct-step ct-thinking">{s.content}</div>;
+  }
+  if (s.type === "tool_call") {
+    return (
+      <div className="ct-step ct-call">
+        <div className="ct-tool">→ {s.tool || "tool"}</div>
+        {s.args && s.args !== "{}" ? <pre className="ct-args">{s.args}</pre> : null}
+      </div>
+    );
+  }
+  const txt = (s.content || "").slice(0, 800);
+  return (
+    <div className="ct-step ct-result">
+      <pre className="ct-args">{txt}{(s.content || "").length > 800 ? "…" : ""}</pre>
+    </div>
+  );
+}
+
+// Nested, indented sub-accordion for the Todo Runner's own live steps — visually
+// distinct (badge + left rail) from the chat's own tool steps.
+function TodoSubTrace({ steps, processing }: { steps: Step[]; processing: boolean }) {
+  const [open, setOpen] = useState(true);
+  const toolCount = steps.filter((s) => s.type === "tool_call").length;
+  const summary = processing
+    ? "Todo Runner working…"
+    : `Todo Runner${toolCount ? ` · ${toolCount} tool call${toolCount === 1 ? "" : "s"}` : ""}`;
+  return (
+    <div className={`chat-trace-todo ${open ? "open" : ""}`}>
+      <button className="ctt-head" onClick={() => setOpen((o) => !o)}>
+        <span className="ct-caret">{open ? "▾" : "▸"}</span>
+        <span className="ctt-badge">Todo Runner</span>
+        {processing ? <span className="typing"><span /><span /><span /></span> : null}
+        <span className="ct-summary">{summary}</span>
+      </button>
       {open ? (
-        <div className="ct-steps">
-          {steps.map((s, i) => {
-            if (s.type === "thinking") {
-              return <div className="ct-step ct-thinking" key={i}>{s.content}</div>;
-            }
-            if (s.type === "tool_call") {
-              return (
-                <div className="ct-step ct-call" key={i}>
-                  <div className="ct-tool">→ {s.tool || "tool"}</div>
-                  {s.args && s.args !== "{}" ? <pre className="ct-args">{s.args}</pre> : null}
-                </div>
-              );
-            }
-            // tool_result
-            const txt = (s.content || "").slice(0, 800);
-            return (
-              <div className="ct-step ct-result" key={i}>
-                <pre className="ct-args">{txt}{(s.content || "").length > 800 ? "…" : ""}</pre>
-              </div>
-            );
-          })}
+        <div className="ctt-steps">
+          {steps.map((s, i) => <StepRow key={i} step={s} />)}
         </div>
       ) : null}
     </div>
@@ -347,18 +393,20 @@ export default function ChatPage() {
 
     if (type === "thinking" || type === "tool_call" || type === "tool_result") {
       // This agent writes each tool_call/tool_result once (source 'sync_handler'),
-      // so there's no numbered-step duplicate to filter out here.
+      // so there's no numbered-step duplicate to filter out here. Rows tagged
+      // meta.group==="todo" are the nested Todo Runner's own steps.
+      const grp = meta.group === "todo" ? ("todo" as const) : undefined;
       let step: Step | null = null;
       if (type === "thinking") {
-        step = { type: "thinking", content: row.content };
+        step = { type: "thinking", content: row.content, group: grp };
       } else if (type === "tool_call") {
         const rawArgs = meta.args ?? {};
         let args = "";
         try { args = typeof rawArgs === "string" ? rawArgs : JSON.stringify(rawArgs, null, 2); }
         catch { args = String(rawArgs); }
-        step = { type: "tool_call", tool: meta.tool || meta.name || "tool", args };
+        step = { type: "tool_call", tool: meta.tool || meta.name || "tool", args, group: grp };
       } else {
-        step = { type: "tool_result", content: row.content };
+        step = { type: "tool_result", content: row.content, group: grp };
       }
       setMessages((prev) => {
         const next = [...prev];
@@ -462,13 +510,14 @@ export default function ChatPage() {
         if (row.role !== "assistant") continue;
         const type = (row.type || "message") as string;
         const meta = parseMeta(row.metadata);
-        if (type === "thinking") steps.push({ type: "thinking", content: row.content });
+        const grp = meta.group === "todo" ? ("todo" as const) : undefined;
+        if (type === "thinking") steps.push({ type: "thinking", content: row.content, group: grp });
         else if (type === "tool_call") {
           const rawArgs = meta.args ?? {};
           let args = "";
           try { args = typeof rawArgs === "string" ? rawArgs : JSON.stringify(rawArgs, null, 2); } catch { args = String(rawArgs); }
-          steps.push({ type: "tool_call", tool: meta.tool || meta.name || "tool", args });
-        } else if (type === "tool_result") steps.push({ type: "tool_result", content: row.content });
+          steps.push({ type: "tool_call", tool: meta.tool || meta.name || "tool", args, group: grp });
+        } else if (type === "tool_result") steps.push({ type: "tool_result", content: row.content, group: grp });
         else if (type === "final" || type === "message") { finalContent = row.content || ""; terminal = true; }
         else if (type === "error") { errText = row.content || "The agent run failed."; terminal = true; }
       }
@@ -502,14 +551,16 @@ export default function ChatPage() {
   }, [activeChatId, realtimeStatus, supabase]);
 
   // Watchdog — if a run goes silent (no terminal row), stop the spinner after
-  // ~180s so the UI never hangs on "Working…". Resets on every message change
-  // (any new row is activity).
+  // ~300s so the UI never hangs on "Working…". Resets on every `messages` change
+  // — and since applyRow updates `messages` for EVERY incoming row (including the
+  // nested Todo Runner's group:"todo" sub-rows), a long-but-actively-streaming
+  // delegation keeps the timer fresh and never trips the watchdog mid-run.
   useEffect(() => {
     if (!busy) return;
     const timer = setTimeout(() => {
       setBusy(false);
       setMessages((prev) => prev.map((m) => (m.role === "assistant" && m.isProcessing ? { ...m, isProcessing: false } : m)));
-    }, 180_000);
+    }, 300_000);
     return () => clearTimeout(timer);
   }, [busy, messages]);
 

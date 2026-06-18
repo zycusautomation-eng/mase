@@ -24,6 +24,14 @@ everything else arrives via `chat_messages` realtime (same shared Supabase proje
 `.chat-working` / `.chat-trace*` in `dashboard.css`. See the backend changelog (same date) for the
 endpoint + the timeout fix.
 
+**Nested Todo-Runner sub-trace + admin-only chat (same day).** When the chat delegates via
+`run_todo`, the Todo Runner's own steps now arrive as `chat_messages` rows tagged
+`metadata.group:"todo"` and render as a nested "Todo Runner working…" sub-accordion inside the
+main trace (`.chat-trace-todo` in `dashboard.css`); the watchdog is bumped to 300s so a long
+streaming delegation never trips it. Also: the RevOps chat is now **admin-only** — the proxy
+(`app/api/deal-engine/[[...path]]/route.ts`) gates `/chat`, `/chat/async`, and `/chat/prompt`
+(GET + POST) on `callerIsAdmin()`.
+
 ---
 
 ## 2026-06-19 — Admin: Chat Agent prompt tab
