@@ -6,6 +6,19 @@
 
 ---
 
+## 2026-06-18 — Fix: knowledge upload 500 (MASE corpus not registered in `projects`)
+
+**What.** Uploading to the MASE knowledge corpus returned 500:
+`documents_project_id_fkey` violation — `documents.project_id` has a FK to the
+`projects` table, and `MASE_KNOWLEDGE_PROJECT_ID` (7e9b2f48-…) had never been inserted
+there. Registered the corpus as a row in `projects` (id = MASE_KNOWLEDGE_PROJECT_ID,
+name "MASE Knowledge", status active). Upload now works (verified to ~28K chars).
+
+**How to work with it.** Any new corpus `project_id` MUST exist as a row in `projects`
+before documents can be uploaded to it (FK). If we ever change MASE_KNOWLEDGE_PROJECT_ID
+or spin up a fresh DB, register the project first. (Follow-up option: have the upload
+endpoint idempotently ensure the project row exists.)
+
 ## 2026-06-18 — Knowledge corpus: one wired MASE corpus (upload → retrieval connected)
 
 **What.** Replaced the leftover VIBE "Bite Size 2.0 / v1" corpus picker with a single
