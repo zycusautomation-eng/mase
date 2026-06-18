@@ -6,6 +6,20 @@
 
 ---
 
+## 2026-06-18 — Admin UI: hide deal-filter bar on Admin; modern knowledge uploader
+
+**What.** (1) The deal ScopeFilterBar (VP/RSD/forecast/country/size/AI/quarter + "N of N
+deals") no longer renders on `/admin` — it's a deal-book filter, not an agent-control
+surface (`app/(dashboard)/layout.tsx` `showScope`). (2) Rebuilt the Knowledge → Upload UI
+(`admin/page.tsx` DocumentsSection + `dashboard.css` `.kn-*`): a real drag-and-drop
+dropzone with hover/drag states, a selected-file chip (type badge, size, remove), a clean
+3-up metadata grid, file-OR-paste (not both at once), inline error/success states, and a
+tidier document list with type badges.
+
+**Why / how to work with it.** Design cleanup. No API/contract change. The uploader still
+posts the same `/api/documents/upload` body (file_b64+filename or content, project_id,
+doc_type).
+
 ## 2026-06-18 — Agent onboarding: AGENTS.md + CLAUDE.md
 
 **What / why.** Added `AGENTS.md` (the guide coding agents auto-load) + a `CLAUDE.md`

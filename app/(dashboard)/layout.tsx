@@ -69,8 +69,11 @@ function Header() {
 function Shell({ children }: { children: React.ReactNode }) {
   const { loading, error, blocked } = useDashboard();
   const pathname = usePathname();
-  // The scope + filters don't apply to Chat (the strategist reads the whole book).
-  const showScope = !pathname.startsWith("/chat") && !pathname.startsWith("/sync-quality");
+  // The scope + deal filters belong only to the deal-book views. Hide them on Chat
+  // (the strategist reads the whole book), Sync Quality, and Admin (agent control is
+  // not a deal-filtering surface).
+  const showScope = !pathname.startsWith("/chat") && !pathname.startsWith("/sync-quality")
+    && !pathname.startsWith("/admin");
   // On Espresso the filter bar + forecast ribbon are pinned while scrolling the
   // (long) to-do list. Header height varies with width, so measure it live and
   // expose --hdr-h / --fb-h for the sticky offsets.

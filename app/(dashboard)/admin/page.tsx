@@ -78,16 +78,18 @@ function DocumentsSection() {
   }, [corpus]);
   useEffect(() => { void loadDocs(); }, [loadDocs]);
 
-  function onFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
-    if (!f) return;
+  const [dragActive, setDragActive] = useState(false);
+  const [noteErr, setNoteErr] = useState(false);
+  const say = (msg: string, isErr = false) => { setNote(msg); setNoteErr(isErr); };
+
+  function handleFile(f: File) {
     const lower = f.name.toLowerCase();
     if (!ACCEPT_EXT.some((x) => lower.endsWith(x))) {
-      setNote(`Unsupported file. Allowed: ${ACCEPT_EXT.join(", ")} — or paste text.`);
+      say(`Unsupported file. Allowed: ${ACCEPT_EXT.join(", ")} — or paste text.`, true);
       return;
     }
-    if (f.size > 15_000_000) { setNote("File too large (>15 MB). Split it."); return; }
-    setNote(null);
+    if (f.size > 15_000_000) { say("File too large (>15 MB). Split it.", true); return; }
+    say("");
     setFileName(f.name);
     if (!title) setTitle(f.name.replace(/\.[^.]+$/, ""));
     const isBin = BIN_EXT.some((x) => lower.endsWith(x));
@@ -101,11 +103,15 @@ function DocumentsSection() {
       reader.readAsText(f);
     }
   }
+  function onFile(e: React.ChangeEvent<HTMLInputElement>) { const f = e.target.files?.[0]; if (f) handleFile(f); }
+  function onDrop(e: React.DragEvent) { e.preventDefault(); setDragActive(false); const f = e.dataTransfer.files?.[0]; if (f) handleFile(f); }
+  function clearFile() { setFileName(""); setFileB64(""); setContent(""); say(""); }
+  const fileExt = (fileName.split(".").pop() || "").toUpperCase().slice(0, 4) || "DOC";
 
   async function upload() {
-    if (!content.trim() && !fileB64) { setNote("Add content (upload a file or paste text)."); return; }
-    if (!title.trim()) { setNote("Give the document a title."); return; }
-    setBusy(true); setNote(null);
+    if (!content.trim() && !fileB64) { say("Add content (upload a file or paste text).", true); return; }
+    if (!title.trim()) { say("Give the document a title.", true); return; }
+    setBusy(true); say("");
     try {
       // Send doc_type as a real field + a clean title. The backend stores doc_type
       // natively once the column exists, else encodes it into the name. PDF/DOCX go
@@ -118,52 +124,84 @@ function DocumentsSection() {
         body: JSON.stringify(body),
       });
       const j = await r.json();
-      if (!r.ok || j.error) setNote(j.error || `Upload failed (${r.status})`);
+      if (!r.ok || j.error) say(j.error || `Upload failed (${r.status})`, true);
       else {
-        setNote(`Uploaded "${title.trim()}" — chunked + embedded into the corpus.`);
+        say(`Uploaded "${title.trim()}" — chunked + embedded into the corpus.`);
         setTitle(""); setContent(""); setFileB64(""); setFileName("");
         void loadDocs();
       }
-    } catch (e: any) { setNote(e?.message || String(e)); }
+    } catch (e: any) { say(e?.message || String(e), true); }
     setBusy(false);
   }
+
+  const canUpload = !!title.trim() && (!!content.trim() || !!fileB64);
 
   return (
     <div className="admin-card">
       <h3>Upload knowledge</h3>
-      <p className="admin-desc">Docs you upload here are chunked, embedded, and stored in the chosen corpus — the agent retrieves them via search_knowledge when completing tasks. Tag the type so retrieval can route by it. Supports text, Markdown, CSV, PDF, and DOCX (or paste text).</p>
-      <div className="admin-row">
-        <label>Corpus
+      <p className="admin-desc">Docs are chunked, embedded, and stored in the chosen corpus — the agent retrieves them via search_knowledge while completing tasks. Tag the type so retrieval can route by it.</p>
+
+      <div className="kn-meta">
+        <label className="kn-field"><span>Corpus</span>
           <select value={corpus} onChange={(e) => setCorpus(e.target.value)}>
             {CORPORA.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
           </select>
         </label>
-        <label>Type
+        <label className="kn-field"><span>Type</span>
           <select value={docType} onChange={(e) => setDocType(e.target.value)}>
             {DOC_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
         </label>
-        <label className="grow">Title
+        <label className="kn-field kn-grow"><span>Title</span>
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Enterprise objection-handling playbook" />
         </label>
       </div>
-      <div className="admin-row">
-        <input type="file" accept={ACCEPT_EXT.join(",")} onChange={onFile} />
-        {fileName && <span className="admin-meta">{fileName}{content ? ` · ${content.length.toLocaleString()} chars` : fileB64 ? " · binary (server-extracted)" : ""}</span>}
-      </div>
-      <textarea className="admin-textarea" value={content} onChange={(e) => { setContent(e.target.value); if (fileB64) { setFileB64(""); setFileName(""); } }} placeholder="…or paste the document text here" rows={8} />
+
+      {fileName ? (
+        <div className="kn-file">
+          <span className="kn-file-badge">{fileExt}</span>
+          <div className="kn-file-info">
+            <span className="kn-file-name">{fileName}</span>
+            <span className="kn-file-meta">{content ? `${content.length.toLocaleString()} chars` : fileB64 ? "binary · text extracted on the server" : ""}</span>
+          </div>
+          <button type="button" className="kn-file-x" onClick={clearFile} aria-label="Remove file">✕</button>
+        </div>
+      ) : (
+        <>
+          <label
+            className={`kn-drop ${dragActive ? "drag" : ""}`}
+            onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
+            onDragLeave={() => setDragActive(false)}
+            onDrop={onDrop}
+          >
+            <input type="file" accept={ACCEPT_EXT.join(",")} onChange={onFile} hidden />
+            <svg className="kn-drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M12 16V4M12 4l-4 4M12 4l4 4" />
+              <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+            </svg>
+            <div className="kn-drop-main">Drag &amp; drop a file, or <span className="kn-link">browse</span></div>
+            <div className="kn-drop-sub">PDF, DOCX, TXT, Markdown, CSV · up to 15 MB</div>
+          </label>
+          <div className="kn-or"><span>or paste text</span></div>
+          <textarea className="admin-textarea" value={content} onChange={(e) => setContent(e.target.value)} placeholder="Paste the document text here" rows={6} />
+        </>
+      )}
+
       <div className="admin-actions">
-        <button className="admin-btn primary" onClick={upload} disabled={busy}>{busy ? "Uploading…" : "Upload to corpus"}</button>
-        {note && <span className="admin-note">{note}</span>}
+        <button className="admin-btn primary" onClick={upload} disabled={busy || !canUpload}>{busy ? "Uploading…" : "Upload to corpus"}</button>
+        {note && <span className={`admin-note ${noteErr ? "err" : ""}`}>{note}</span>}
       </div>
 
-      <h3 style={{ marginTop: 24 }}>Documents in corpus {listLoading ? "…" : `(${docs.length})`}</h3>
+      <div className="kn-list-head">
+        <h3>Documents in corpus</h3>
+        <span className="admin-meta">{listLoading ? "…" : docs.length}</span>
+      </div>
       <div className="admin-doclist">
-        {docs.length === 0 && !listLoading ? <div className="admin-meta">No documents in this corpus yet.</div> :
+        {docs.length === 0 && !listLoading ? <div className="admin-meta" style={{ padding: "10px 12px" }}>No documents in this corpus yet.</div> :
           docs.slice(0, 200).map((d, i) => (
             <div key={d.id || i} className="admin-docrow">
               <span className="admin-docname">{d.name || d.title || d.id}</span>
-              {d.doc_type && <span className="admin-meta">{d.doc_type}</span>}
+              {d.doc_type && <span className="kn-badge">{d.doc_type}</span>}
             </div>
           ))}
       </div>
