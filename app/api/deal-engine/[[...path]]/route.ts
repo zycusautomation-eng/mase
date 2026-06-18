@@ -56,6 +56,13 @@ function isKnowledgePath(path?: string[]): boolean {
   return !!path && path.length >= 1 && path[0] === "knowledge";
 }
 
+// The RevOps chat itself is ADMIN-ONLY: the sync /chat, the streaming /chat/async,
+// and the /chat/prompt editor (prompt is also covered by isPromptPath). Anything
+// under `chat`. The backend trusts the shared token, so this proxy is the real gate.
+function isChatPath(path?: string[]): boolean {
+  return !!path && path.length >= 1 && path[0] === "chat";
+}
+
 async function callerIsAdmin(): Promise<boolean> {
   try {
     const supabase = await createClient();
@@ -111,7 +118,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
   // Admin-only reads: the team-wide chat/sweep system prompts (may encode strategy
   // / guardrails) and the todo-runner runs feed (shows what reps ran). The
   // todo-runner PROMPT GET stays open (reps' runs fetch it). Other GETs stay open.
-  if ((isPromptPath(path) || isTodoRunnerRunsPath(path) || isKnowledgePath(path)) && !(await callerIsAdmin())) {
+  if ((isPromptPath(path) || isTodoRunnerRunsPath(path) || isKnowledgePath(path) || isChatPath(path)) && !(await callerIsAdmin())) {
     return NextResponse.json({ error: "Admin only." }, { status: 403 });
   }
   return forward(req, path);
@@ -131,7 +138,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   // Admin-only writes: the team-wide system prompts (chat/sweep + the todo-runner),
   // Learning Observatory mutations, and knowledge uploads. The backend trusts the
   // shared token, so this proxy is the real gate.
-  if ((isPromptPath(path) || isTodoRunnerPromptPath(path) || isLearningsWritePath(path) || isKnowledgePath(path))
+  if ((isPromptPath(path) || isTodoRunnerPromptPath(path) || isLearningsWritePath(path) || isKnowledgePath(path) || isChatPath(path))
       && !(await callerIsAdmin())) {
     return NextResponse.json({ error: "Admin only." }, { status: 403 });
   }
