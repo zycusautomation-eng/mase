@@ -322,7 +322,23 @@ function AdminPromptPanel() {
   );
 }
 
+// The strategist chat is ADMIN-ONLY (the /api/deal-engine/chat* endpoints are
+// gated at the proxy). The nav link is hidden for non-admins; this page-level lock
+// is the backstop so a direct /chat URL can't reach a chat that would only 403.
 export default function ChatPage() {
+  const { isAdminView } = useDashboard();
+  if (!isAdminView) {
+    return (
+      <div className="dq-lock"><div className="dq-lock-card">
+        <div className="dq-lock-ttl">🔒 Chat</div>
+        <div className="dq-lock-sub">The strategist chat is restricted to admins.</div>
+      </div></div>
+    );
+  }
+  return <ChatPageInner />;
+}
+
+function ChatPageInner() {
   const { records: allRecords, scoped: scopedRecords, locked, blocked, scopeName, isAdminView } = useDashboard();
   // When the user is locked to their own scope, the strategist may only ever see
   // their deals — use the scoped set as the entire book for chat.

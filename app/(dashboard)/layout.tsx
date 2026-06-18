@@ -27,7 +27,7 @@ function Header() {
   // Admin-only surfaces — hidden from the nav for everyone else (each page also
   // gates as a backstop so a direct URL can't reach them). isAdminView is false
   // while an admin SIMULATES a rep/VP, so the simulated view hides these too.
-  const ADMIN_ONLY_TABS = new Set(["/sync-quality", "/runs", "/learnings", "/admin"]);
+  const ADMIN_ONLY_TABS = new Set(["/chat", "/sync-quality", "/runs", "/learnings", "/admin"]);
   const tabs = TABS.filter((t) => !ADMIN_ONLY_TABS.has(t.href) || isAdminView);
   // The header search is a Deals-only filter. `query` lives in the shared
   // DashboardContext and feeds `filtered`, which Matcha/Espresso also use — so a
