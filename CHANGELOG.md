@@ -6,6 +6,23 @@
 
 ---
 
+## 2026-06-19 — Knowledge uploads: multiple files + direct-to-S3 (no size limit)
+
+**What.** Two changes to Admin → Knowledge → "+ Add document":
+1. **Multiple files at once** — the dropzone/file input accept many files; each is
+   staged in a queue with a per-file status (queued → uploading → ✓/✕) and becomes its
+   own document, named by filename. The single text-paste path stays.
+2. **Direct-to-S3 upload, no size limit** — instead of base64-in-a-JSON-body through the
+   proxy (capped at ~4.5 MB on Vercel serverless), each file is now PUT **straight to S3**
+   via a presigned URL (`POST /api/deal-engine/knowledge/presign`), then registered with
+   `POST /api/deal-engine/knowledge` carrying `s3_key`; the backend pulls it from S3 and
+   extracts. The raw `File` is PUT directly (no client-side read), so multi-MB decks work.
+
+**How to work with it.** Backend contract: presign → returns `{url, key}`; PUT the file
+to `url`; then POST `{name, doc_type, s3_key, filename}`. Removed the 15 MB cap (only
+file *type* is validated client-side). See the backend CHANGELOG (same date) for the S3
+bucket + IAM. `DocumentsSection` in `app/(dashboard)/admin/page.tsx`.
+
 ## 2026-06-18 — Knowledge UI: document-first, upload modal, delete; Excel/PPTX/CSV/etc.
 
 **What.** Admin → Knowledge now shows the **uploaded documents first** (with a Delete
