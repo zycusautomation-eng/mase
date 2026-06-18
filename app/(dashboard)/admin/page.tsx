@@ -14,8 +14,8 @@ import { ADMIN_EMAILS } from "@/lib/engine/helpers";
 // (MASE_KNOWLEDGE_PROJECT_ID) that every "Run with AI" agent run searches — so there
 // is no corpus picker; upload → retrieval is one bucket.
 const DOC_TYPES = ["playbook", "guide", "email_template", "transcript", "showpad_asset", "other"];
-const TEXT_EXT = [".txt", ".md", ".markdown", ".csv", ".json", ".html"];
-const BIN_EXT = [".pdf", ".docx"]; // extracted server-side via pypdf / python-docx
+const TEXT_EXT = [".txt", ".md", ".markdown", ".csv", ".tsv", ".json", ".html", ".xml", ".yaml", ".yml", ".log"];
+const BIN_EXT = [".pdf", ".docx", ".xlsx", ".xlsm", ".pptx"]; // extracted server-side (pypdf / docx / openpyxl / pptx)
 const ACCEPT_EXT = [...TEXT_EXT, ...BIN_EXT];
 
 export default function AdminPage() {
@@ -189,7 +189,7 @@ function DocumentsSection() {
               <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
             </svg>
             <div className="kn-drop-main">Drag &amp; drop a file, or <span className="kn-link">browse</span></div>
-            <div className="kn-drop-sub">PDF, DOCX, TXT, Markdown, CSV · up to 15 MB</div>
+            <div className="kn-drop-sub">PDF, Word, Excel, PowerPoint, CSV, Markdown, TXT, JSON · up to 15 MB</div>
           </label>
           <div className="kn-or"><span>or paste text</span></div>
           <textarea className="admin-textarea" value={content} onChange={(e) => setContent(e.target.value)} placeholder="Paste the document text here" rows={6} />
