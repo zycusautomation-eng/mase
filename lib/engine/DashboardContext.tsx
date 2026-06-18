@@ -107,7 +107,12 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       setLoading(true);
       setError(null);
       try {
-        const r = await fetch("/api/deal-engine/opportunities", { cache: "no-store" });
+        // Load the book SLIM (hard + verdict + ai-fit + pulse) — ~10-25x smaller than
+        // the full records, so first paint is fast. Every deal is still loaded, so the
+        // top search and the VP/RSD/filter facets cover the WHOLE book. The heavy ai
+        // detail (MEDDPICC, moves, competitors, …) is fetched per-deal when its drawer
+        // opens (DealDrawer → GET /opportunities/{opp_id}).
+        const r = await fetch("/api/deal-engine/opportunities?slim=1", { cache: "no-store" });
         const j = await r.json();
         if (!r.ok) throw new Error(j?.error || `Request failed (${r.status})`);
         // Defensive de-dupe: the book can contain the same opp_id more than once.

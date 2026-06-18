@@ -1,6 +1,6 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   dealMeddpicc, cleanText, fmtAmount, verdictTone, daysSince, dealTier,
   dealComps, type Rec, type MeddItem,
@@ -153,8 +153,28 @@ export default function DealDrawer({
   const sync = useTodoSync();
   const backend = useBackendTodos();
   const open = !!record;
-  const h = record?.hard || {};
-  const ai = record?.ai || {};
+  // The list/book is loaded SLIM (hard + verdict only) for fast first paint, so the
+  // selected record lacks the heavy ai detail. Fetch the FULL record by opp_id when the
+  // drawer opens and render from it; until it arrives, fall back to the slim record so
+  // the header + hard fields show instantly.
+  const [full, setFull] = useState<Rec | null>(null);
+  useEffect(() => {
+    const oid = record?.opp_id;
+    if (!oid) { setFull(null); return; }
+    setFull(null);
+    let off = false;
+    (async () => {
+      try {
+        const r = await fetch(`/api/deal-engine/opportunities/${encodeURIComponent(oid)}`, { cache: "no-store" });
+        const j = await r.json();
+        if (!off && r.ok) setFull(j.record || j);
+      } catch { /* keep the slim record */ }
+    })();
+    return () => { off = true; };
+  }, [record?.opp_id]);
+  const rec: Rec | null = full || record;
+  const h = rec?.hard || {};
+  const ai = rec?.ai || {};
 
   const verdict = ai.north_star_verdict || {};
   // recommended_forecast sometimes carries a long rationale ("Pipeline (remove until EB
@@ -164,7 +184,7 @@ export default function DealDrawer({
     || recFcRaw.split(/[\s(,—-]/)[0] || recFcRaw;
   // To-dos come from the SAME backend GET /todo arrays the Espresso tab uses,
   // filtered to this deal's opp_id — so drawer and Espresso are identical.
-  const tier = record ? dealTier(h) : null;
+  const tier = rec ? dealTier(h) : null;
   const deep = tier ? !tier.activatable : false;
   // The server-computed engagement pulse is the single authoritative read of how
   // recently/meaningfully this deal is being worked. When it is LIVE, any frozen
@@ -172,7 +192,7 @@ export default function DealDrawer({
   // future-date problem is categorically wrong (the record was swept before pulse
   // reconciliation existed) — suppress it here so the drawer reflects the pulse,
   // not the stale agent worldview. Mirrors deal_engine_pulse on the backend.
-  const pulse = (record?.pulse || null) as PulseLike | null;
+  const pulse = (rec?.pulse || null) as PulseLike | null;
   const pulseLive = isPulseLive(pulse);
   const pchip = pulseChip(pulse);
 
@@ -214,7 +234,7 @@ export default function DealDrawer({
     ...(useMovesPlan && moveCriticalItems.length ? [{ category: "critical" as const, items: moveCriticalItems }] : []),
     ...otherBuckets,
   ];
-  const medd = record ? dealMeddpicc(record) : [];
+  const medd = rec ? dealMeddpicc(rec) : [];
   const champ = ai.champion_strength || {};
   const fit = ai.ai_fit_signal || {};
   const pos = ai.ai_positioning_strength || {};
