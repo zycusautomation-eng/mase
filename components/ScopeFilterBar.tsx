@@ -1,5 +1,6 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { usePathname } from "next/navigation";
 import { useDashboard, type DealFilters } from "@/lib/engine/DashboardContext";
 import { vpsList, teamOwners, uniqSorted, fyq, type Rec } from "@/lib/engine/helpers";
 import MultiSelect, { type Opt } from "@/components/MultiSelect";
@@ -13,6 +14,10 @@ const AI_OPTS: Opt[] = ["AI Hungry", "AI Curious", "AI Resistant"].map((v) => ({
 
 export default function ScopeFilterBar() {
   const { records, vps, rsds, setVps, setRsds, scoped, filters, setFilter, clearFilters, filtered, locked, blocked, scopeName } = useDashboard();
+  // The Deals tab is server-paginated (scope + search + sort run in the DB), so the
+  // refinement dropdowns + whole-book count don't apply there — show only the scope
+  // pickers on Deals. The full bar stays on Matcha/Espresso (whole-book aggregates).
+  const onDeals = (usePathname() || "").startsWith("/deals");
 
   // Blocked users (not a known rep/VP/admin) get no deals and no filters.
   if (blocked) {
@@ -61,17 +66,20 @@ export default function ScopeFilterBar() {
         </>
       )}
 
-      <span className="fdivider" />
-
-      {/* filters */}
-      <MultiSelect allLabel="All forecast" options={fc} selected={filters.forecast} onChange={f("forecast")} />
-      <MultiSelect allLabel="All countries" options={co} selected={filters.country} onChange={f("country")} />
-      <MultiSelect allLabel="All deal sizes" options={SIZE_OPTS} selected={filters.size} onChange={f("size")} />
-      <MultiSelect allLabel="All AI excitement" options={AI_OPTS} selected={filters.ai} onChange={f("ai")} />
-      <MultiSelect allLabel="All close quarters" options={cq} selected={filters.close} onChange={f("close")} />
-
-      {dirty ? <button className="fclear" onClick={clearFilters}>Clear</button> : null}
-      <span className="fcount" id="f-count">{filtered.length} of {scoped.length} deal{scoped.length === 1 ? "" : "s"}</span>
+      {/* Refinement filters + whole-book count — Matcha/Espresso only (the Deals tab
+          is server-paginated and uses the top search instead). */}
+      {!onDeals && (
+        <>
+          <span className="fdivider" />
+          <MultiSelect allLabel="All forecast" options={fc} selected={filters.forecast} onChange={f("forecast")} />
+          <MultiSelect allLabel="All countries" options={co} selected={filters.country} onChange={f("country")} />
+          <MultiSelect allLabel="All deal sizes" options={SIZE_OPTS} selected={filters.size} onChange={f("size")} />
+          <MultiSelect allLabel="All AI excitement" options={AI_OPTS} selected={filters.ai} onChange={f("ai")} />
+          <MultiSelect allLabel="All close quarters" options={cq} selected={filters.close} onChange={f("close")} />
+          {dirty ? <button className="fclear" onClick={clearFilters}>Clear</button> : null}
+          <span className="fcount" id="f-count">{filtered.length} of {scoped.length} deal{scoped.length === 1 ? "" : "s"}</span>
+        </>
+      )}
     </div>
   );
 }

@@ -220,6 +220,17 @@ export function teamOwners(records: Rec[], vps: string[]): string[] {
   if (!vps.length) return [...new Set(Object.values(t).flat())].sort();
   return [...new Set(vps.flatMap((v) => t[v] || []))].sort();
 }
+// Static VP→owners from the OWNER_VP map (NO book needed) — used to resolve the
+// owner scope for the server-side paginated Deals query. Empty vps = the whole team
+// (every mapped owner), which also excludes BD/cross-sell/delivery owners not in the
+// map (matching keepRecord), so the server returns only real team deals.
+export function ownersForVpsStatic(vps: string[]): string[] {
+  const all = Object.keys(OWNER_VP);
+  if (!vps.length) return all;
+  const set = new Set(vps);
+  return all.filter((o) => set.has(OWNER_VP[o]));
+}
+
 // Multi-select scope: an empty array means "no constraint" (all).
 export function inScope(r: Rec, vps: string[], rsds: string[]): boolean {
   const vp = vpOf(r);

@@ -32,9 +32,26 @@ export default function AdminPage() {
 
 function AdminInner() {
   const [tab, setTab] = useState<"docs" | "todorunner" | "sweep" | "execution" | "access">("docs");
+  const [dealCount, setDealCount] = useState<number | null>(null);
+  useEffect(() => {
+    let off = false;
+    (async () => {
+      try {
+        const r = await fetch("/api/deal-engine/deals-count", { cache: "no-store" });
+        const j = await r.json();
+        if (!off && typeof j.count === "number") setDealCount(j.count);
+      } catch { /* leave null */ }
+    })();
+    return () => { off = true; };
+  }, []);
   return (
     <div id="adminview">
-      <div className="todo-top"><div className="ttl"><b>Agent Control</b> — manage the agents: knowledge, the todo-runner prompt, the deal-sweep prompt, execution, and access.</div></div>
+      <div className="todo-top">
+        <div className="ttl"><b>Agent Control</b> — manage the agents: knowledge, the todo-runner prompt, the deal-sweep prompt, execution, and access.</div>
+        <div className="admin-stat" title="Total deals currently tracked in the deal engine">
+          <b>{dealCount == null ? "…" : dealCount.toLocaleString()}</b><span>tracked deals</span>
+        </div>
+      </div>
       <div className="admin-tabs">
         {([["docs", "Knowledge"], ["todorunner", "Todo Runner"], ["sweep", "Deal Sweep"], ["execution", "Execution"], ["access", "Access & Config"]] as const).map(([k, label]) => (
           <button key={k} className={`admin-tab ${tab === k ? "active" : ""}`} onClick={() => setTab(k)}>{label}</button>
