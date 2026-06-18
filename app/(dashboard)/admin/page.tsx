@@ -49,7 +49,7 @@ export default function AdminPage() {
 }
 
 function AdminInner() {
-  const [tab, setTab] = useState<"docs" | "todorunner" | "sweep" | "execution" | "access">("docs");
+  const [tab, setTab] = useState<"docs" | "todorunner" | "sweep" | "chat" | "execution" | "access">("docs");
   const [dealCount, setDealCount] = useState<number | null>(null);
   useEffect(() => {
     let off = false;
@@ -71,7 +71,7 @@ function AdminInner() {
         </div>
       </div>
       <div className="admin-tabs">
-        {([["docs", "Knowledge"], ["todorunner", "Todo Runner"], ["sweep", "Deal Sweep"], ["execution", "Execution"], ["access", "Access & Config"]] as const).map(([k, label]) => (
+        {([["docs", "Knowledge"], ["todorunner", "Todo Runner"], ["sweep", "Deal Sweep"], ["chat", "Chat Agent"], ["execution", "Execution"], ["access", "Access & Config"]] as const).map(([k, label]) => (
           <button key={k} className={`admin-tab ${tab === k ? "active" : ""}`} onClick={() => setTab(k)}>{label}</button>
         ))}
       </div>
@@ -79,6 +79,7 @@ function AdminInner() {
         {tab === "docs" && <DocumentsSection />}
         {tab === "todorunner" && <TodoRunnerSection />}
         {tab === "sweep" && <SweepPromptSection />}
+        {tab === "chat" && <ChatAgentSection />}
         {tab === "execution" && <ExecutionSection />}
         {tab === "access" && <AccessSection />}
       </div>
@@ -450,6 +451,24 @@ function SweepPromptSection() {
       saveLabel="Save sweep prompt"
       savedMsg="Saved — applies to the next opportunity swept."
       rows={28}
+    />
+  );
+}
+
+// The RevOps Chat agent's system prompt — the conversational agent over the book.
+// It now retrieves from the SHARED MASE knowledge base (search_knowledge) and can
+// delegate a drafting to-do to the Todo Runner (run_todo); the book + a fixed tools
+// block are appended automatically, so this edits only the base persona/strategy.
+// Stored in Supabase (key mase_chat_agent).
+function ChatAgentSection() {
+  return (
+    <PromptEditor
+      endpoint="/api/deal-engine/chat/prompt"
+      heading="Chat agent system prompt"
+      description="Governs the RevOps chat agent that reasons over the whole book. It shares the SAME knowledge base as the other agents (search_knowledge) and can delegate a tactical email-drafting to-do to the Todo Runner (run_todo) — it knows what the Todo Runner can and can't do. The book of deals and the tools/capabilities block are appended automatically, so this edits only the base persona/strategy. Stored in Supabase, applied on the next chat message — no redeploy. Leave empty + save to fall back to the built-in default."
+      saveLabel="Save chat prompt"
+      savedMsg="Saved — applies to the next chat message."
+      rows={18}
     />
   );
 }

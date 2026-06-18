@@ -6,6 +6,20 @@
 
 ---
 
+## 2026-06-19 — Admin: Chat Agent prompt tab
+
+**What.** Added a **Chat Agent** tab in Admin → Agent Control (between Deal Sweep and
+Execution), editing the RevOps chat's system prompt via `/api/deal-engine/chat/prompt`
+(`PromptEditor`, key `mase_chat_agent`). Pairs with the backend change (same date) that
+made the chat a tool-using agent — it now shares the MASE knowledge base (`search_knowledge`)
+and can delegate drafting to-dos to the Todo Runner (`run_todo`).
+
+**How to work with it.** The editor edits only the base persona/strategy prompt; the book of
+deals + the tools/capabilities block are appended by the backend automatically. The chat-page
+panel still works too — both write the same Supabase key.
+
+---
+
 ## 2026-06-19 — Knowledge uploads: multiple files + direct-to-S3 (no size limit)
 
 **What.** Two changes to Admin → Knowledge → "+ Add document":
