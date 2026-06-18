@@ -156,7 +156,7 @@ function DocumentsSection() {
           body: JSON.stringify({ filename: it.name }),
         });
         const pj = await pres.json().catch(() => ({} as any));
-        if (!pres.ok || !pj.url || !pj.key) throw new Error(pj.error || `presign failed (${pres.status})`);
+        if (!pres.ok || !pj.url || !pj.key) throw new Error(pj.detail || pj.error || `presign failed (${pres.status})`);
         // 2. PUT the file straight to S3 (not through the proxy — no size limit).
         const put = await fetch(pj.url, { method: "PUT", body: it.file });
         if (!put.ok) throw new Error(`storage upload failed (${put.status})`);
@@ -166,7 +166,7 @@ function DocumentsSection() {
           body: JSON.stringify({ name: it.name.replace(/\.[^.]+$/, ""), doc_type: docType, s3_key: pj.key, filename: it.name }),
         });
         const j = await r.json().catch(() => ({} as any));
-        if (!r.ok || j.error) { fail++; const msg = j.error || `(${r.status})`; setQueue((q) => q.map((x) => (x.id === it.id ? { ...x, status: "error", error: msg } : x))); }
+        if (!r.ok || j.error) { fail++; const msg = j.detail || j.error || `(${r.status})`; setQueue((q) => q.map((x) => (x.id === it.id ? { ...x, status: "error", error: msg } : x))); }
         else { ok++; setQueue((q) => q.map((x) => (x.id === it.id ? { ...x, status: "done" } : x))); }
       } catch (e: any) { fail++; const msg = e?.message || String(e); setQueue((q) => q.map((x) => (x.id === it.id ? { ...x, status: "error", error: msg } : x))); }
     }
@@ -177,7 +177,7 @@ function DocumentsSection() {
           body: JSON.stringify({ name: pasteTitle.trim(), doc_type: docType, content: pasteText }),
         });
         const j = await r.json().catch(() => ({} as any));
-        if (!r.ok || j.error) { fail++; say(j.error || `Paste upload failed (${r.status})`, true); }
+        if (!r.ok || j.error) { fail++; say(j.detail || j.error || `Paste upload failed (${r.status})`, true); }
         else { ok++; setPasteTitle(""); setPasteText(""); }
       } catch (e: any) { fail++; say(e?.message || String(e), true); }
     }
@@ -293,7 +293,7 @@ function DocumentsSection() {
                     <span className="kn-file-badge">{(it.name.split(".").pop() || "DOC").toUpperCase().slice(0, 4)}</span>
                     <div className="kn-file-info">
                       <span className="kn-file-name">{it.name}</span>
-                      <span className="kn-file-meta">
+                      <span className="kn-file-meta" title={it.status === "error" ? it.error : undefined}>
                         {it.status === "uploading" ? "Uploading…"
                           : it.status === "done" ? "✓ Uploaded"
                           : it.status === "error" ? `✕ ${it.error || "Failed"}`
