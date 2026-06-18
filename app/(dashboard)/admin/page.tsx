@@ -18,6 +18,34 @@ const TEXT_EXT = [".txt", ".md", ".markdown", ".csv", ".tsv", ".json", ".html", 
 const BIN_EXT = [".pdf", ".docx", ".xlsx", ".xlsm", ".pptx"]; // extracted server-side (pypdf / docx / openpyxl / pptx)
 const ACCEPT_EXT = [...TEXT_EXT, ...BIN_EXT];
 
+// One file staged in the multi-upload queue. Each becomes its own MASE document.
+type QItem = {
+  id: string;
+  name: string;
+  size: number;
+  content?: string;   // text files: read client-side
+  fileB64?: string;   // binary files (PDF/DOCX/XLSX/PPTX): server extracts the text
+  status: "queued" | "uploading" | "done" | "error";
+  error?: string;
+};
+
+// Read a file as text (text family) or base64 (binary family, extracted server-side).
+function readOneFile(f: File): Promise<{ content?: string; fileB64?: string }> {
+  return new Promise((resolve, reject) => {
+    const lower = f.name.toLowerCase();
+    const isBin = BIN_EXT.some((x) => lower.endsWith(x));
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("read failed"));
+    if (isBin) {
+      reader.onload = () => { const s = String(reader.result || ""); resolve({ fileB64: s.includes(",") ? s.split(",")[1] : s }); };
+      reader.readAsDataURL(f);
+    } else {
+      reader.onload = () => resolve({ content: String(reader.result || "") });
+      reader.readAsText(f);
+    }
+  });
+}
+
 export default function AdminPage() {
   const { isAdminView } = useDashboard();
   if (!isAdminView)
@@ -71,10 +99,9 @@ function AdminInner() {
 // ── 1. Knowledge / Documents ───────────────────────────────────────────────
 function DocumentsSection() {
   const [docType, setDocType] = useState(DOC_TYPES[0]);
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
-  const [fileB64, setFileB64] = useState("");
-  const [fileName, setFileName] = useState("");
+  const [queue, setQueue] = useState<QItem[]>([]);   // files staged for upload (one doc each)
+  const [pasteTitle, setPasteTitle] = useState("");
+  const [pasteText, setPasteText] = useState("");
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [docs, setDocs] = useState<any[]>([]);
@@ -96,59 +123,74 @@ function DocumentsSection() {
   const [noteErr, setNoteErr] = useState(false);
   const say = (msg: string, isErr = false) => { setNote(msg); setNoteErr(isErr); };
 
-  function handleFile(f: File) {
-    const lower = f.name.toLowerCase();
-    if (!ACCEPT_EXT.some((x) => lower.endsWith(x))) {
-      say(`Unsupported file. Allowed: ${ACCEPT_EXT.join(", ")} — or paste text.`, true);
-      return;
+  // Stage one or more files into the upload queue (read client-side; validated by ext/size).
+  async function addFiles(list: FileList | File[]) {
+    const arr = Array.from(list);
+    if (!arr.length) return;
+    let added = 0; const skipped: string[] = [];
+    for (const f of arr) {
+      const lower = f.name.toLowerCase();
+      if (!ACCEPT_EXT.some((x) => lower.endsWith(x))) { skipped.push(`${f.name} (type)`); continue; }
+      if (f.size > 15_000_000) { skipped.push(`${f.name} (>15 MB)`); continue; }
+      try {
+        const r = await readOneFile(f);
+        const item: QItem = {
+          id: `${f.name}-${f.size}-${Math.random().toString(36).slice(2)}`,
+          name: f.name, size: f.size, ...r, status: "queued",
+        };
+        setQueue((q) => [...q, item]);
+        added++;
+      } catch { skipped.push(`${f.name} (read error)`); }
     }
-    if (f.size > 15_000_000) { say("File too large (>15 MB). Split it.", true); return; }
-    say("");
-    setFileName(f.name);
-    if (!title) setTitle(f.name.replace(/\.[^.]+$/, ""));
-    const isBin = BIN_EXT.some((x) => lower.endsWith(x));
-    const reader = new FileReader();
-    if (isBin) {
-      // PDF/DOCX → base64; the server extracts the text (pypdf / python-docx).
-      reader.onload = () => { const s = String(reader.result || ""); setFileB64(s.includes(",") ? s.split(",")[1] : s); setContent(""); };
-      reader.readAsDataURL(f);
-    } else {
-      reader.onload = () => { setContent(String(reader.result || "")); setFileB64(""); };
-      reader.readAsText(f);
-    }
+    if (skipped.length) say(`Skipped ${skipped.length}: ${skipped.join(", ")}`, true);
+    else if (added) say("");
   }
-  function onFile(e: React.ChangeEvent<HTMLInputElement>) { const f = e.target.files?.[0]; if (f) handleFile(f); }
-  function onDrop(e: React.DragEvent) { e.preventDefault(); setDragActive(false); const f = e.dataTransfer.files?.[0]; if (f) handleFile(f); }
-  function clearFile() { setFileName(""); setFileB64(""); setContent(""); say(""); }
-  const fileExt = (fileName.split(".").pop() || "").toUpperCase().slice(0, 4) || "DOC";
+  function onFile(e: React.ChangeEvent<HTMLInputElement>) { if (e.target.files?.length) void addFiles(e.target.files); e.target.value = ""; }
+  function onDrop(e: React.DragEvent) { e.preventDefault(); setDragActive(false); if (e.dataTransfer.files?.length) void addFiles(e.dataTransfer.files); }
+  function removeItem(id: string) { setQueue((q) => q.filter((x) => x.id !== id)); }
 
-  async function upload() {
-    if (!content.trim() && !fileB64) { say("Add content (upload a file or paste text).", true); return; }
-    if (!title.trim()) { say("Give the document a title.", true); return; }
+  // Upload every pending file (one POST each → one MASE document, named by filename) plus
+  // an optional pasted doc. Failed items are kept in the queue so they can be retried.
+  async function uploadAll() {
+    const pending = queue.filter((it) => it.status === "queued" || it.status === "error");
+    const hasPaste = !!pasteText.trim() && !!pasteTitle.trim();
+    if (!pending.length && !hasPaste) { say("Add one or more files, or paste text with a title.", true); return; }
     setBusy(true); say("");
-    try {
-      // Upload into MASE's OWN isolated knowledge store (no project_id — it's a single
-      // MASE namespace, not a VIBE project). PDF/DOCX go as base64 (file_b64 + filename)
-      // for server-side extraction.
-      const body: Record<string, unknown> = { name: title.trim(), doc_type: docType };
-      if (fileB64) { body.file_b64 = fileB64; body.filename = fileName; }
-      else body.content = content;
-      const r = await fetch("/api/deal-engine/knowledge", {
-        method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const j = await r.json();
-      if (!r.ok || j.error) say(j.error || `Upload failed (${r.status})`, true);
-      else {
-        setTitle(""); setContent(""); setFileB64(""); setFileName(""); say("");
-        setModalOpen(false);
-        void loadDocs();
-      }
-    } catch (e: any) { say(e?.message || String(e), true); }
+    let ok = 0, fail = 0;
+    for (const it of pending) {
+      setQueue((q) => q.map((x) => (x.id === it.id ? { ...x, status: "uploading", error: undefined } : x)));
+      try {
+        // MASE's OWN isolated knowledge store (no project_id). Binary files go as base64
+        // (file_b64 + filename) for server-side extraction; text files as content.
+        const body: Record<string, unknown> = { name: it.name.replace(/\.[^.]+$/, ""), doc_type: docType };
+        if (it.fileB64) { body.file_b64 = it.fileB64; body.filename = it.name; }
+        else body.content = it.content || "";
+        const r = await fetch("/api/deal-engine/knowledge", {
+          method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
+        });
+        const j = await r.json().catch(() => ({} as any));
+        if (!r.ok || j.error) { fail++; const msg = j.error || `(${r.status})`; setQueue((q) => q.map((x) => (x.id === it.id ? { ...x, status: "error", error: msg } : x))); }
+        else { ok++; setQueue((q) => q.map((x) => (x.id === it.id ? { ...x, status: "done" } : x))); }
+      } catch (e: any) { fail++; const msg = e?.message || String(e); setQueue((q) => q.map((x) => (x.id === it.id ? { ...x, status: "error", error: msg } : x))); }
+    }
+    if (hasPaste) {
+      try {
+        const r = await fetch("/api/deal-engine/knowledge", {
+          method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ name: pasteTitle.trim(), doc_type: docType, content: pasteText }),
+        });
+        const j = await r.json().catch(() => ({} as any));
+        if (!r.ok || j.error) { fail++; say(j.error || `Paste upload failed (${r.status})`, true); }
+        else { ok++; setPasteTitle(""); setPasteText(""); }
+      } catch (e: any) { fail++; say(e?.message || String(e), true); }
+    }
     setBusy(false);
+    void loadDocs();
+    if (fail === 0) { setQueue([]); setModalOpen(false); }
+    else say(`${ok} uploaded · ${fail} failed. Failed items are kept — fix and retry.`, true);
   }
 
-  const canUpload = !!title.trim() && (!!content.trim() || !!fileB64);
+  const canUpload = queue.some((it) => it.status === "queued" || it.status === "error") || (!!pasteText.trim() && !!pasteTitle.trim());
 
   const [modalOpen, setModalOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -168,7 +210,7 @@ function DocumentsSection() {
   }
 
   function resetForm() {
-    setTitle(""); setContent(""); setFileB64(""); setFileName(""); setDocType(DOC_TYPES[0]); say("");
+    setQueue([]); setPasteTitle(""); setPasteText(""); setDocType(DOC_TYPES[0]); say("");
   }
   function openModal() { resetForm(); setModalOpen(true); }
   function closeModal() { if (!busy) setModalOpen(false); }
@@ -223,51 +265,60 @@ function DocumentsSection() {
               <h3>Add document</h3>
               <button className="kn-file-x" onClick={closeModal} aria-label="Close">✕</button>
             </div>
-            <p className="admin-desc">Upload a file (PDF, Word, Excel, PowerPoint, CSV, …) or paste text. Tag the type so retrieval can route by it.</p>
+            <p className="admin-desc">Upload one or more files (PDF, Word, Excel, PowerPoint, CSV, …) or paste text. Each file becomes its own document, named by its filename. Tag the type so retrieval can route by it.</p>
 
-            <div className="kn-meta kn-meta-2">
-              <label className="kn-field"><span>Type</span>
-                <select value={docType} onChange={(e) => setDocType(e.target.value)}>
-                  {DOC_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-                </select>
-              </label>
-              <label className="kn-field kn-grow"><span>Title</span>
-                <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Enterprise objection-handling playbook" />
-              </label>
-            </div>
+            <label className="kn-field" style={{ maxWidth: 240, marginBottom: 4 }}><span>Type (applies to all)</span>
+              <select value={docType} onChange={(e) => setDocType(e.target.value)}>
+                {DOC_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </label>
 
-            {fileName ? (
-              <div className="kn-file">
-                <span className="kn-file-badge">{fileExt}</span>
-                <div className="kn-file-info">
-                  <span className="kn-file-name">{fileName}</span>
-                  <span className="kn-file-meta">{content ? `${content.length.toLocaleString()} chars` : fileB64 ? "binary · text extracted on the server" : ""}</span>
-                </div>
-                <button type="button" className="kn-file-x" onClick={clearFile} aria-label="Remove file">✕</button>
+            <label
+              className={`kn-drop ${dragActive ? "drag" : ""}`}
+              onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
+              onDragLeave={() => setDragActive(false)}
+              onDrop={onDrop}
+            >
+              <input type="file" accept={ACCEPT_EXT.join(",")} onChange={onFile} multiple hidden />
+              <svg className="kn-drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M12 16V4M12 4l-4 4M12 4l4 4" />
+                <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+              </svg>
+              <div className="kn-drop-main">Drag &amp; drop files, or <span className="kn-link">browse</span></div>
+              <div className="kn-drop-sub">PDF, Word, Excel, PowerPoint, CSV, Markdown, TXT, JSON · multiple files · up to 15 MB each</div>
+            </label>
+
+            {queue.length > 0 && (
+              <div className="kn-queue">
+                <div className="kn-queue-head"><span>{queue.length} file{queue.length === 1 ? "" : "s"} staged</span></div>
+                {queue.map((it) => (
+                  <div key={it.id} className={`kn-file kn-q-${it.status}`}>
+                    <span className="kn-file-badge">{(it.name.split(".").pop() || "DOC").toUpperCase().slice(0, 4)}</span>
+                    <div className="kn-file-info">
+                      <span className="kn-file-name">{it.name}</span>
+                      <span className="kn-file-meta">
+                        {it.status === "uploading" ? "Uploading…"
+                          : it.status === "done" ? "✓ Uploaded"
+                          : it.status === "error" ? `✕ ${it.error || "Failed"}`
+                          : it.fileB64 ? "binary · text extracted on the server" : `${(it.content?.length || 0).toLocaleString()} chars`}
+                      </span>
+                    </div>
+                    {it.status !== "uploading" && it.status !== "done" && (
+                      <button type="button" className="kn-file-x" onClick={() => removeItem(it.id)} aria-label="Remove file" disabled={busy}>✕</button>
+                    )}
+                  </div>
+                ))}
               </div>
-            ) : (
-              <>
-                <label
-                  className={`kn-drop ${dragActive ? "drag" : ""}`}
-                  onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
-                  onDragLeave={() => setDragActive(false)}
-                  onDrop={onDrop}
-                >
-                  <input type="file" accept={ACCEPT_EXT.join(",")} onChange={onFile} hidden />
-                  <svg className="kn-drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <path d="M12 16V4M12 4l-4 4M12 4l4 4" />
-                    <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
-                  </svg>
-                  <div className="kn-drop-main">Drag &amp; drop a file, or <span className="kn-link">browse</span></div>
-                  <div className="kn-drop-sub">PDF, Word, Excel, PowerPoint, CSV, Markdown, TXT, JSON · up to 15 MB</div>
-                </label>
-                <div className="kn-or"><span>or paste text</span></div>
-                <textarea className="admin-textarea" value={content} onChange={(e) => setContent(e.target.value)} placeholder="Paste the document text here" rows={6} />
-              </>
             )}
 
+            <div className="kn-or"><span>or paste a single document</span></div>
+            <label className="kn-field" style={{ marginBottom: 8 }}><span>Title</span>
+              <input value={pasteTitle} onChange={(e) => setPasteTitle(e.target.value)} placeholder="e.g. Enterprise objection-handling playbook" />
+            </label>
+            <textarea className="admin-textarea" value={pasteText} onChange={(e) => setPasteText(e.target.value)} placeholder="Paste the document text here" rows={5} />
+
             <div className="admin-actions">
-              <button className="admin-btn primary" onClick={upload} disabled={busy || !canUpload}>{busy ? "Uploading…" : "Upload"}</button>
+              <button className="admin-btn primary" onClick={uploadAll} disabled={busy || !canUpload}>{busy ? "Uploading…" : "Upload"}</button>
               <button className="admin-btn" onClick={closeModal} disabled={busy}>Cancel</button>
               {note && <span className={`admin-note ${noteErr ? "err" : ""}`}>{note}</span>}
             </div>
