@@ -50,6 +50,12 @@ function isTodoRunnerRunsPath(path?: string[]): boolean {
   return !!path && path.length === 2 && path[0] === "todo-runner" && path[1] === "runs";
 }
 
+// MASE's isolated knowledge store (upload/list/delete). Admin-only on every verb —
+// it's the Admin -> Knowledge management surface. /knowledge and /knowledge/{id}.
+function isKnowledgePath(path?: string[]): boolean {
+  return !!path && path.length >= 1 && path[0] === "knowledge";
+}
+
 async function callerIsAdmin(): Promise<boolean> {
   try {
     const supabase = await createClient();
@@ -105,7 +111,16 @@ export async function GET(req: NextRequest, ctx: Ctx) {
   // Admin-only reads: the team-wide chat/sweep system prompts (may encode strategy
   // / guardrails) and the todo-runner runs feed (shows what reps ran). The
   // todo-runner PROMPT GET stays open (reps' runs fetch it). Other GETs stay open.
-  if ((isPromptPath(path) || isTodoRunnerRunsPath(path)) && !(await callerIsAdmin())) {
+  if ((isPromptPath(path) || isTodoRunnerRunsPath(path) || isKnowledgePath(path)) && !(await callerIsAdmin())) {
+    return NextResponse.json({ error: "Admin only." }, { status: 403 });
+  }
+  return forward(req, path);
+}
+
+export async function DELETE(req: NextRequest, ctx: Ctx) {
+  const { path } = await ctx.params;
+  // Knowledge doc deletion is admin-only.
+  if (isKnowledgePath(path) && !(await callerIsAdmin())) {
     return NextResponse.json({ error: "Admin only." }, { status: 403 });
   }
   return forward(req, path);
@@ -113,10 +128,10 @@ export async function GET(req: NextRequest, ctx: Ctx) {
 
 export async function POST(req: NextRequest, ctx: Ctx) {
   const { path } = await ctx.params;
-  // Admin-only writes: the team-wide system prompts (chat/sweep + the todo-runner)
-  // and Learning Observatory mutations. The backend trusts the shared token, so
-  // this proxy is the real gate.
-  if ((isPromptPath(path) || isTodoRunnerPromptPath(path) || isLearningsWritePath(path))
+  // Admin-only writes: the team-wide system prompts (chat/sweep + the todo-runner),
+  // Learning Observatory mutations, and knowledge uploads. The backend trusts the
+  // shared token, so this proxy is the real gate.
+  if ((isPromptPath(path) || isTodoRunnerPromptPath(path) || isLearningsWritePath(path) || isKnowledgePath(path))
       && !(await callerIsAdmin())) {
     return NextResponse.json({ error: "Admin only." }, { status: 403 });
   }

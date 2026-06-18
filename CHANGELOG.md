@@ -6,6 +6,19 @@
 
 ---
 
+## 2026-06-18 — Knowledge is now a fully isolated MASE system (not VIBE projects)
+
+**What.** MASE knowledge no longer lives in VIBE's shared `projects`/`documents` tables
+(which is why "MASE Knowledge" was showing in the VIBE project list). It now has its OWN
+isolated, RLS-locked tables (`mase_documents`/`mase_document_chunks`), and the admin
+uploader/list talk to new endpoints `GET/POST/DELETE /api/deal-engine/knowledge` (no
+`project_id`). The old "MASE Knowledge" projects row was deleted, so it's gone from VIBE.
+
+**How to work with it.** Admin → Knowledge uploads into the MASE-only store; the
+todo-runner's `search_knowledge` routes the MASE namespace marker to the MASE tables.
+Nothing here touches VIBE. The `MASE_KNOWLEDGE_PROJECT_ID` constant remains ONLY as the
+runtime routing marker the todo-runner sends (it is no longer a real project).
+
 ## 2026-06-18 — Fix: knowledge upload 500 (MASE corpus not registered in `projects`)
 
 **What.** Uploading to the MASE knowledge corpus returned 500:

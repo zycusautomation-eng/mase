@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useCallback, useEffect, useState } from "react";
 import { useDashboard } from "@/lib/engine/DashboardContext";
-import { ADMIN_EMAILS, MASE_KNOWLEDGE_PROJECT_ID } from "@/lib/engine/helpers";
+import { ADMIN_EMAILS } from "@/lib/engine/helpers";
 
 // Admin → Agent Control. The single place admins manage MASE's agents: KNOWLEDGE
 // (uploaded docs), the TODO RUNNER prompt, the DEAL SWEEP prompt, EXECUTION (runs +
@@ -70,7 +70,6 @@ function AdminInner() {
 
 // ── 1. Knowledge / Documents ───────────────────────────────────────────────
 function DocumentsSection() {
-  const corpus = MASE_KNOWLEDGE_PROJECT_ID;
   const [docType, setDocType] = useState(DOC_TYPES[0]);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -84,12 +83,13 @@ function DocumentsSection() {
   const loadDocs = useCallback(async () => {
     setListLoading(true);
     try {
-      const r = await fetch(`/api/documents?project_id=${encodeURIComponent(corpus)}`, { cache: "no-store" });
+      // MASE's OWN isolated knowledge store (separate from VIBE's documents/projects).
+      const r = await fetch(`/api/deal-engine/knowledge`, { cache: "no-store" });
       const j = await r.json();
       setDocs(Array.isArray(j) ? j : j.documents || j.rows || []);
     } catch { setDocs([]); }
     setListLoading(false);
-  }, [corpus]);
+  }, []);
   useEffect(() => { void loadDocs(); }, [loadDocs]);
 
   const [dragActive, setDragActive] = useState(false);
@@ -127,13 +127,13 @@ function DocumentsSection() {
     if (!title.trim()) { say("Give the document a title.", true); return; }
     setBusy(true); say("");
     try {
-      // Send doc_type as a real field + a clean title. The backend stores doc_type
-      // natively once the column exists, else encodes it into the name. PDF/DOCX go
-      // as base64 (file_b64 + filename) for server-side extraction.
-      const body: Record<string, unknown> = { name: title.trim(), project_id: corpus, doc_type: docType };
+      // Upload into MASE's OWN isolated knowledge store (no project_id — it's a single
+      // MASE namespace, not a VIBE project). PDF/DOCX go as base64 (file_b64 + filename)
+      // for server-side extraction.
+      const body: Record<string, unknown> = { name: title.trim(), doc_type: docType };
       if (fileB64) { body.file_b64 = fileB64; body.filename = fileName; }
       else body.content = content;
-      const r = await fetch("/api/documents/upload", {
+      const r = await fetch("/api/deal-engine/knowledge", {
         method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify(body),
       });
