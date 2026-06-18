@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { createClient } from "@/lib/supabase/client";
+import { MASE_KNOWLEDGE_PROJECT_ID } from "@/lib/engine/helpers";
 
 // ---------------------------------------------------------------------------
 // "Run with AI" — a right-side panel that watches the deep agent complete a
@@ -158,6 +159,9 @@ function AgentRunPanel({ run, onClose }: { run: ActiveRun; onClose: () => void }
             chat_id: chatId,
             headless: false,
             system_prompt: sysPrompt,
+            // Scope the run to the MASE knowledge corpus so search_knowledge retrieves
+            // the docs admins uploaded in Admin → Knowledge (same project_id).
+            project_id: MASE_KNOWLEDGE_PROJECT_ID,
             messages: [{ role: "user", content: buildSeedPrompt({ ...todo, owner_name: todo.owner_name || ownerName }) }],
           }),
         });

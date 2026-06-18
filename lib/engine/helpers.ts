@@ -5,6 +5,13 @@
 export type Rec = any;
 export type Hard = any;
 
+// The single canonical MASE knowledge corpus (a Supabase documents.project_id
+// namespace). Admin → Agent Control uploads here, and every "Run with AI" agent run
+// searches it (AgentRun sends this as project_id, so search_knowledge scopes to it).
+// One id, used by both the writer and the reader, so upload → retrieval actually
+// connects. (Not a VIBE project — those were the old "Bite Size" leftovers.)
+export const MASE_KNOWLEDGE_PROJECT_ID = "7e9b2f48-3c1a-4d6e-8b05-9a2c4f1d7e30";
+
 export const TODAY = new Date("2026-06-03");
 
 export const AI_ORDER: [string, string][] = [

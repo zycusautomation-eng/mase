@@ -6,6 +6,23 @@
 
 ---
 
+## 2026-06-18 — Knowledge corpus: one wired MASE corpus (upload → retrieval connected)
+
+**What.** Replaced the leftover VIBE "Bite Size 2.0 / v1" corpus picker with a single
+canonical MASE knowledge corpus (`MASE_KNOWLEDGE_PROJECT_ID` in `lib/engine/helpers.ts`).
+Admin → Knowledge now uploads into it (no picker), and the "Run with AI" todo-runner sends
+that `project_id` on every run (`AgentRun.tsx`), so `search_knowledge` actually retrieves
+the uploaded docs while drafting.
+
+**Why / how to work with it.** Before, uploads went to a VIBE project the MASE agent never
+searched (it passed no `project_id`), so uploaded knowledge never reached the agent — the
+feature was disconnected. Now writer (upload) and reader (agent run) share one
+`project_id`. Backend needed no change (`request.project_id` → `_current_project_id` →
+`search_knowledge` already wired). Note: any docs previously uploaded under the old Bite
+Size ids are NOT in the new corpus — re-upload them. The chat strategist still passes no
+project_id (only the todo-runner is wired); wire it the same way if it should use the
+knowledge base too.
+
 ## 2026-06-18 — Admin UI: hide deal-filter bar on Admin; modern knowledge uploader
 
 **What.** (1) The deal ScopeFilterBar (VP/RSD/forecast/country/size/AI/quarter + "N of N

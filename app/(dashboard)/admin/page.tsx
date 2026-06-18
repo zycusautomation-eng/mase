@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useCallback, useEffect, useState } from "react";
 import { useDashboard } from "@/lib/engine/DashboardContext";
-import { ADMIN_EMAILS } from "@/lib/engine/helpers";
+import { ADMIN_EMAILS, MASE_KNOWLEDGE_PROJECT_ID } from "@/lib/engine/helpers";
 
 // Admin → Agent Control. The single place admins manage MASE's agents: KNOWLEDGE
 // (uploaded docs), the TODO RUNNER prompt, the DEAL SWEEP prompt, EXECUTION (runs +
@@ -10,12 +10,9 @@ import { ADMIN_EMAILS } from "@/lib/engine/helpers";
 // hidden for everyone else; the /api/documents, /api/deal-engine/todo-runner/prompt
 // (POST-only) and /api/deal-engine/sweep/prompt proxies enforce admin server-side too.
 
-// Known knowledge corpora (Supabase project_ids). Uploaded docs are scoped to a
-// project; the agent's search_knowledge tool retrieves within the active project.
-const CORPORA = [
-  { id: "87f864e2-50bf-4015-a0f8-4ed7426b2a50", label: "Bite Size 2.0" },
-  { id: "22fbcc90-f594-4fd3-978c-26b9efeced11", label: "Bite Size v1" },
-];
+// Everything uploaded goes into the single MASE knowledge corpus
+// (MASE_KNOWLEDGE_PROJECT_ID) that every "Run with AI" agent run searches — so there
+// is no corpus picker; upload → retrieval is one bucket.
 const DOC_TYPES = ["playbook", "guide", "email_template", "transcript", "showpad_asset", "other"];
 const TEXT_EXT = [".txt", ".md", ".markdown", ".csv", ".json", ".html"];
 const BIN_EXT = [".pdf", ".docx"]; // extracted server-side via pypdf / python-docx
@@ -56,7 +53,7 @@ function AdminInner() {
 
 // ── 1. Knowledge / Documents ───────────────────────────────────────────────
 function DocumentsSection() {
-  const [corpus, setCorpus] = useState(CORPORA[0].id);
+  const corpus = MASE_KNOWLEDGE_PROJECT_ID;
   const [docType, setDocType] = useState(DOC_TYPES[0]);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -139,14 +136,9 @@ function DocumentsSection() {
   return (
     <div className="admin-card">
       <h3>Upload knowledge</h3>
-      <p className="admin-desc">Docs are chunked, embedded, and stored in the chosen corpus — the agent retrieves them via search_knowledge while completing tasks. Tag the type so retrieval can route by it.</p>
+      <p className="admin-desc">Docs are chunked, embedded, and stored in the MASE knowledge base — every &ldquo;Run with AI&rdquo; agent retrieves them via search_knowledge while completing tasks. Tag the type so retrieval can route by it.</p>
 
-      <div className="kn-meta">
-        <label className="kn-field"><span>Corpus</span>
-          <select value={corpus} onChange={(e) => setCorpus(e.target.value)}>
-            {CORPORA.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
-          </select>
-        </label>
+      <div className="kn-meta kn-meta-2">
         <label className="kn-field"><span>Type</span>
           <select value={docType} onChange={(e) => setDocType(e.target.value)}>
             {DOC_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
