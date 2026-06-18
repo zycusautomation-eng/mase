@@ -152,6 +152,20 @@ function DocumentsSection() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [viewing, setViewing] = useState<any | null>(null);
+  const [viewLoading, setViewLoading] = useState(false);
+
+  async function openDoc(d: any) {
+    setViewing({ ...d, content: undefined });
+    setViewLoading(true);
+    try {
+      const r = await fetch(`/api/deal-engine/knowledge/${encodeURIComponent(d.id)}`, { cache: "no-store" });
+      const j = await r.json();
+      if (r.ok && !j.error) setViewing(j);
+      else setViewing({ ...d, content: `Couldn't load content (${j.error || r.status}).` });
+    } catch (e: any) { setViewing({ ...d, content: `Couldn't load content (${e?.message || e}).` }); }
+    setViewLoading(false);
+  }
 
   function resetForm() {
     setTitle(""); setContent(""); setFileB64(""); setFileName(""); setDocType(DOC_TYPES[0]); say("");
@@ -188,12 +202,12 @@ function DocumentsSection() {
         {docs.length === 0 && !listLoading ? (
           <div className="admin-meta" style={{ padding: "18px 14px" }}>No documents yet. Click <b>+ Add document</b> to upload a file or paste text.</div>
         ) : docs.map((d, i) => (
-          <div key={d.id || i} className="admin-docrow">
+          <div key={d.id || i} className="admin-docrow kn-docrow-click" onClick={() => openDoc(d)} title="View content">
             <span className="admin-docname">{d.name || d.title || d.id}</span>
             <span className="kn-row-meta">
               {d.doc_type && <span className="kn-badge">{d.doc_type}</span>}
               {d.created_at && <span className="admin-meta">{String(d.created_at).slice(0, 10)}</span>}
-              <button className="kn-del" onClick={() => deleteDoc(d)} disabled={deletingId === d.id} title="Delete document" aria-label="Delete document">
+              <button className="kn-del" onClick={(e) => { e.stopPropagation(); void deleteDoc(d); }} disabled={deletingId === d.id} title="Delete document" aria-label="Delete document">
                 {deletingId === d.id ? "…" : "Delete"}
               </button>
             </span>
@@ -256,6 +270,33 @@ function DocumentsSection() {
               <button className="admin-btn primary" onClick={upload} disabled={busy || !canUpload}>{busy ? "Uploading…" : "Upload"}</button>
               <button className="admin-btn" onClick={closeModal} disabled={busy}>Cancel</button>
               {note && <span className={`admin-note ${noteErr ? "err" : ""}`}>{note}</span>}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Document viewer modal */}
+      {viewing && (
+        <div className="kn-modal-overlay" onClick={() => setViewing(null)}>
+          <div className="kn-modal kn-view" onClick={(e) => e.stopPropagation()}>
+            <div className="kn-modal-head">
+              <div className="kn-view-title">
+                <h3>{viewing.name || viewing.id}</h3>
+                <div className="kn-view-sub">
+                  {viewing.doc_type && <span className="kn-badge">{viewing.doc_type}</span>}
+                  {typeof viewing.chunks === "number" && <span className="admin-meta">{viewing.chunks} chunk{viewing.chunks === 1 ? "" : "s"}</span>}
+                  {typeof viewing.content === "string" && <span className="admin-meta">{viewing.content.length.toLocaleString()} chars</span>}
+                  {viewing.created_at && <span className="admin-meta">{String(viewing.created_at).slice(0, 10)}</span>}
+                </div>
+              </div>
+              <button className="kn-file-x" onClick={() => setViewing(null)} aria-label="Close">✕</button>
+            </div>
+            <div className="kn-view-body">
+              {viewLoading ? (
+                <div className="admin-meta" style={{ padding: "20px 4px" }}>Loading content…</div>
+              ) : (
+                <pre className="kn-view-pre">{viewing.content || "(empty)"}</pre>
+              )}
             </div>
           </div>
         </div>
