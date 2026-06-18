@@ -140,8 +140,8 @@ function DocumentsSection() {
       const j = await r.json();
       if (!r.ok || j.error) say(j.error || `Upload failed (${r.status})`, true);
       else {
-        say(`Uploaded "${title.trim()}" — chunked + embedded into the corpus.`);
-        setTitle(""); setContent(""); setFileB64(""); setFileName("");
+        setTitle(""); setContent(""); setFileB64(""); setFileName(""); say("");
+        setModalOpen(false);
         void loadDocs();
       }
     } catch (e: any) { say(e?.message || String(e), true); }
@@ -150,70 +150,116 @@ function DocumentsSection() {
 
   const canUpload = !!title.trim() && (!!content.trim() || !!fileB64);
 
+  const [modalOpen, setModalOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  function resetForm() {
+    setTitle(""); setContent(""); setFileB64(""); setFileName(""); setDocType(DOC_TYPES[0]); say("");
+  }
+  function openModal() { resetForm(); setModalOpen(true); }
+  function closeModal() { if (!busy) setModalOpen(false); }
+
+  async function deleteDoc(d: any) {
+    if (!window.confirm(`Delete "${d.name || d.id}"? This removes it from the MASE knowledge base.`)) return;
+    setDeletingId(d.id);
+    try {
+      const r = await fetch(`/api/deal-engine/knowledge/${encodeURIComponent(d.id)}`, { method: "DELETE" });
+      if (r.ok) await loadDocs();
+    } catch { /* ignore */ }
+    setDeletingId(null);
+  }
+
   return (
     <div className="admin-card">
-      <h3>Upload knowledge</h3>
-      <p className="admin-desc">Docs are chunked, embedded, and stored in the MASE knowledge base — every &ldquo;Run with AI&rdquo; agent retrieves them via search_knowledge while completing tasks. Tag the type so retrieval can route by it.</p>
-
-      <div className="kn-meta kn-meta-2">
-        <label className="kn-field"><span>Type</span>
-          <select value={docType} onChange={(e) => setDocType(e.target.value)}>
-            {DOC_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-          </select>
-        </label>
-        <label className="kn-field kn-grow"><span>Title</span>
-          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Enterprise objection-handling playbook" />
-        </label>
-      </div>
-
-      {fileName ? (
-        <div className="kn-file">
-          <span className="kn-file-badge">{fileExt}</span>
-          <div className="kn-file-info">
-            <span className="kn-file-name">{fileName}</span>
-            <span className="kn-file-meta">{content ? `${content.length.toLocaleString()} chars` : fileB64 ? "binary · text extracted on the server" : ""}</span>
-          </div>
-          <button type="button" className="kn-file-x" onClick={clearFile} aria-label="Remove file">✕</button>
+      <div className="kn-head">
+        <div>
+          <h3>Knowledge</h3>
+          <p className="admin-desc" style={{ marginBottom: 0 }}>Docs are chunked, embedded, and stored in the MASE knowledge base — every &ldquo;Run with AI&rdquo; agent retrieves them via search_knowledge while completing tasks.</p>
         </div>
-      ) : (
-        <>
-          <label
-            className={`kn-drop ${dragActive ? "drag" : ""}`}
-            onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
-            onDragLeave={() => setDragActive(false)}
-            onDrop={onDrop}
-          >
-            <input type="file" accept={ACCEPT_EXT.join(",")} onChange={onFile} hidden />
-            <svg className="kn-drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M12 16V4M12 4l-4 4M12 4l4 4" />
-              <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
-            </svg>
-            <div className="kn-drop-main">Drag &amp; drop a file, or <span className="kn-link">browse</span></div>
-            <div className="kn-drop-sub">PDF, Word, Excel, PowerPoint, CSV, Markdown, TXT, JSON · up to 15 MB</div>
-          </label>
-          <div className="kn-or"><span>or paste text</span></div>
-          <textarea className="admin-textarea" value={content} onChange={(e) => setContent(e.target.value)} placeholder="Paste the document text here" rows={6} />
-        </>
-      )}
-
-      <div className="admin-actions">
-        <button className="admin-btn primary" onClick={upload} disabled={busy || !canUpload}>{busy ? "Uploading…" : "Upload to corpus"}</button>
-        {note && <span className={`admin-note ${noteErr ? "err" : ""}`}>{note}</span>}
+        <button className="admin-btn primary kn-add" onClick={openModal}>+ Add document</button>
       </div>
 
+      {/* Primary view: the documents already uploaded. */}
       <div className="kn-list-head">
-        <h3>Documents in corpus</h3>
-        <span className="admin-meta">{listLoading ? "…" : docs.length}</span>
+        <h4 style={{ margin: 0, fontSize: 13.5 }}>Documents <span className="admin-meta">({listLoading ? "…" : docs.length})</span></h4>
+        <button className="admin-btn kn-refresh" onClick={() => void loadDocs()} disabled={listLoading} title="Refresh">↻</button>
       </div>
       <div className="admin-doclist">
-        {docs.length === 0 && !listLoading ? <div className="admin-meta" style={{ padding: "10px 12px" }}>No documents in this corpus yet.</div> :
-          docs.slice(0, 200).map((d, i) => (
-            <div key={d.id || i} className="admin-docrow">
-              <span className="admin-docname">{d.name || d.title || d.id}</span>
+        {docs.length === 0 && !listLoading ? (
+          <div className="admin-meta" style={{ padding: "18px 14px" }}>No documents yet. Click <b>+ Add document</b> to upload a file or paste text.</div>
+        ) : docs.map((d, i) => (
+          <div key={d.id || i} className="admin-docrow">
+            <span className="admin-docname">{d.name || d.title || d.id}</span>
+            <span className="kn-row-meta">
               {d.doc_type && <span className="kn-badge">{d.doc_type}</span>}
-            </div>
-          ))}
+              {d.created_at && <span className="admin-meta">{String(d.created_at).slice(0, 10)}</span>}
+              <button className="kn-del" onClick={() => deleteDoc(d)} disabled={deletingId === d.id} title="Delete document" aria-label="Delete document">
+                {deletingId === d.id ? "…" : "Delete"}
+              </button>
+            </span>
+          </div>
+        ))}
       </div>
+
+      {/* Upload modal */}
+      {modalOpen && (
+        <div className="kn-modal-overlay" onClick={closeModal}>
+          <div className="kn-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="kn-modal-head">
+              <h3>Add document</h3>
+              <button className="kn-file-x" onClick={closeModal} aria-label="Close">✕</button>
+            </div>
+            <p className="admin-desc">Upload a file (PDF, Word, Excel, PowerPoint, CSV, …) or paste text. Tag the type so retrieval can route by it.</p>
+
+            <div className="kn-meta kn-meta-2">
+              <label className="kn-field"><span>Type</span>
+                <select value={docType} onChange={(e) => setDocType(e.target.value)}>
+                  {DOC_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </label>
+              <label className="kn-field kn-grow"><span>Title</span>
+                <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Enterprise objection-handling playbook" />
+              </label>
+            </div>
+
+            {fileName ? (
+              <div className="kn-file">
+                <span className="kn-file-badge">{fileExt}</span>
+                <div className="kn-file-info">
+                  <span className="kn-file-name">{fileName}</span>
+                  <span className="kn-file-meta">{content ? `${content.length.toLocaleString()} chars` : fileB64 ? "binary · text extracted on the server" : ""}</span>
+                </div>
+                <button type="button" className="kn-file-x" onClick={clearFile} aria-label="Remove file">✕</button>
+              </div>
+            ) : (
+              <>
+                <label
+                  className={`kn-drop ${dragActive ? "drag" : ""}`}
+                  onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
+                  onDragLeave={() => setDragActive(false)}
+                  onDrop={onDrop}
+                >
+                  <input type="file" accept={ACCEPT_EXT.join(",")} onChange={onFile} hidden />
+                  <svg className="kn-drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M12 16V4M12 4l-4 4M12 4l4 4" />
+                    <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+                  </svg>
+                  <div className="kn-drop-main">Drag &amp; drop a file, or <span className="kn-link">browse</span></div>
+                  <div className="kn-drop-sub">PDF, Word, Excel, PowerPoint, CSV, Markdown, TXT, JSON · up to 15 MB</div>
+                </label>
+                <div className="kn-or"><span>or paste text</span></div>
+                <textarea className="admin-textarea" value={content} onChange={(e) => setContent(e.target.value)} placeholder="Paste the document text here" rows={6} />
+              </>
+            )}
+
+            <div className="admin-actions">
+              <button className="admin-btn primary" onClick={upload} disabled={busy || !canUpload}>{busy ? "Uploading…" : "Upload"}</button>
+              <button className="admin-btn" onClick={closeModal} disabled={busy}>Cancel</button>
+              {note && <span className={`admin-note ${noteErr ? "err" : ""}`}>{note}</span>}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -678,3 +678,14 @@
   .kn-list-head{display:flex;align-items:baseline;gap:8px;margin:28px 0 10px}
   .kn-list-head h3{margin:0}
   .kn-badge{flex:none;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;padding:2px 8px;border-radius:999px;background:var(--inset);border:1px solid var(--line);color:var(--ink2)}
+  .kn-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px}
+  .kn-add{flex:none;white-space:nowrap}
+  .kn-refresh{padding:4px 10px;font-size:14px;line-height:1}
+  .kn-row-meta{flex:none;display:flex;align-items:center;gap:10px}
+  .kn-del{appearance:none;border:1px solid var(--line);background:var(--surface);color:var(--ink2);font:inherit;font-size:11.5px;font-weight:600;padding:3px 10px;border-radius:7px;cursor:pointer}
+  .kn-del:hover:not(:disabled){border-color:var(--red-ink,#c0392b);color:var(--red-ink,#c0392b);background:#fdecea}
+  .kn-del:disabled{opacity:.5;cursor:default}
+  .kn-modal-overlay{position:fixed;inset:0;z-index:1000;background:rgba(15,23,34,.45);display:flex;align-items:center;justify-content:center;padding:24px}
+  .kn-modal{width:100%;max-width:640px;max-height:88vh;overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:22px 24px;box-shadow:0 20px 60px rgba(15,23,34,.25)}
+  .kn-modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px}
+  .kn-modal-head h3{margin:0}

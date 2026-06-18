@@ -6,6 +6,19 @@
 
 ---
 
+## 2026-06-18 — Knowledge UI: document-first, upload modal, delete; Excel/PPTX/CSV/etc.
+
+**What.** Admin → Knowledge now shows the **uploaded documents first** (with a Delete
+button per doc + a type badge + date); **uploading moved into a modal** opened by
+"+ Add document" (dropzone or paste text). File support broadened: PDF, Word, **Excel
+(.xlsx/.xlsm)**, **PowerPoint (.pptx)**, CSV/TSV, Markdown, TXT, JSON/XML/YAML/log —
+binary types are extracted server-side (openpyxl/python-pptx/pypdf/docx) into the
+isolated MASE store. Delete hits `DELETE /api/deal-engine/knowledge/{id}`.
+
+**How to work with it.** All formats verified end-to-end on the isolated store (e.g. an
+Excel sheet extracts to tab-separated rows). The 500/"Internal Server Error" JSON-parse
+error was a backend bug (`mase_knowledge` imported a non-existent `config` module) — fixed.
+
 ## 2026-06-18 — Knowledge is now a fully isolated MASE system (not VIBE projects)
 
 **What.** MASE knowledge no longer lives in VIBE's shared `projects`/`documents` tables
