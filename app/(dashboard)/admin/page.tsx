@@ -19,31 +19,21 @@ const BIN_EXT = [".pdf", ".docx", ".xlsx", ".xlsm", ".pptx"]; // extracted serve
 const ACCEPT_EXT = [...TEXT_EXT, ...BIN_EXT];
 
 // One file staged in the multi-upload queue. Each becomes its own MASE document.
+// The raw File is held and PUT directly to S3 (no client-side read / base64), so
+// there is no practical size limit — see uploadAll().
 type QItem = {
   id: string;
   name: string;
   size: number;
-  content?: string;   // text files: read client-side
-  fileB64?: string;   // binary files (PDF/DOCX/XLSX/PPTX): server extracts the text
+  file: File;
   status: "queued" | "uploading" | "done" | "error";
   error?: string;
 };
 
-// Read a file as text (text family) or base64 (binary family, extracted server-side).
-function readOneFile(f: File): Promise<{ content?: string; fileB64?: string }> {
-  return new Promise((resolve, reject) => {
-    const lower = f.name.toLowerCase();
-    const isBin = BIN_EXT.some((x) => lower.endsWith(x));
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error("read failed"));
-    if (isBin) {
-      reader.onload = () => { const s = String(reader.result || ""); resolve({ fileB64: s.includes(",") ? s.split(",")[1] : s }); };
-      reader.readAsDataURL(f);
-    } else {
-      reader.onload = () => resolve({ content: String(reader.result || "") });
-      reader.readAsText(f);
-    }
-  });
+function fmtSize(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)} MB`;
+  if (n >= 1000) return `${Math.round(n / 1000)} KB`;
+  return `${n} B`;
 }
 
 export default function AdminPage() {
@@ -123,34 +113,34 @@ function DocumentsSection() {
   const [noteErr, setNoteErr] = useState(false);
   const say = (msg: string, isErr = false) => { setNote(msg); setNoteErr(isErr); };
 
-  // Stage one or more files into the upload queue (read client-side; validated by ext/size).
-  async function addFiles(list: FileList | File[]) {
+  // Stage one or more files into the upload queue. The raw File is kept and PUT
+  // directly to S3 at upload time (no client-side read), so there is no size cap —
+  // only the file type is validated here.
+  function addFiles(list: FileList | File[]) {
     const arr = Array.from(list);
     if (!arr.length) return;
     let added = 0; const skipped: string[] = [];
     for (const f of arr) {
       const lower = f.name.toLowerCase();
       if (!ACCEPT_EXT.some((x) => lower.endsWith(x))) { skipped.push(`${f.name} (type)`); continue; }
-      if (f.size > 15_000_000) { skipped.push(`${f.name} (>15 MB)`); continue; }
-      try {
-        const r = await readOneFile(f);
-        const item: QItem = {
-          id: `${f.name}-${f.size}-${Math.random().toString(36).slice(2)}`,
-          name: f.name, size: f.size, ...r, status: "queued",
-        };
-        setQueue((q) => [...q, item]);
-        added++;
-      } catch { skipped.push(`${f.name} (read error)`); }
+      const item: QItem = {
+        id: `${f.name}-${f.size}-${Math.random().toString(36).slice(2)}`,
+        name: f.name, size: f.size, file: f, status: "queued",
+      };
+      setQueue((q) => [...q, item]);
+      added++;
     }
-    if (skipped.length) say(`Skipped ${skipped.length}: ${skipped.join(", ")}`, true);
+    if (skipped.length) say(`Skipped ${skipped.length} (unsupported type): ${skipped.join(", ")}`, true);
     else if (added) say("");
   }
-  function onFile(e: React.ChangeEvent<HTMLInputElement>) { if (e.target.files?.length) void addFiles(e.target.files); e.target.value = ""; }
-  function onDrop(e: React.DragEvent) { e.preventDefault(); setDragActive(false); if (e.dataTransfer.files?.length) void addFiles(e.dataTransfer.files); }
+  function onFile(e: React.ChangeEvent<HTMLInputElement>) { if (e.target.files?.length) addFiles(e.target.files); e.target.value = ""; }
+  function onDrop(e: React.DragEvent) { e.preventDefault(); setDragActive(false); if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files); }
   function removeItem(id: string) { setQueue((q) => q.filter((x) => x.id !== id)); }
 
-  // Upload every pending file (one POST each → one MASE document, named by filename) plus
-  // an optional pasted doc. Failed items are kept in the queue so they can be retried.
+  // Upload every pending file plus an optional pasted doc. Each file is uploaded
+  // directly to S3 via a presigned PUT (bypassing the Vercel proxy body cap), then
+  // registered with the backend which pulls it from S3 and extracts the text. Each
+  // file → one MASE document, named by filename. Failed items stay in the queue.
   async function uploadAll() {
     const pending = queue.filter((it) => it.status === "queued" || it.status === "error");
     const hasPaste = !!pasteText.trim() && !!pasteTitle.trim();
@@ -160,13 +150,20 @@ function DocumentsSection() {
     for (const it of pending) {
       setQueue((q) => q.map((x) => (x.id === it.id ? { ...x, status: "uploading", error: undefined } : x)));
       try {
-        // MASE's OWN isolated knowledge store (no project_id). Binary files go as base64
-        // (file_b64 + filename) for server-side extraction; text files as content.
-        const body: Record<string, unknown> = { name: it.name.replace(/\.[^.]+$/, ""), doc_type: docType };
-        if (it.fileB64) { body.file_b64 = it.fileB64; body.filename = it.name; }
-        else body.content = it.content || "";
+        // 1. Get a presigned S3 PUT URL.
+        const pres = await fetch("/api/deal-engine/knowledge/presign", {
+          method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ filename: it.name }),
+        });
+        const pj = await pres.json().catch(() => ({} as any));
+        if (!pres.ok || !pj.url || !pj.key) throw new Error(pj.error || `presign failed (${pres.status})`);
+        // 2. PUT the file straight to S3 (not through the proxy — no size limit).
+        const put = await fetch(pj.url, { method: "PUT", body: it.file });
+        if (!put.ok) throw new Error(`storage upload failed (${put.status})`);
+        // 3. Register: backend pulls from S3, extracts text, chunks + embeds.
         const r = await fetch("/api/deal-engine/knowledge", {
-          method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
+          method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ name: it.name.replace(/\.[^.]+$/, ""), doc_type: docType, s3_key: pj.key, filename: it.name }),
         });
         const j = await r.json().catch(() => ({} as any));
         if (!r.ok || j.error) { fail++; const msg = j.error || `(${r.status})`; setQueue((q) => q.map((x) => (x.id === it.id ? { ...x, status: "error", error: msg } : x))); }
@@ -285,7 +282,7 @@ function DocumentsSection() {
                 <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
               </svg>
               <div className="kn-drop-main">Drag &amp; drop files, or <span className="kn-link">browse</span></div>
-              <div className="kn-drop-sub">PDF, Word, Excel, PowerPoint, CSV, Markdown, TXT, JSON · multiple files · up to 15 MB each</div>
+              <div className="kn-drop-sub">PDF, Word, Excel, PowerPoint, CSV, Markdown, TXT, JSON · multiple files · no size limit</div>
             </label>
 
             {queue.length > 0 && (
@@ -300,7 +297,7 @@ function DocumentsSection() {
                         {it.status === "uploading" ? "Uploading…"
                           : it.status === "done" ? "✓ Uploaded"
                           : it.status === "error" ? `✕ ${it.error || "Failed"}`
-                          : it.fileB64 ? "binary · text extracted on the server" : `${(it.content?.length || 0).toLocaleString()} chars`}
+                          : fmtSize(it.size)}
                       </span>
                     </div>
                     {it.status !== "uploading" && it.status !== "done" && (
