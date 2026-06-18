@@ -6,6 +6,26 @@
 
 ---
 
+## 2026-06-19 — Chat is now realtime/streaming (VIBE pattern)
+
+**What.** The RevOps chat (`app/(dashboard)/chat/page.tsx`) no longer does a blocking
+`fetch('/api/deal-engine/chat')` that waits for the whole answer (which timed out at the proxy on
+long tool runs). It now mirrors VIBE's chat: `send()` POSTs to **`/api/deal-engine/chat/async`**
+with `{chat_id, messages, opp_ids?}`, gets `{chat_id}` back instantly, then **subscribes to
+`chat_messages` over Supabase realtime** (`channel('mase-chat:'+chatId)`, `postgres_changes` on
+`chat_messages` filtered by `chat_id`) and renders rows live: `thinking` + `tool_call`/`tool_result`
+roll up into a collapsible **"Agent working…"** trace accordion, and `final`/`message` becomes the
+answer bubble. Includes a 3s **polling fallback** (rebuilds the trace from the DB if realtime isn't
+connected) and a 180s **watchdog**. Sidebar/saved-chats, scoping, locked-user behavior, and the
+admin prompt panel are preserved.
+
+**How to work with it.** Backend contract: POST `/api/deal-engine/chat/async` → `{chat_id}` (fast);
+everything else arrives via `chat_messages` realtime (same shared Supabase project as VIBE). New CSS:
+`.chat-working` / `.chat-trace*` in `dashboard.css`. See the backend changelog (same date) for the
+endpoint + the timeout fix.
+
+---
+
 ## 2026-06-19 — Admin: Chat Agent prompt tab
 
 **What.** Added a **Chat Agent** tab in Admin → Agent Control (between Deal Sweep and
