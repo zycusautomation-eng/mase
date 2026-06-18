@@ -103,12 +103,11 @@ function Shell({ children }: { children: React.ReactNode }) {
       <div className={`wrap ${onEspresso ? "esp-sticky" : ""} ${onChat ? "chat-page" : ""} ${tabTheme}`}>
         {error ? (
           <div className="empty">Couldn&apos;t load the book.<br /><br /><span className="err">{error}</span></div>
+        ) : loading ? (
+          <div className="empty">Loading the book…</div>
         ) : blocked ? (
           <div className="empty">You don&apos;t have access to MASE.<br /><br /><span className="sub">This account isn&apos;t on the access list. If you believe this is a mistake, contact an admin.</span></div>
         ) : (
-          // No global "Loading the book" gate: the Deals tab is server-paginated and
-          // paints its first page immediately; the aggregate tabs (Matcha/Espresso) show
-          // their own empty/loading state until the shared book finishes loading.
           <>
             {showScope ? <ScopeFilterBar /> : null}
             {children}

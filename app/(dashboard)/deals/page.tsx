@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useMemo, useState } from "react";
 import { useDashboard } from "@/lib/engine/DashboardContext";
-import { aiLabel, fmtAmount, verdictTone, applyStageFix, ownersForVpsStatic, type Rec } from "@/lib/engine/helpers";
+import { aiLabel, fmtAmount, verdictTone, type Rec } from "@/lib/engine/helpers";
 import DealDrawer from "@/components/deals/DealDrawer";
 
 // Columns are split so Verdict + AIS sit immediately after Opportunity.
@@ -16,64 +16,47 @@ const REST_COLS: [string, string, number][] = [
 ];
 const PAGE_SIZE = 20;
 
-// The Deals table is SERVER-paginated: each request fetches ONE page, and search +
-// sort + scope all run in Postgres (GET /api/deal-engine/opportunities?paged=1). This
-// is independent of the shared (whole-book) context the aggregate tabs use, so the
-// table loads fast and the top search hits the DB across every deal, not just a page.
+// The book is loaded SLIM (~20x smaller — see DashboardContext), so it loads fast and
+// then filtering, sorting, paging (20/page) and the top search are all instant on the
+// client. The 5 refinement filters (forecast/country/size/AI/quarter) run here because
+// AI excitement is a computed tier (status OR score OR fit signal) the DB can't filter
+// without a dedicated column. The full per-deal record is fetched on drawer open.
 export default function DealsPage() {
-  const { vps, rsds, query, blocked, records, playbook } = useDashboard();
+  const { filtered, records, playbook, loading } = useDashboard();
   const [sortKey, setSortKey] = useState("days_to_close");
   const [sortDir, setSortDir] = useState(1);
   const [selected, setSelected] = useState<Rec | null>(null);
   const [page, setPage] = useState(1);
-  const [rows, setRows] = useState<Rec[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
 
-  // Owner scope for the server query — resolved from the static OWNER_VP map (no book).
-  const owners = useMemo(() => (rsds.length ? rsds : ownersForVpsStatic(vps)), [vps, rsds]);
-  const ownersKey = owners.join("|");
-
-  // Debounce the top search so we hit the DB once the user pauses typing.
-  const [dq, setDq] = useState(query);
-  useEffect(() => { const t = setTimeout(() => setDq(query.trim()), 300); return () => clearTimeout(t); }, [query]);
-  // Any change to the result set returns to page 1.
-  useEffect(() => { setPage(1); }, [dq, ownersKey, sortKey, sortDir]);
-
-  useEffect(() => {
-    if (blocked) { setRows([]); setTotal(0); setLoading(false); return; }
-    let off = false;
-    setLoading(true);
-    const p = new URLSearchParams({
-      paged: "1", limit: String(PAGE_SIZE), offset: String((page - 1) * PAGE_SIZE),
-      sort: sortKey, dir: sortDir > 0 ? "asc" : "desc",
+  const rows = useMemo(() => {
+    return [...filtered].sort((a, b) => {
+      const av = (a.hard || {})[sortKey], bv = (b.hard || {})[sortKey];
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      return (av > bv ? 1 : av < bv ? -1 : 0) * sortDir;
     });
-    if (dq) p.set("q", dq);
-    if (owners.length) p.set("owners", owners.join(","));
-    (async () => {
-      try {
-        const r = await fetch(`/api/deal-engine/opportunities?${p.toString()}`, { cache: "no-store" });
-        const j = await r.json();
-        if (off) return;
-        setRows((j.records || []).map(applyStageFix));
-        setTotal(typeof j.total === "number" ? j.total : (j.records || []).length);
-      } catch { if (!off) { setRows([]); setTotal(0); } }
-      if (!off) setLoading(false);
-    })();
-    return () => { off = true; };
-  }, [page, dq, ownersKey, sortKey, sortDir, blocked]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [filtered, sortKey, sortDir]);
 
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const cur = Math.min(page, totalPages);
+  // Reset to page 1 whenever the result set or sort changes (e.g. a filter or search).
+  useEffect(() => { setPage(1); }, [filtered, sortKey, sortDir]);
+
   const start = (cur - 1) * PAGE_SIZE;
+  const pageRows = rows.slice(start, start + PAGE_SIZE);
+
+  if (loading && !rows.length) {
+    return <div className="empty">Loading deals…</div>;
+  }
+  if (!rows.length) {
+    return <div className="empty">No opportunities match the current scope and filters.</div>;
+  }
 
   function sortBy(k: string) {
     if (sortKey === k) setSortDir((d) => -d);
-    else { setSortKey(k); setSortDir(k === "account_name" || k === "opp_name" || k === "owner_name" ? 1 : 1); }
+    else { setSortKey(k); setSortDir(1); }
   }
   const arrow = (k: string) => (sortKey === k ? (sortDir > 0 ? " ▲" : " ▼") : "");
-
-  if (blocked) return <div className="empty">No opportunities are assigned to your account.</div>;
 
   return (
     <>
@@ -92,7 +75,7 @@ export default function DealsPage() {
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => {
+            {pageRows.map((r) => {
               const h = r.hard || {}, ai = r.ai || {};
               const verdict = ai.north_star_verdict && ai.north_star_verdict.verdict;
               const cell = ([k, , numeric]: [string, string, number]) => {
@@ -112,22 +95,18 @@ export default function DealsPage() {
             })}
           </tbody>
         </table>
-        {!loading && rows.length === 0 ? (
-          <div className="empty" style={{ padding: "28px 12px" }}>No opportunities match the current scope and search.</div>
-        ) : null}
-        {loading ? <div className="empty" style={{ padding: "20px 12px", opacity: 0.6 }}>Loading deals…</div> : null}
       </div>
 
       <div className="pager">
         <span>
-          Showing <b>{total ? start + 1 : 0}–{start + rows.length}</b> of {total}
+          Showing <b>{rows.length ? start + 1 : 0}–{Math.min(start + PAGE_SIZE, rows.length)}</b> of {rows.length}
         </span>
         <div className="pbtns">
-          <button onClick={() => setPage(1)} disabled={cur <= 1 || loading}>« First</button>
-          <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={cur <= 1 || loading}>‹ Prev</button>
+          <button onClick={() => setPage(1)} disabled={cur === 1}>« First</button>
+          <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={cur === 1}>‹ Prev</button>
           <span className="ppage">Page {cur} of {totalPages}</span>
-          <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={cur >= totalPages || loading}>Next ›</button>
-          <button onClick={() => setPage(totalPages)} disabled={cur >= totalPages || loading}>Last »</button>
+          <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={cur === totalPages}>Next ›</button>
+          <button onClick={() => setPage(totalPages)} disabled={cur === totalPages}>Last »</button>
         </div>
       </div>
 
