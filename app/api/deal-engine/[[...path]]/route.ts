@@ -11,6 +11,12 @@ const BASE = process.env.DEAL_ENGINE_API_BASE;
 const TOKEN = process.env.DEAL_ENGINE_TOKEN;
 
 export const dynamic = "force-dynamic"; // never cache deal data at the proxy layer
+// The to-do WRITE endpoints make synchronous Salesforce round-trips (the next_step
+// destination is a read-modify-write on Opportunity.Next_Step__c after a cold
+// simple-salesforce login). Without this, Vercel's short default function timeout
+// can kill the request before the backend responds — the user sees "Couldn't save
+// — try again" even though nothing is wrong. Give the proxy room to wait.
+export const maxDuration = 60;
 
 // The agent system-prompt editors edit behaviour for the whole team, so they must
 // be ADMIN-only — both the chat / todo-runner agent (chat/prompt) and the Deal
@@ -27,6 +33,14 @@ function isPromptPath(path?: string[]): boolean {
 // caller's Salesforce OAuth token so the backend creates the Task AS the rep.
 function isPushPath(path?: string[]): boolean {
   return !!path && path.length === 2 && path[0] === "todo" && path[1] === "push";
+}
+
+// The manual deal update: /api/deal-engine/todo/update. Same as push — it writes to
+// Salesforce (a completed/open Task, or an Opportunity.Next_Step__c append), so it
+// also needs the caller's OAuth token injected to be authored AS the rep instead of
+// the shared integration user. Token-injection treats push and update identically.
+function isUpdatePath(path?: string[]): boolean {
+  return !!path && path.length === 2 && path[0] === "todo" && path[1] === "update";
 }
 
 // Admin-only WRITES the proxy must gate even though the backend trusts the shared
@@ -142,10 +156,10 @@ export async function POST(req: NextRequest, ctx: Ctx) {
       && !(await callerIsAdmin())) {
     return NextResponse.json({ error: "Admin only." }, { status: 403 });
   }
-  // To-do push: inject the caller's Salesforce token so the Task is created as
-  // the rep. If they haven't connected, we forward unchanged and the backend
-  // falls back to the shared integration user.
-  if (isPushPath(path)) {
+  // To-do push / manual update: inject the caller's Salesforce token so the write
+  // (Task or Next_Step__c append) is authored as the rep. If they haven't connected,
+  // we forward unchanged and the backend falls back to the shared integration user.
+  if (isPushPath(path) || isUpdatePath(path)) {
     try {
       const supabase = await createClient();
       const { data } = await supabase.auth.getUser();
