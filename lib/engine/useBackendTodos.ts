@@ -242,13 +242,15 @@ export function useBackendTodos() {
   }, [editedByKey]);
 
   // Add a manual completed update (logs a completed SF Task + shows in Recently completed).
-  const addUpdate = useCallback(async (oppId: string, note: string, doneDate: string): Promise<{ ok: boolean; sfTaskId?: string; sfError?: string }> => {
-    const r = await post("/todo/update", { opp_id: oppId, note, done_date: doneDate });
+  const addUpdate = useCallback(async (oppId: string, note: string, doneDate: string, destination: string = "completed", dueDate?: string): Promise<{ ok: boolean; sfTaskId?: string; sfError?: string; destination?: string; nextStepUpdated?: boolean }> => {
+    const body: Record<string, unknown> = { opp_id: oppId, note, done_date: doneDate, destination };
+    if (dueDate) body.due_date = dueDate;
+    const r = await post("/todo/update", body);
     if (r.ok) {
-      const row: ManualUpdate = (r.data?.update as ManualUpdate) || { opp_id: oppId, note, done_date: doneDate, sf_task_id: r.data?.sf_task_id };
+      const row: ManualUpdate = (r.data?.update as ManualUpdate) || { opp_id: oppId, note, done_date: dueDate || doneDate, sf_task_id: r.data?.sf_task_id };
       setAddedUpdates((p) => [row, ...p]);
     }
-    return { ok: r.ok, sfTaskId: r.data?.sf_task_id, sfError: r.data?.sf_error };
+    return { ok: r.ok, sfTaskId: r.data?.sf_task_id, sfError: r.data?.sf_error, destination: r.data?.destination, nextStepUpdated: r.data?.next_step_updated };
   }, []);
 
   const isDeleted = useCallback((item: BackendTodoItem) => !!deletedKeys[item.todoKey], [deletedKeys]);

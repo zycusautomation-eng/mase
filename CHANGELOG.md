@@ -6,6 +6,16 @@
 
 ---
 
+## 2026-06-19 — Add-update branches to 3 destinations (Next Step / open To-Do / Completed)
+
+**What.** The deal-drawer "Add update" form (`AddUpdateForm` in `components/deals/DealDrawer.tsx`)
+now lets the rep pick a **destination** before saving: **Completed task** (default — the prior
+behaviour), **To-do (open)** (a MASE row + an OPEN Salesforce Task, `Status='Planned'`), or
+**Next step** (appended **newest-on-top** to `Opportunity.Next_Step__c`, preserving the full
+existing trail). Each carries a **due date**. `addUpdate()` in `lib/engine/useBackendTodos.ts`
+now passes `destination` + `due_date` to **`POST /api/deal-engine/todo/update`** (the backend
+already branches on these). Default stays `completed`, so existing callers are unaffected.
+
 ## 2026-06-19 — Chat is now realtime/streaming (VIBE pattern)
 
 **What.** The RevOps chat (`app/(dashboard)/chat/page.tsx`) no longer does a blocking
