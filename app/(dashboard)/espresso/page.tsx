@@ -12,6 +12,7 @@ import {
   type BackendTodoItem,
 } from "@/lib/engine/useBackendTodos";
 import { DealTodoBuckets, sfKey, type TodoSync, type Backend } from "@/components/deals/DealTodos";
+import { BulkPushBar } from "@/components/deals/BulkPushBar";
 import { type DealForAgent } from "@/components/deals/DealAgentPanel";
 import { Monogram } from "@/components/ui/Monogram";
 import { useDealAi } from "@/components/deals/DealAiProvider";
@@ -114,23 +115,25 @@ export default function EspressoPage() {
     }).filter(Boolean) as { tier: (typeof TIERS)[number]; blocks: DealBlockData[] }[];
   }, [backend.flat, scopeKeys, recByKey]);
 
-  // done/total across every row, keyed by todo_key. Pushed rows count as done.
+  // Active forecast-tier tab — the summary cards + done/total reflect THIS tab only.
+  const tabKeys = tiers.map((t) => t.tier.key);
+  const active = activeTier && tabKeys.includes(activeTier) ? activeTier : (tabKeys[0] || null);
+  const shown = tiers.find((t) => t.tier.key === active);
+
+  // done/total for the ACTIVE tier only (cards are per-tab). Pushed rows count as done.
   const { total, doneCount } = useMemo(() => {
     let t = 0, d = 0;
-    for (const tg of tiers) for (const b of tg.blocks) for (const bk of b.buckets) for (const it of bk.items) {
+    for (const b of (shown?.blocks || [])) for (const bk of b.buckets) for (const it of bk.items) {
       t++;
       if (backend.isPushed(it) || done.has(it.todoKey)) d++;
     }
     return { total: t, doneCount: d };
-  }, [tiers, done, backend]);
+  }, [shown, done, backend]);
 
   if (backend.loading && !backend.flat.length) return <div className="empty-s">Loading to-dos…</div>;
   if (backend.error && !backend.flat.length) return <div className="empty-s">Couldn&apos;t load to-dos. {backend.error}</div>;
   if (!records.length) return <div className="empty-s">No swept records yet.</div>;
 
-  const tabKeys = tiers.map((t) => t.tier.key);
-  const active = activeTier && tabKeys.includes(activeTier) ? activeTier : (tabKeys[0] || null);
-  const shown = tiers.find((t) => t.tier.key === active);
   const shortLabel = (label: string) => label.split(" —")[0];
 
   return (
@@ -141,7 +144,7 @@ export default function EspressoPage() {
         <div className="todo-prog">{doneCount} of {total} done</div>
       </div>
 
-      {tiers.length > 0 ? <EspressoSummary tiers={tiers} doneCount={doneCount} total={total} done={done} backend={backend} /> : null}
+      {shown ? <EspressoSummary tiers={[shown]} doneCount={doneCount} total={total} done={done} backend={backend} /> : null}
 
       {tiers.length === 0 ? (
         <div className="empty-s">No forecast or qualified-pipeline deals in scope yet.</div>
@@ -170,6 +173,8 @@ export default function EspressoPage() {
           ) : null}
         </>
       )}
+      {/* Bulk push: pushes every ticked-but-unpushed to-do across all deals in scope. */}
+      {tiers.length > 0 ? <BulkPushBar items={backend.flat} done={done} sync={sync} backend={backend} /> : null}
     </div>
     </>
   );
@@ -223,8 +228,8 @@ function DealBlock({ b, done, toggle, sync, backend, showVp, onOpenAi }: { b: De
 }
 
 // Summary strip: a "done" donut + due-window counts (Critical = overdue/today,
-// High = next 7d, Medium = next 14d, Low = next 30d) computed across ALL in-scope
-// to-dos (every tier), not just the active tab. Purely derived; no new data.
+// High = next 7d, Medium = 8-14d, Later = 15+ days or no date) computed for the
+// ACTIVE forecast-tier tab only (the caller passes just that tier). Purely derived.
 function EspressoSummary({ tiers, doneCount, total, done, backend }: { tiers: { tier: (typeof TIERS)[number]; blocks: DealBlockData[] }[]; doneCount: number; total: number; done: ReturnType<typeof useTodoDone>["done"]; backend: ReturnType<typeof useBackendTodos> }) {
   // Urgency PARTITION of the OPEN to-dos, so the strip reconciles:
   // crit + high + med + later === open === total - doneCount. Done/pushed rows are

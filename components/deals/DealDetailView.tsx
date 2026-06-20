@@ -15,6 +15,7 @@ import { useTodoDone } from "@/lib/engine/useTodoDone";
 import { useTodoSync } from "@/lib/engine/useTodoSync";
 import { useBackendTodos } from "@/lib/engine/useBackendTodos";
 import { DealTodoBuckets, bucketsForOpp } from "@/components/deals/DealTodos";
+import { BulkPushBar } from "@/components/deals/BulkPushBar";
 import { Monogram } from "@/components/ui/Monogram";
 import { useDealAi } from "@/components/deals/DealAiProvider";
 import { pulseChip, type PulseLike } from "@/lib/engine/pulse";
@@ -300,6 +301,8 @@ export default function DealDetailView({ rec, variant = "page", onClose }: { rec
               ) : null}
             </>
           ) : null}
+          {/* Bulk push: pushes every ticked-but-unpushed to-do for this deal at once (any tab). */}
+          <BulkPushBar items={buckets.flatMap((bk) => bk.items)} done={done} sync={sync} backend={backend} ownerOf={() => h.owner_name} />
         </div>
 
         <aside className="dp-rail">

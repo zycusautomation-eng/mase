@@ -365,6 +365,11 @@
   .td-txt .nm{font-weight:700;color:var(--accent);cursor:pointer}
 
   /* Push-to-Salesforce button on each to-do row */
+  /* Bulk push-to-Salesforce bar: a floating pill that pushes every ticked-but-unpushed to-do at once. */
+  .bulkpush{position:sticky;bottom:14px;z-index:30;display:flex;align-items:center;gap:10px;width:max-content;max-width:calc(100% - 24px);margin:14px auto 4px;padding:8px 10px 8px 14px;border-radius:999px;background:var(--surface);border:1px solid var(--line);box-shadow:0 12px 32px rgba(20,40,80,.18)}
+  .bulkpush-n{font-size:13px;font-weight:650;color:var(--ink);white-space:nowrap}
+  .bulkpush .sfm-btn.confirm{white-space:nowrap;background:linear-gradient(135deg,#6E8BFF,#5277F0);color:#fff;border-color:transparent}
+  .bulkpush .sfm-btn.confirm:disabled{opacity:.5}
   .sf-btn{margin-left:auto;align-self:flex-start;flex:0 0 auto;position:relative;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:4px;border:0;background:transparent;border-radius:8px;cursor:pointer;transition:background .12s,transform .12s,opacity .12s}
   .sf-btn:hover:not(:disabled){background:var(--accent-soft);transform:scale(1.08)}
   .sf-btn:disabled{cursor:not-allowed;opacity:.35}
