@@ -141,7 +141,7 @@ export default function EspressoPage() {
         <div className="todo-prog">{doneCount} of {total} done</div>
       </div>
 
-      {tiers.length > 0 ? <EspressoSummary tiers={tiers} doneCount={doneCount} total={total} /> : null}
+      {tiers.length > 0 ? <EspressoSummary tiers={tiers} doneCount={doneCount} total={total} done={done} backend={backend} /> : null}
 
       {tiers.length === 0 ? (
         <div className="empty-s">No forecast or qualified-pipeline deals in scope yet.</div>
@@ -225,19 +225,26 @@ function DealBlock({ b, done, toggle, sync, backend, showVp, onOpenAi }: { b: De
 // Summary strip: a "done" donut + due-window counts (Critical = overdue/today,
 // High = next 7d, Medium = next 14d, Low = next 30d) computed across ALL in-scope
 // to-dos (every tier), not just the active tab. Purely derived; no new data.
-function EspressoSummary({ tiers, doneCount, total }: { tiers: { tier: (typeof TIERS)[number]; blocks: DealBlockData[] }[]; doneCount: number; total: number }) {
+function EspressoSummary({ tiers, doneCount, total, done, backend }: { tiers: { tier: (typeof TIERS)[number]; blocks: DealBlockData[] }[]; doneCount: number; total: number; done: ReturnType<typeof useTodoDone>["done"]; backend: ReturnType<typeof useBackendTodos> }) {
+  // Urgency PARTITION of the OPEN to-dos, so the strip reconciles:
+  // crit + high + med + later === open === total - doneCount. Done/pushed rows are
+  // excluded (they're in the donut's doneCount); anything with no due date or due in
+  // 15+ days lands in "Later" so nothing is silently dropped.
   const counts = useMemo(() => {
     const today = Date.parse(new Date().toISOString().slice(0, 10) + "T00:00:00");
-    let crit = 0, high = 0, med = 0, low = 0;
+    let crit = 0, high = 0, med = 0, open = 0;
     for (const tg of tiers) for (const b of tg.blocks) for (const bk of b.buckets) for (const it of bk.items) {
+      if (backend.isPushed(it) || done.has(it.todoKey)) continue;
+      open++;
       const eff = (it.act_by || it.due) as string | undefined;
       const t = eff ? Date.parse(eff + "T00:00:00") : NaN;
-      if (isNaN(t)) { if (it.category === "critical") crit++; continue; }
+      if (isNaN(t)) { if (it.category === "critical") crit++; continue; } // no date: critical -> crit, else -> later
       const d = Math.round((t - today) / 86400000);
-      if (d <= 0) crit++; else if (d <= 7) high++; else if (d <= 14) med++; else low++;
+      if (d <= 0) crit++; else if (d <= 7) high++; else if (d <= 14) med++; // d > 14 -> later
     }
-    return { crit, high, med, low };
-  }, [tiers]);
+    const later = Math.max(0, open - crit - high - med);
+    return { crit, high, med, later };
+  }, [tiers, done, backend]);
   const pct = total ? Math.round((doneCount / total) * 100) : 0;
   return (
     <div className="esp-summary">
@@ -251,7 +258,7 @@ function EspressoSummary({ tiers, doneCount, total }: { tiers: { tier: (typeof T
       <Stat cls="crit" n={counts.crit} lab="Critical" sub="Overdue or due today" icon="flag" />
       <Stat cls="high" n={counts.high} lab="High" sub="Due in next 7 days" icon="clock" />
       <Stat cls="med" n={counts.med} lab="Medium" sub="Due in next 14 days" icon="cal" />
-      <Stat cls="low" n={counts.low} lab="Low" sub="Due in next 30 days" icon="check" />
+      <Stat cls="low" n={counts.later} lab="Later" sub="Due later or no date" icon="check" />
     </div>
   );
 }
