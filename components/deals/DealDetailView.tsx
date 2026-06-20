@@ -23,19 +23,39 @@ const TABS = ["Overview", "Action plan", "Timeline", "Stakeholders", "Insights"]
 type Tab = (typeof TABS)[number];
 const words = (s: any, n: number) => cleanText(s).split(/\s+/).filter(Boolean).slice(0, n).join(" ");
 
-// Log a completed update (note + date) -> /todo/update; appears under Timeline.
+// Log a new update on the opportunity, to ONE of three destinations: a completed
+// Salesforce Task (default, original behaviour), an OPEN to-do (MASE row + open SF
+// Task), or an append on the Next Step trail. The rep picks the destination + a date;
+// persists via /todo/update (the picker merged in from the GitHub functional change).
+const UPDATE_DESTS = {
+  completed: { label: "Completed task", dateLabel: "Date done",
+    placeholder: "What happened on this deal? (logged as a completed Salesforce task)",
+    cta: "Log completed", ok: "Logged as a completed update + Salesforce task." },
+  todo: { label: "To-do (open)", dateLabel: "Due date",
+    placeholder: "What needs doing next? (creates a MASE to-do + an open Salesforce task)",
+    cta: "Create to-do", ok: "Created a to-do + open Salesforce task." },
+  next_step: { label: "Next step", dateLabel: "Due date",
+    placeholder: "Latest next step, appended on top of the existing Next Step trail",
+    cta: "Add to Next Step", ok: "Appended to Next Step (newest on top)." },
+} as const;
+type UpdateDest = keyof typeof UPDATE_DESTS;
+
 function AddUpdateForm({ oppId, backend }: { oppId: string; backend: ReturnType<typeof useBackendTodos> }) {
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState("");
-  const [doneDate, setDoneDate] = useState(new Date().toISOString().slice(0, 10));
+  const [destination, setDestination] = useState<UpdateDest>("completed");
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const cfg = UPDATE_DESTS[destination];
   const submit = async () => {
     if (!note.trim()) return;
     setBusy(true); setMsg(null);
-    const r = await backend.addUpdate(oppId, note.trim(), doneDate);
+    // Single date is sent as both done_date and due_date — the backend uses the due
+    // date for next_step / todo and the done date for completed.
+    const r = await backend.addUpdate(oppId, note.trim(), date, destination, date);
     setBusy(false);
-    if (r.ok) { setNote(""); setOpen(false); setMsg(r.sfError ? `Saved. Salesforce log failed: ${r.sfError}` : "Logged as a completed update + Salesforce task."); }
+    if (r.ok) { setNote(""); setOpen(false); setMsg(r.sfError ? `Saved. Salesforce write failed: ${r.sfError}` : cfg.ok); }
     else setMsg("Couldn't save the update — try again.");
   };
   if (!open) {
@@ -48,12 +68,20 @@ function AddUpdateForm({ oppId, backend }: { oppId: string; backend: ReturnType<
   }
   return (
     <div style={{ marginTop: 10, padding: 10, border: "1px solid var(--line)", borderRadius: 10 }}>
+      <div className="td-meta" style={{ marginBottom: 6, display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+        <span style={{ fontSize: 12 }}>Send to:</span>
+        {(Object.keys(UPDATE_DESTS) as UpdateDest[]).map((k) => (
+          <button key={k} type="button" className={`sfm-btn ${destination === k ? "confirm" : "cancel"}`}
+            style={{ padding: "2px 10px", fontSize: 12 }} aria-pressed={destination === k}
+            onClick={() => { setDestination(k); setMsg(null); }}>{UPDATE_DESTS[k].label}</button>
+        ))}
+      </div>
       <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} autoFocus
-        placeholder="What happened on this deal? (logged as a completed update)"
+        placeholder={cfg.placeholder}
         style={{ width: "100%", font: "inherit", padding: "6px 8px", borderRadius: 8, border: "1px solid var(--line)", resize: "vertical" }} />
       <div className="td-meta" style={{ marginTop: 6, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-        <label style={{ fontSize: 12 }}>Date done <input type="date" value={doneDate} onChange={(e) => setDoneDate(e.target.value)} style={{ font: "inherit" }} /></label>
-        <button type="button" className="sfm-btn confirm" disabled={busy || !note.trim()} onClick={submit}>{busy ? "Saving…" : "Complete update"}</button>
+        <label style={{ fontSize: 12 }}>{cfg.dateLabel} <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ font: "inherit" }} /></label>
+        <button type="button" className="sfm-btn confirm" disabled={busy || !note.trim()} onClick={submit}>{busy ? "Saving…" : cfg.cta}</button>
         <button type="button" className="sfm-btn cancel" disabled={busy} onClick={() => { setOpen(false); setNote(""); }}>Cancel</button>
       </div>
       {msg ? <div className="td-meta" style={{ marginTop: 6 }}>{msg}</div> : null}

@@ -6,6 +6,40 @@
 
 ---
 
+## 2026-06-20 — Proxy: fix "Couldn't save" on Next Step (timeout + author-as-rep)
+
+**What.** Two changes to the deal-engine proxy (`app/api/deal-engine/[[...path]]/route.ts`):
+1. **`export const maxDuration = 60`** — the to-do *write* endpoints make synchronous
+   Salesforce round-trips, and the `next_step` destination is a read-modify-write on
+   `Opportunity.Next_Step__c` after a cold simple-salesforce login. Vercel's short
+   **default** function timeout was killing the request before the backend responded,
+   so the rep saw **"Couldn't save the update — try again"** even though nothing was
+   wrong (the backend never logged the request — it died at the Vercel hop).
+2. **`isUpdatePath` → token injection for `/todo/update`** — previously only
+   `/todo/push` had the caller's Salesforce OAuth token injected. Now `/todo/update`
+   gets it too, so the completed Task / open Task / Next_Step append is authored **as
+   the rep**, not the shared integration user. Falls through to the shared user if the
+   rep hasn't connected Salesforce (try/catch, unchanged behaviour).
+
+**Why.** Marc couldn't save a Next Step. Root cause was the Vercel-side timeout, not a
+backend bug — the backend returns `ok:true` (with `sf_error`) even on a real SF write
+failure, so "Couldn't save" can only be an HTTP non-2xx, which was the proxy timing out.
+
+**Validated locally** before ship: `tsc --noEmit` clean; route compiles with `maxDuration`;
+matcher unit-tested (push+update inject, nothing else); live `POST /todo/update` reaches
+the backend and 400s on missing field (no SF write); injection branch degrades gracefully
+with no session. True timeout behaviour + "authored as rep" only observable post-deploy.
+
+## 2026-06-19 — Add-update branches to 3 destinations (Next Step / open To-Do / Completed)
+
+**What.** The deal-drawer "Add update" form (`AddUpdateForm` in `components/deals/DealDrawer.tsx`)
+now lets the rep pick a **destination** before saving: **Completed task** (default — the prior
+behaviour), **To-do (open)** (a MASE row + an OPEN Salesforce Task, `Status='Planned'`), or
+**Next step** (appended **newest-on-top** to `Opportunity.Next_Step__c`, preserving the full
+existing trail). Each carries a **due date**. `addUpdate()` in `lib/engine/useBackendTodos.ts`
+now passes `destination` + `due_date` to **`POST /api/deal-engine/todo/update`** (the backend
+already branches on these). Default stays `completed`, so existing callers are unaffected.
+
 ## 2026-06-19 — Chat is now realtime/streaming (VIBE pattern)
 
 **What.** The RevOps chat (`app/(dashboard)/chat/page.tsx`) no longer does a blocking
