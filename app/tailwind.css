@@ -1,0 +1,207 @@
+/* Tailwind v4 — SCOPED setup for the new chat workspace.
+ *
+ * CRITICAL: we import the THEME + UTILITIES layers but NOT preflight.
+ * Tailwind's preflight is its global CSS reset (margin/box-sizing/heading
+ * resets etc.). The rest of MASE (Deals/Espresso/Matcha/Admin) is pure
+ * hand-written CSS that depends on browser defaults, so injecting preflight
+ * would silently restyle every other page. By omitting it, Tailwind utilities
+ * + the shadcn tokens are available here without resetting anything globally.
+ *
+ * This file is imported ONLY by the chat route (app/(dashboard)/chat/layout.tsx),
+ * never by the root layout.
+ *
+ * TOKEN NAMESPACING: the tokens below live on :root (NOT scoped to
+ * .mase-chat-root) so portaled Radix content — e.g. the ⌘K command dialog,
+ * which renders to document.body — still resolves them. But :root is global, so
+ * any token name we share with dashboard.css's own :root tokens would leak and
+ * clobber the rest of the app once this file loads (it persists across client
+ * navigation). dashboard.css and the shadcn set collide on exactly three names:
+ * --accent, --muted, and --radius. dashboard.css paints nav/tabs/links with
+ * --accent (blue) and --muted (grey text); the shadcn values are near-white +
+ * a smaller radius, so leaving them shared turned the Deals/Matcha/etc. headers
+ * faded/invisible after visiting /chat. We therefore namespace ONLY those three
+ * to --sc-accent / --sc-muted / --sc-radius. Every other shadcn token name is
+ * unique to this file, so it's inert on the other pages. */
+
+@import "tailwindcss/theme.css" layer(theme);
+/* Utilities are imported UNLAYERED on purpose. The rest of MASE ships
+ * hand-written, UNLAYERED CSS (dashboard.css), and in the cascade an unlayered
+ * rule beats ANY layered rule regardless of specificity. If Tailwind utilities
+ * sat in a layer, dashboard.css's bare `a{color:var(--accent)}` would override
+ * `text-muted-foreground` and paint the nav links near-white. Unlayered, the
+ * utility class (0,1,0) correctly wins over the bare `a` element selector. */
+@import "tailwindcss/utilities.css";
+@import "tw-animate-css";
+
+/* shadcn "new-york" neutral palette — design tokens (light + dark). */
+:root {
+  --sc-radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --sc-muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --sc-accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --sc-muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --sc-accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+/* Map the design tokens onto Tailwind's theme so utilities like bg-card,
+ * text-muted-foreground, border-border, rounded-xl etc. resolve. The three
+ * namespaced tokens (--sc-*) are wired here so bg-muted / bg-accent / rounded-*
+ * still work exactly as before inside the chat workspace. */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--sc-muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--sc-accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --radius-sm: calc(var(--sc-radius) - 4px);
+  --radius-md: calc(var(--sc-radius) - 2px);
+  --radius-lg: var(--sc-radius);
+  --radius-xl: calc(var(--sc-radius) + 4px);
+}
+
+/* ── Scoped preflight substitute ──────────────────────────────────────────
+ * Tailwind's GLOBAL preflight is intentionally excluded (it would reset every
+ * other MASE page). But the chat workspace is Tailwind/shadcn-native, so it
+ * needs the handful of resets preflight normally supplies — without them native
+ * browser chrome leaks through: a bare <button> renders with the grey, bevelled
+ * OS "buttonface" look (the ugly 3D buttons), and elements show their default
+ * borders in currentColor. We replicate ONLY those resets here, scoped to
+ * .mase-chat-root and wrapped in :where() so they carry ZERO specificity — they
+ * fill in sensible defaults and NEVER override a Tailwind utility, so `border`,
+ * `bg-*`, `rounded-*`, `text-*` etc. all still win. */
+.mase-chat-root,
+.mase-chat-root * {
+  box-sizing: border-box;
+}
+/* No element carries a border until a utility asks for one (preflight's
+ * `*{border:0 solid}`); the default border colour is the token, not currentColor.
+ *
+ * CRITICAL: the ENTIRE selector is wrapped in :where() (including .mase-chat-root)
+ * so it has ZERO specificity. If we wrote `.mase-chat-root :where(*)` the
+ * .mase-chat-root prefix would give it (0,1,0), which TIES Tailwind utilities and
+ * — being declared later in the file — would WIN, silently stripping the `border`
+ * off the composer and the `bg-*` off every coloured button (New chat / send /
+ * the selected scope pill). At zero specificity these resets still beat the
+ * native UA chrome but lose to ANY utility, which is exactly what we want. */
+:where(.mase-chat-root *, .mase-chat-root ::before, .mase-chat-root ::after) {
+  border-width: 0;
+  border-style: solid;
+  border-color: var(--border);
+}
+/* Strip native control chrome: bare/ghost buttons must be flat & transparent,
+ * not grey + bevelled. Zero specificity (see above) so bg-* / border utilities win. */
+:where(.mase-chat-root button, .mase-chat-root [type="button"], .mase-chat-root [type="reset"], .mase-chat-root [type="submit"]) {
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: transparent;
+  background-image: none;
+  cursor: pointer;
+}
+/* Form controls inherit the workspace font/colour (preflight does this too). */
+:where(.mase-chat-root button, .mase-chat-root input, .mase-chat-root optgroup, .mase-chat-root select, .mase-chat-root textarea) {
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+}
+.mase-chat-root {
+  color: var(--foreground);
+  background: var(--background);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The account menu (<AuthButton/>) sits at the BOTTOM of the chat sidebar, so
+ * its dropdown must open UPWARD and align to the left edge. dashboard.css pins
+ * it below-right (top:44px; right:0) for the top navbar; override here. The
+ * higher-specificity selector (.mase-chat-authmenu .authmenu-pop) wins. */
+.mase-chat-authmenu .authmenu-pop {
+  top: auto;
+  bottom: calc(100% + 8px);
+  left: 0;
+  right: auto;
+}

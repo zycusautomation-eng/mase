@@ -11,23 +11,58 @@
 // realtime (with a polling fallback + watchdog) and renders the agent's live
 // thinking + tool trace, ending in the final answer. Ported from VIBE's
 // ChatInterface realtime architecture.
+//
+// ── UI ─────────────────────────────────────────────────────────────────────
+// The presentation is a 3-column Notion/Claude/Linear-style workspace built on
+// Tailwind v4 + shadcn/ui (see app/tailwind.css + components/ui/*). The
+// streaming/applyRow/AgentTrace/persist/scoping/lock logic below is UNCHANGED
+// from the original custom-CSS page — only the JSX/skin was rebuilt. The new
+// sidebar binds to the same saved-chats state; the new composer calls send();
+// the center column renders the same live assistant content + AgentTrace; the
+// right "Deal context" panel binds to the active DashboardContext record.
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import {
+  Sparkles, PencilLine, Search, Plus, Handshake, Bot,
+  ListChecks, GraduationCap, ChevronDown, Clock,
+  Paperclip, ArrowUp, Square, X, BadgeCheck, Crosshair,
+  PanelRight, Coffee, Leaf, MessageSquare, RefreshCw, type LucideIcon,
+} from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useDashboard } from "@/lib/engine/DashboardContext";
 import {
   vpsList, teamOwners, scopeRecords, scopeLabel,
   EMPTY_SCOPE, type ChatScope, type ChatScopeMode,
 } from "@/lib/engine/helpers";
+import AuthButton from "@/components/AuthButton";
 import MultiSelect, { type Opt } from "@/components/MultiSelect";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import {
+  Collapsible, CollapsibleContent, CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
+  ResizableHandle, ResizablePanel, ResizablePanelGroup,
+} from "@/components/ui/resizable";
+import {
+  CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem,
+  CommandList, CommandShortcut,
+} from "@/components/ui/command";
 
 // A tool step in the live "agent working" trace. `group:"todo"` marks a step
 // emitted by the nested Todo Runner sub-agent (rendered in its own sub-accordion).
 interface Step { type: "thinking" | "tool_call" | "tool_result"; tool?: string; args?: string; content?: string; group?: "todo" }
 // A chat message. `thinkingSteps`/`isProcessing` are present only on a live
 // assistant turn; persisted chats keep just {role, content}.
-interface Msg { role: "user" | "assistant"; content: string; thinkingSteps?: Step[]; isProcessing?: boolean }
+interface Msg { role: "user" | "assistant"; content: string; thinkingSteps?: Step[]; isProcessing?: boolean; ts?: number }
 interface Chat { id: string; title: string; ts: number; messages: Msg[] }
 
 const HINTS = [
@@ -44,19 +79,37 @@ const MODES: { key: ChatScopeMode; label: string }[] = [
   { key: "deal", label: "Deal" },
 ];
 
+// Left-nav sections → the real dashboard tabs (same routes as the global header).
+// Chat is this surface (rendered active).
+const NAV: { key: string; label: string; icon: LucideIcon; href: string }[] = [
+  { key: "deals", label: "Deals", icon: Handshake, href: "/deals" },
+  { key: "espresso", label: "Espresso", icon: Coffee, href: "/espresso" },
+  { key: "matcha", label: "Matcha", icon: Leaf, href: "/matcha" },
+  { key: "chat", label: "Chat", icon: MessageSquare, href: "/chat" },
+  { key: "sync", label: "Sync Quality", icon: RefreshCw, href: "/sync-quality" },
+  { key: "runs", label: "Runs", icon: ListChecks, href: "/runs" },
+  { key: "learning", label: "Learning", icon: GraduationCap, href: "/learnings" },
+  { key: "admin", label: "Admin", icon: Bot, href: "/admin" },
+];
+
 // ---- per-user DB persistence (Supabase, RLS-scoped to the signed-in user) ----
 async function fetchChats(): Promise<Chat[]> {
   const supabase = createClient();
+  // List the sidebar with ONLY id/title/updated_at — never the (potentially large)
+  // messages JSON. Messages are loaded on demand when a chat is opened. Capped so
+  // the sidebar stays fast no matter how many chats accrue.
   const { data, error } = await supabase
     .from("mase_chats")
-    .select("id,title,messages,updated_at")
-    .order("updated_at", { ascending: false });
+    .select("id,title,updated_at")
+    .order("updated_at", { ascending: false })
+    .limit(80);
   if (error) throw error;
   return (data || []).map((r: any) => ({
     id: r.id,
-    title: r.title || "New chat",
+    // Strip the "[deal:<oid>]" marker so deal AI chats read cleanly in the sidebar.
+    title: String(r.title || "New chat").replace(/^\[deal:[^\]]+\]\s*/, ""),
     ts: r.updated_at ? new Date(r.updated_at).getTime() : Date.now(),
-    messages: Array.isArray(r.messages) ? r.messages : [],
+    messages: [], // lazy — fetched in openChat()
   }));
 }
 // Upsert one conversation. user_id is filled by the column default (auth.uid())
@@ -77,7 +130,17 @@ async function deleteChatDb(id: string): Promise<void> {
   const { error } = await supabase.from("mase_chats").delete().eq("id", id);
   if (error) throw error;
 }
-function dateLabel(ts: number) { try { return new Date(ts).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); } catch { return ""; } }
+function timeLabel(ts: number) { try { return new Date(ts).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }); } catch { return ""; } }
+
+// Group saved chats by relative day header ("Today" / "Yesterday" / a date).
+function dayBucket(ts: number): string {
+  const d = new Date(ts); const now = new Date();
+  const startOf = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diff = Math.round((startOf(now) - startOf(d)) / 86400000);
+  if (diff <= 0) return "Today";
+  if (diff === 1) return "Yesterday";
+  try { return d.toLocaleDateString(undefined, { month: "short", day: "numeric" }); } catch { return "Earlier"; }
+}
 
 // Parse a chat_messages.metadata field that may be a JSON string or an object.
 function parseMeta(meta: any): any {
@@ -86,17 +149,57 @@ function parseMeta(meta: any): any {
   return meta;
 }
 
+// Short status words in qualification tables → colored pills, so "Weak" / "High"
+// / "Strong" read as badges instead of plain text. Only applied to short single
+// tokens, so the long "evidence" prose cells are never badged.
+const STATUS_BADGE: Record<string, string> = {
+  weak: "bg-red-100 text-red-700", failing: "bg-red-100 text-red-700", fail: "bg-red-100 text-red-700",
+  missing: "bg-red-100 text-red-700", none: "bg-red-100 text-red-700", high: "bg-red-100 text-red-700",
+  "high risk": "bg-red-100 text-red-700", critical: "bg-red-100 text-red-700", blocked: "bg-red-100 text-red-700",
+  "at risk": "bg-amber-100 text-amber-700", "off track": "bg-amber-100 text-amber-700", medium: "bg-amber-100 text-amber-700",
+  moderate: "bg-amber-100 text-amber-700", partial: "bg-amber-100 text-amber-700", "medium risk": "bg-amber-100 text-amber-700",
+  strong: "bg-emerald-100 text-emerald-700", healthy: "bg-emerald-100 text-emerald-700", good: "bg-emerald-100 text-emerald-700",
+  low: "bg-emerald-100 text-emerald-700", "low risk": "bg-emerald-100 text-emerald-700", pass: "bg-emerald-100 text-emerald-700",
+  yes: "bg-emerald-100 text-emerald-700", "on track": "bg-emerald-100 text-emerald-700", confirmed: "bg-emerald-100 text-emerald-700",
+};
+// Flatten a React node tree to its plain text (markdown cells can be strings,
+// arrays, or wrapped in <strong>/<em>) so we can keyword-match a status cell.
+function nodeText(node: React.ReactNode): string {
+  if (node == null || node === false) return "";
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(nodeText).join("");
+  if (typeof node === "object" && "props" in (node as any)) return nodeText((node as any).props?.children);
+  return "";
+}
+
 // Full markdown rendering (GFM: tables, task lists, strikethrough, autolinks)
 // so the strategist's structured answers render properly instead of raw pipes.
-// `.md` carries the bubble's typographic styling; links open in a new tab.
 function Bubble({ text }: { text: string }) {
   return (
-    <div className="bubble md">
+    <div className="prose prose-sm prose-neutral max-w-none text-[14px] leading-relaxed text-foreground [&_table]:my-0 [&_table]:w-full [&_table]:border-collapse [&_th]:bg-muted/60 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:text-[11px] [&_th]:font-semibold [&_th]:uppercase [&_th]:tracking-wide [&_th]:text-muted-foreground [&_td]:px-3 [&_td]:py-2 [&_td]:align-top [&_td]:text-[13px] [&_tr]:border-b [&_tr]:border-border [&_tbody_tr:last-child]:border-0 [&_tbody_tr:nth-child(even)]:bg-muted/30 [&_a]:text-indigo-600 [&_a]:underline [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:text-[12.5px] [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5 [&_p]:my-2 [&_h1]:mt-4 [&_h1]:mb-2 [&_h1]:text-lg [&_h1]:font-semibold [&_h2]:mt-4 [&_h2]:mb-2 [&_h2]:text-base [&_h2]:font-semibold [&_h3]:mt-3 [&_h3]:mb-1 [&_h3]:font-semibold [&_blockquote]:border-l-2 [&_blockquote]:border-indigo-300 [&_blockquote]:pl-3 [&_blockquote]:not-italic [&_blockquote]:text-muted-foreground">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
           a: ({ ...props }) => <a {...props} target="_blank" rel="noreferrer" />,
-          table: ({ ...props }) => <div className="md-tablewrap"><table {...props} /></div>,
+          table: ({ ...props }) => (
+            <div className="my-3 overflow-hidden rounded-xl border border-border">
+              <div className="overflow-x-auto">
+                <table {...props} />
+              </div>
+            </div>
+          ),
+          td: ({ children, ...props }) => {
+            const t = nodeText(children).trim();
+            const tone = STATUS_BADGE[t.toLowerCase()];
+            if (tone && t.length <= 16) {
+              return (
+                <td {...props}>
+                  <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold", tone)}>{t}</span>
+                </td>
+              );
+            }
+            return <td {...props}>{children}</td>;
+          },
         }}
       >
         {text}
@@ -119,9 +222,9 @@ function AgentTrace({ steps, processing }: { steps: Step[]; processing: boolean 
 
   if (!steps || steps.length === 0) {
     return processing ? (
-      <div className="chat-working">
-        <span className="typing"><span /><span /><span /></span>
-        <span className="cw-label">Working…</span>
+      <div className="mt-1 flex items-center gap-2 text-[13px] text-muted-foreground">
+        <Dots />
+        <span>Working…</span>
       </div>
     ) : null;
   }
@@ -134,9 +237,7 @@ function AgentTrace({ steps, processing }: { steps: Step[]; processing: boolean 
     : `Agent steps${toolCount ? ` · ${toolCount} tool call${toolCount === 1 ? "" : "s"}` : ""}`;
 
   // Render the steps in order, but collapse each contiguous run of todo-group
-  // steps into ONE nested "Todo Runner working…" sub-accordion. Non-todo steps
-  // render inline as before. (Runs are contiguous because the Todo Runner's
-  // sub-rows are sequenced between the parent's run_todo call and result.)
+  // steps into ONE nested "Todo Runner working…" sub-accordion.
   const blocks: React.ReactNode[] = [];
   let todoRun: Step[] = [];
   let todoKey = 0;
@@ -153,14 +254,27 @@ function AgentTrace({ steps, processing }: { steps: Step[]; processing: boolean 
   flushTodo();
 
   return (
-    <div className={`chat-trace ${open ? "open" : ""}`}>
-      <button className="ct-head" onClick={() => setOpen((o) => !o)}>
-        <span className="ct-caret">{open ? "▾" : "▸"}</span>
-        {processing ? <span className="typing"><span /><span /><span /></span> : null}
-        <span className="ct-summary">{summary}</span>
-      </button>
-      {open ? <div className="ct-steps">{blocks}</div> : null}
-    </div>
+    <Collapsible open={open} onOpenChange={setOpen} className="mt-1 mb-1 rounded-lg border border-border bg-muted/40">
+      <CollapsibleTrigger className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] font-medium text-muted-foreground hover:text-foreground">
+        <ChevronDown className={cn("size-3.5 transition-transform", open ? "" : "-rotate-90")} />
+        {processing ? <Dots /> : null}
+        <span>{summary}</span>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="space-y-2 px-3 pb-3">{blocks}</div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
+// Three-dot "typing" indicator.
+function Dots() {
+  return (
+    <span className="inline-flex items-center gap-0.5">
+      <span className="size-1.5 animate-bounce rounded-full bg-indigo-400 [animation-delay:-0.3s]" />
+      <span className="size-1.5 animate-bounce rounded-full bg-indigo-400 [animation-delay:-0.15s]" />
+      <span className="size-1.5 animate-bounce rounded-full bg-indigo-400" />
+    </span>
   );
 }
 
@@ -168,26 +282,25 @@ function AgentTrace({ steps, processing }: { steps: Step[]; processing: boolean 
 // nested Todo Runner sub-trace).
 function StepRow({ step: s }: { step: Step }) {
   if (s.type === "thinking") {
-    return <div className="ct-step ct-thinking">{s.content}</div>;
+    return <div className="text-[13px] italic leading-relaxed text-muted-foreground">{s.content}</div>;
   }
   if (s.type === "tool_call") {
     return (
-      <div className="ct-step ct-call">
-        <div className="ct-tool">→ {s.tool || "tool"}</div>
-        {s.args && s.args !== "{}" ? <pre className="ct-args">{s.args}</pre> : null}
+      <div className="text-[13px]">
+        <div className="font-mono text-indigo-600">→ {s.tool || "tool"}</div>
+        {s.args && s.args !== "{}" ? (
+          <pre className="mt-1 overflow-x-auto rounded bg-muted px-2 py-1 font-mono text-[12px] text-muted-foreground">{s.args}</pre>
+        ) : null}
       </div>
     );
   }
   const txt = (s.content || "").slice(0, 800);
   return (
-    <div className="ct-step ct-result">
-      <pre className="ct-args">{txt}{(s.content || "").length > 800 ? "…" : ""}</pre>
-    </div>
+    <pre className="overflow-x-auto rounded bg-muted px-2 py-1 font-mono text-[12px] text-muted-foreground">{txt}{(s.content || "").length > 800 ? "…" : ""}</pre>
   );
 }
 
-// Nested, indented sub-accordion for the Todo Runner's own live steps — visually
-// distinct (badge + left rail) from the chat's own tool steps.
+// Nested, indented sub-accordion for the Todo Runner's own live steps.
 function TodoSubTrace({ steps, processing }: { steps: Step[]; processing: boolean }) {
   const [open, setOpen] = useState(true);
   const toolCount = steps.filter((s) => s.type === "tool_call").length;
@@ -195,19 +308,19 @@ function TodoSubTrace({ steps, processing }: { steps: Step[]; processing: boolea
     ? "Todo Runner working…"
     : `Todo Runner${toolCount ? ` · ${toolCount} tool call${toolCount === 1 ? "" : "s"}` : ""}`;
   return (
-    <div className={`chat-trace-todo ${open ? "open" : ""}`}>
-      <button className="ctt-head" onClick={() => setOpen((o) => !o)}>
-        <span className="ct-caret">{open ? "▾" : "▸"}</span>
-        <span className="ctt-badge">Todo Runner</span>
-        {processing ? <span className="typing"><span /><span /><span /></span> : null}
-        <span className="ct-summary">{summary}</span>
-      </button>
-      {open ? (
-        <div className="ctt-steps">
+    <Collapsible open={open} onOpenChange={setOpen} className="ml-2 rounded-lg border-l-2 border-indigo-300 bg-indigo-50/40 pl-3">
+      <CollapsibleTrigger className="flex w-full items-center gap-2 py-1.5 text-left text-[13px] font-medium text-muted-foreground hover:text-foreground">
+        <ChevronDown className={cn("size-3.5 transition-transform", open ? "" : "-rotate-90")} />
+        <Badge variant="secondary" className="bg-indigo-100 text-indigo-700">Todo Runner</Badge>
+        {processing ? <Dots /> : null}
+        <span>{summary}</span>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="space-y-2 pb-2">
           {steps.map((s, i) => <StepRow key={i} step={s} />)}
         </div>
-      ) : null}
-    </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
@@ -215,15 +328,17 @@ function TodoSubTrace({ steps, processing }: { steps: Step[]; processing: boolea
 // /api/deal-engine/chat/prompt (the active override + the built-in default) and
 // writes edits back. The proxy enforces admin on this path; this UI is also only
 // rendered for admins. Saved edits apply to everyone's chat on the next message.
-function AdminPromptPanel() {
-  const [open, setOpen] = useState(false);
+// RIGHT PANEL — live editor for the chat agent's SYSTEM PROMPT. Fetches the
+// current prompt from /api/deal-engine/chat/prompt, lets an admin edit it, and
+// saves it back; saved changes apply to EVERYONE's chat on the next message (no
+// redeploy). The whole chat page is admin-gated, so this is admin-only.
+function AgentPromptPanel({ onClose }: { onClose: () => void }) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [serverPrompt, setServerPrompt] = useState("");
   const [defaultPrompt, setDefaultPrompt] = useState("");
   const [isOverride, setIsOverride] = useState(false);
-  const [loaded, setLoaded] = useState(false);
   const [note, setNote] = useState<string | null>(null);
 
   async function load() {
@@ -237,21 +352,14 @@ function AdminPromptPanel() {
         setPrompt(p); setServerPrompt(p);
         setDefaultPrompt(j.default || "");
         setIsOverride(!!j.is_override);
-        setLoaded(true);
       }
     } catch (e: any) { setNote(e?.message || String(e)); }
     setLoading(false);
   }
 
-  // Fetch the prompt as soon as the panel mounts (admins only), so it's ready
-  // and never blank — independent of when the panel is first expanded.
+  // Fetch the prompt as soon as the panel mounts so it's ready and never blank.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { void load(); }, []);
-
-  function toggle() {
-    const o = !open; setOpen(o);
-    if (o && !loaded && !loading) load();
-  }
 
   async function save(value: string) {
     setSaving(true); setNote(null);
@@ -274,50 +382,43 @@ function AdminPromptPanel() {
 
   const dirty = prompt !== serverPrompt;
   return (
-    <div className="adminprompt">
-      <button className="ap-toggle" onClick={toggle}>
-        <span className="ap-caret">{open ? "▾" : "▸"}</span>
-        Agent behavior <span className="ap-tag">admin</span>
-        {isOverride && <span className="ap-tag ap-custom">custom</span>}
-      </button>
-      {open && (
-        <div className="ap-body">
-          <p className="ap-desc">
-            Edit the chat agent&apos;s system prompt. Saved changes apply to <b>everyone&apos;s</b> chat
-            on the next message — no redeploy. Clear the box &amp; save to restore the default.
-          </p>
-          {loading ? (
-            <div className="ap-status">Loading…</div>
-          ) : (
-            <>
-              <textarea
-                className="ap-text"
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                rows={12}
-                spellCheck={false}
-                placeholder="(agent system prompt)"
-              />
-              <div className="ap-actions">
-                {dirty && <span className="ap-dirty">Unsaved changes</span>}
-                <button className="ap-btn" onClick={load} disabled={loading || saving}>
-                  ↻ Reload
-                </button>
-                <button className="ap-btn" onClick={() => setPrompt(defaultPrompt)} disabled={saving || prompt === defaultPrompt || !defaultPrompt}>
-                  Load default
-                </button>
-                <button className="ap-btn" onClick={() => save("")} disabled={saving || !isOverride}>
-                  Reset to default
-                </button>
-                <button className="ap-btn ap-save" onClick={() => save(prompt)} disabled={saving || !dirty || !prompt.trim()}>
-                  Save
-                </button>
-              </div>
-              {note && <div className="ap-status">{note}</div>}
-            </>
-          )}
+    <div className="flex h-full flex-col border-l border-border">
+      <div className="flex items-center justify-between px-4 py-3">
+        <div className="flex items-center gap-2">
+          <span className="text-[13px] font-semibold">System prompt</span>
+          {isOverride
+            ? <Badge className="bg-indigo-100 text-indigo-700">custom</Badge>
+            : <Badge variant="secondary">default</Badge>}
         </div>
-      )}
+        <Button variant="ghost" size="icon" className="size-7" onClick={onClose}><X className="size-4" /></Button>
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col gap-2 px-4 pb-4">
+        <p className="text-[12px] leading-relaxed text-muted-foreground">
+          The chat agent&apos;s system prompt. Saving applies to <b>everyone&apos;s</b> chat on the next
+          message — no redeploy. Use <b>Reset</b> to restore the default.
+        </p>
+        {loading ? (
+          <div className="text-[12px] text-muted-foreground">Loading…</div>
+        ) : (
+          <>
+            <Textarea
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              spellCheck={false}
+              className="min-h-0 flex-1 resize-none rounded-xl font-mono text-[12px] leading-relaxed"
+              placeholder="(agent system prompt)"
+            />
+            {note && <div className="text-[12px] text-muted-foreground">{note}</div>}
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {dirty && <span className="mr-auto text-[12px] font-medium text-amber-600">Unsaved changes</span>}
+              <Button variant="outline" size="sm" onClick={load} disabled={loading || saving}>Reload</Button>
+              <Button variant="outline" size="sm" onClick={() => setPrompt(defaultPrompt)} disabled={saving || prompt === defaultPrompt || !defaultPrompt}>Load default</Button>
+              <Button variant="outline" size="sm" onClick={() => save("")} disabled={saving || !isOverride}>Reset</Button>
+              <Button size="sm" className="bg-[#5b8cff] text-white hover:bg-[#5b8cff]/90" onClick={() => save(prompt)} disabled={saving || !dirty || !prompt.trim()}>Save</Button>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -329,17 +430,19 @@ export default function ChatPage() {
   const { isAdminView } = useDashboard();
   if (!isAdminView) {
     return (
-      <div className="dq-lock"><div className="dq-lock-card">
-        <div className="dq-lock-ttl">🔒 Chat</div>
-        <div className="dq-lock-sub">The strategist chat is restricted to admins.</div>
-      </div></div>
+      <div className="flex h-full items-center justify-center p-10">
+        <div className="rounded-xl border border-border bg-card p-8 text-center shadow-sm">
+          <div className="text-lg font-semibold">🔒 Chat</div>
+          <div className="mt-1 text-sm text-muted-foreground">The strategist chat is restricted to admins.</div>
+        </div>
+      </div>
     );
   }
   return <ChatPageInner />;
 }
 
 function ChatPageInner() {
-  const { records: allRecords, scoped: scopedRecords, locked, blocked, scopeName, isAdminView } = useDashboard();
+  const { records: allRecords, scoped: scopedRecords, locked, blocked, scopeName } = useDashboard();
   // When the user is locked to their own scope, the strategist may only ever see
   // their deals — use the scoped set as the entire book for chat.
   const records = locked ? scopedRecords : allRecords;
@@ -356,9 +459,36 @@ function ChatPageInner() {
   const [realtimeStatus, setRealtimeStatus] = useState<"connecting" | "connected" | "error" | "disconnected">("connecting");
   const msgsRef = useRef<HTMLDivElement>(null);
 
+  // ── UI-only state (presentation; does not affect streaming) ──
+  const [cmdOpen, setCmdOpen] = useState(false);
+  const [showContext, setShowContext] = useState(false);
+  const [userName, setUserName] = useState<string | null>(null);
+
   // Stable browser Supabase client (used for realtime + the polling fallback).
   const supabaseRef = useRef(createClient());
   const supabase = supabaseRef.current;
+
+  // Signed-in identity for the sidebar footer (display name → email fallback).
+  useEffect(() => {
+    supabase.auth.getUser()
+      .then(({ data }) => setUserName((data.user?.user_metadata?.name as string) || data.user?.email || null))
+      .catch(() => {});
+  }, [supabase]);
+
+  // Shareable per-chat URLs (/chat/<id>). Capture the id in the URL on first
+  // render, then open that conversation once the saved chats arrive. In-app
+  // navigation (openChat/newChat/send) keeps the URL in sync via the History API
+  // so the workspace never remounts (state is preserved).
+  const pathname = usePathname();
+  const urlChatId = useRef<string | null>(pathname?.match(/^\/chat\/([^/?#]+)/)?.[1] ?? null);
+  const openedFromUrl = useRef(false);
+  useEffect(() => {
+    if (openedFromUrl.current) return;
+    openedFromUrl.current = true;
+    const id = urlChatId.current;
+    if (id) void openChat(id); // openChat lazy-loads this chat's messages by id
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Mirror state into refs so effects can read the latest values without
   // re-subscribing / re-arming on every message.
@@ -375,6 +505,15 @@ function ChatPageInner() {
   useEffect(() => { fetchChats().then(setChats).catch((e) => console.warn("[chat] load failed", e)); }, []);
   useEffect(() => { msgsRef.current?.scrollTo({ top: msgsRef.current.scrollHeight, behavior: "smooth" }); }, [messages, busy]);
 
+  // ⌘K / Ctrl-K opens the command palette.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); setCmdOpen((o) => !o); }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
+
   const vpOpts: Opt[] = useMemo(() => vpsList(records).map((v) => ({ value: v, label: v })), [records]);
   const ownerOpts: Opt[] = useMemo(() => teamOwners(records, []).map((o) => ({ value: o, label: o })), [records]);
   const dealOpts: Opt[] = useMemo(() =>
@@ -386,11 +525,17 @@ function ChatPageInner() {
   const inScope = useMemo(() => scopeRecords(records, scope), [records, scope]);
   const scopeText = scopeLabel(scope, inScope);
 
-  // Persist the conversation. Strip live-only fields (thinkingSteps/isProcessing)
-  // so saved chats keep the clean {role, content} shape they always had.
+  // Persist the conversation. Keep the agent's tool-call trace (thinkingSteps) so
+  // reopening a saved chat still shows what the agent did — only the live-only
+  // `isProcessing` flag is dropped (so a reopened turn never shows a spinner).
   function persist(msgs: Msg[], id: string | null): string {
     const cid = id || crypto.randomUUID();
-    const clean: Msg[] = msgs.map((m) => ({ role: m.role, content: m.content }));
+    const clean: Msg[] = msgs.map((m) => {
+      const base: Msg = { role: m.role, content: m.content };
+      if (m.ts) base.ts = m.ts;
+      if (m.thinkingSteps && m.thinkingSteps.length) base.thinkingSteps = m.thinkingSteps;
+      return base;
+    });
     const title = ((clean[0] && clean[0].content) || "New chat").replace(/\s+/g, " ").slice(0, 52);
     const rec: Chat = { id: cid, title, ts: Date.now(), messages: clean };
     // Optimistic local update (touched chat to the top), then persist to the DB
@@ -400,76 +545,67 @@ function ChatPageInner() {
     return cid;
   }
 
-  // Apply ONE chat_messages row to the live timeline. Mirrors VIBE's realtime
-  // reducer, simplified to the row types this agent emits.
-  function applyRow(row: any) {
-    if (!row || row.role !== "assistant") return; // user rows are added optimistically
-    const type = (row.type || "message") as string;
-    const meta = parseMeta(row.metadata);
-
-    if (type === "thinking" || type === "tool_call" || type === "tool_result") {
-      // This agent writes each tool_call/tool_result once (source 'sync_handler'),
-      // so there's no numbered-step duplicate to filter out here. Rows tagged
-      // meta.group==="todo" are the nested Todo Runner's own steps.
+  // SINGLE SOURCE OF TRUTH for the in-flight turn: rebuild the live assistant
+  // message from ALL of its chat_messages rows. Both the realtime change events
+  // and the polling fallback call this, so the agent trace is ALWAYS complete —
+  // no tool_call/thinking rows are lost to the realtime connect race (the reason
+  // the trace went missing in the rebuilt UI), and a full rebuild means there are
+  // never duplicate steps.
+  const reconcileTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  async function reconcile(chatId: string | null) {
+    if (!chatId) return;
+    const { data, error: dberr } = await supabase
+      .from("chat_messages")
+      .select("*")
+      .eq("chat_id", chatId)
+      .order("created_at", { ascending: true })
+      .order("sequence", { ascending: true });
+    if (dberr || !data || data.length === 0) return;
+    const steps: Step[] = [];
+    let finalContent = "";
+    let terminal = false;
+    let errText = "";
+    for (const row of data) {
+      if (row.role !== "assistant") continue;
+      const type = (row.type || "message") as string;
+      const meta = parseMeta(row.metadata);
       const grp = meta.group === "todo" ? ("todo" as const) : undefined;
-      let step: Step | null = null;
-      if (type === "thinking") {
-        step = { type: "thinking", content: row.content, group: grp };
-      } else if (type === "tool_call") {
+      if (type === "thinking") steps.push({ type: "thinking", content: row.content, group: grp });
+      else if (type === "tool_call") {
         const rawArgs = meta.args ?? {};
         let args = "";
-        try { args = typeof rawArgs === "string" ? rawArgs : JSON.stringify(rawArgs, null, 2); }
-        catch { args = String(rawArgs); }
-        step = { type: "tool_call", tool: meta.tool || meta.name || "tool", args, group: grp };
-      } else {
-        step = { type: "tool_result", content: row.content, group: grp };
+        try { args = typeof rawArgs === "string" ? rawArgs : JSON.stringify(rawArgs, null, 2); } catch { args = String(rawArgs); }
+        steps.push({ type: "tool_call", tool: meta.tool || meta.name || "tool", args, group: grp });
+      } else if (type === "tool_result") steps.push({ type: "tool_result", content: row.content, group: grp });
+      else if (type === "final" || type === "message") { finalContent = row.content || ""; terminal = true; }
+      else if (type === "error") { errText = row.content || "The agent run failed."; terminal = true; }
+      else if (type === "status" && (meta.status === "cancelled" || (row.content || "").toLowerCase().includes("stopped"))) { terminal = true; }
+    }
+    setMessages((prev) => {
+      const next = [...prev];
+      let idx = -1;
+      for (let i = next.length - 1; i >= 0; i--) if (next[i].role === "assistant") { idx = i; break; }
+      const live: Msg = {
+        role: "assistant",
+        content: errText ? "" : finalContent,
+        thinkingSteps: steps,
+        isProcessing: !terminal,
+      };
+      if (idx === -1) next.push(live); else next[idx] = live;
+      if (terminal && !turnDoneRef.current) {
+        turnDoneRef.current = true;
+        setBusy(false);
+        if (errText) setError(errText);
+        else persist(next, persistIdRef.current); // saves the FULL trace too
       }
-      setMessages((prev) => {
-        const next = [...prev];
-        // Find the last assistant message (the in-flight placeholder).
-        let idx = -1;
-        for (let i = next.length - 1; i >= 0; i--) if (next[i].role === "assistant") { idx = i; break; }
-        if (idx === -1) {
-          next.push({ role: "assistant", content: "", thinkingSteps: step ? [step] : [], isProcessing: true });
-        } else {
-          const m = next[idx];
-          next[idx] = { ...m, thinkingSteps: [...(m.thinkingSteps || []), step!], isProcessing: true };
-        }
-        return next;
-      });
-      return;
-    }
-
-    if (type === "final" || type === "message") {
-      if (turnDoneRef.current) return;
-      turnDoneRef.current = true;
-      setBusy(false);
-      setMessages((prev) => {
-        const next = [...prev];
-        let idx = -1;
-        for (let i = next.length - 1; i >= 0; i--) if (next[i].role === "assistant") { idx = i; break; }
-        if (idx === -1) {
-          next.push({ role: "assistant", content: row.content || "", isProcessing: false });
-        } else {
-          next[idx] = { ...next[idx], content: row.content || "", isProcessing: false };
-        }
-        // Persist the resolved conversation against the saved-chat id.
-        persist(next, persistIdRef.current);
-        return next;
-      });
-      return;
-    }
-
-    if (type === "error") {
-      if (turnDoneRef.current) return;
-      turnDoneRef.current = true;
-      setBusy(false);
-      setError(row.content || "The agent run failed.");
-      setMessages((prev) => prev.map((m) => (m.role === "assistant" && m.isProcessing ? { ...m, isProcessing: false } : m)));
-      return;
-    }
-
-    // status / other: just keep the spinner; nothing to render.
+      return next;
+    });
+  }
+  // Realtime fires one change event per inserted row; debounce so a burst of
+  // tool steps triggers a single rebuild.
+  function scheduleReconcile(chatId: string | null) {
+    if (reconcileTimer.current) clearTimeout(reconcileTimer.current);
+    reconcileTimer.current = setTimeout(() => { void reconcile(chatId); }, 180);
   }
 
   // Realtime subscription — listen to chat_messages for the active turn and apply
@@ -487,10 +623,12 @@ function ChatPageInner() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "chat_messages", filter: `chat_id=eq.${activeChatId}` },
-        (payload: any) => { if (payload.new) applyRow(payload.new); }
+        () => { scheduleReconcile(activeChatId); }
       )
       .subscribe((status) => {
-        if (status === "SUBSCRIBED") { clearTimeout(connectTimeout); setRealtimeStatus("connected"); }
+        // On connect, immediately reconcile to backfill any rows written during
+        // the subscribe handshake (the ones that used to be lost → no trace).
+        if (status === "SUBSCRIBED") { clearTimeout(connectTimeout); setRealtimeStatus("connected"); void reconcile(activeChatId); }
         else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") { clearTimeout(connectTimeout); setRealtimeStatus("error"); }
         else if (status === "CLOSED") { clearTimeout(connectTimeout); setRealtimeStatus("disconnected"); }
       });
@@ -499,78 +637,29 @@ function ChatPageInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeChatId, supabase]);
 
-  // Polling fallback — when realtime isn't connected, rebuild the live trace from
-  // the DB every 3s while a turn is in flight. Mirrors VIBE's fallback.
+  // DB poll — rebuild the live trace from chat_messages every 2s while a turn is
+  // in flight. This runs ALWAYS (not only when realtime is down): the MASE chat
+  // is async (the endpoint returns {chat_id} and the agent runs in the
+  // background — there is NO SSE stream), so the DB is the only source of the
+  // tool-call/Todo-Runner trace. Realtime just makes it snappier; the poll is
+  // what guarantees the trace shows even if realtime "connects" but misses the
+  // early rows. reconcile() is a full rebuild, so poll + realtime never duplicate.
   useEffect(() => {
     if (!activeChatId) return;
-    if (realtimeStatus === "connected") return;
-
     let stopped = false;
     const poll = async () => {
+      if (stopped) return;
       if (!busyRef.current && turnDoneRef.current) return;
-      const { data, error: dberr } = await supabase
-        .from("chat_messages")
-        .select("*")
-        .eq("chat_id", activeChatId)
-        .order("created_at", { ascending: true })
-        .order("sequence", { ascending: true });
-      if (stopped || dberr || !data || data.length === 0) return;
-
-      // Rebuild the live assistant turn from scratch: collapse all assistant rows
-      // since the last user row into one trace + final.
-      const steps: Step[] = [];
-      let finalContent = "";
-      let terminal = false;
-      let errText = "";
-      for (const row of data) {
-        if (row.role !== "assistant") continue;
-        const type = (row.type || "message") as string;
-        const meta = parseMeta(row.metadata);
-        const grp = meta.group === "todo" ? ("todo" as const) : undefined;
-        if (type === "thinking") steps.push({ type: "thinking", content: row.content, group: grp });
-        else if (type === "tool_call") {
-          const rawArgs = meta.args ?? {};
-          let args = "";
-          try { args = typeof rawArgs === "string" ? rawArgs : JSON.stringify(rawArgs, null, 2); } catch { args = String(rawArgs); }
-          steps.push({ type: "tool_call", tool: meta.tool || meta.name || "tool", args, group: grp });
-        } else if (type === "tool_result") steps.push({ type: "tool_result", content: row.content, group: grp });
-        else if (type === "final" || type === "message") { finalContent = row.content || ""; terminal = true; }
-        else if (type === "error") { errText = row.content || "The agent run failed."; terminal = true; }
-      }
-
-      setMessages((prev) => {
-        const next = [...prev];
-        let idx = -1;
-        for (let i = next.length - 1; i >= 0; i--) if (next[i].role === "assistant") { idx = i; break; }
-        const live: Msg = {
-          role: "assistant",
-          content: errText ? "" : finalContent,
-          thinkingSteps: steps,
-          isProcessing: !terminal,
-        };
-        if (idx === -1) next.push(live);
-        else next[idx] = live;
-        if (terminal && !turnDoneRef.current) {
-          turnDoneRef.current = true;
-          setBusy(false);
-          if (errText) setError(errText);
-          else persist(next, persistIdRef.current);
-        }
-        return next;
-      });
+      await reconcile(activeChatId);
     };
-
     poll();
-    const interval = setInterval(poll, 3000);
+    const interval = setInterval(poll, 2000);
     return () => { stopped = true; clearInterval(interval); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeChatId, realtimeStatus, supabase]);
+  }, [activeChatId, supabase]);
 
   // Watchdog — if a run goes silent (no terminal row), stop the spinner after
-  // ~300s so the UI never hangs on "Working…". Resets on every `messages` change
-  // — and since applyRow updates `messages` for EVERY incoming row (including the
-  // nested Todo Runner's group:"todo" sub-rows), a long-but-actively-streaming
-  // delegation keeps the timer fresh and never trips the watchdog mid-run.
+  // ~300s so the UI never hangs on "Working…". Resets on every `messages` change.
   useEffect(() => {
     if (!busy) return;
     const timer = setTimeout(() => {
@@ -584,7 +673,7 @@ function ChatPageInner() {
     if (busy || !text.trim()) return;
     setError(null);
     // Optimistic UI: append the user message + an in-flight assistant placeholder.
-    const userMsgs: Msg[] = [...messages, { role: "user", content: text }];
+    const userMsgs: Msg[] = [...messages, { role: "user", content: text, ts: Date.now() }];
     const withPlaceholder: Msg[] = [...userMsgs, { role: "assistant", content: "", thinkingSteps: [], isProcessing: true }];
     setMessages(withPlaceholder);
     setBusy(true);
@@ -593,6 +682,7 @@ function ChatPageInner() {
     const cid = persist(userMsgs, currentId);
     setCurrentId(cid);
     persistIdRef.current = cid;
+    syncUrl(cid); // first message → the new chat gets a shareable /chat/<id> URL
 
     // Fresh realtime turn.
     const chatId = crypto.randomUUID();
@@ -633,11 +723,47 @@ function ChatPageInner() {
     }
   }
 
-  function newChat() { setCurrentId(null); setMessages([]); setError(null); setActiveChatId(null); turnDoneRef.current = true; }
-  function openChat(id: string) {
-    const c = chats.find((x) => x.id === id); if (!c) return;
-    setCurrentId(id); setMessages(c.messages.slice()); setError(null);
+  // Keep the URL in sync with the open chat WITHOUT a Next navigation (the route
+  // would remount and wipe state). /chat/<id> when a chat is open, /chat otherwise.
+  function syncUrl(id: string | null) {
+    try { window.history.replaceState(null, "", id ? `/chat/${id}` : "/chat"); } catch { /* ignore */ }
+  }
+  function newChat() { setCurrentId(null); setMessages([]); setError(null); setActiveChatId(null); turnDoneRef.current = true; syncUrl(null); }
+  // Stop the running agent: optimistically end the turn in the UI (drop the
+  // spinner, keep the partial trace + persist it), then tell the backend to
+  // cancel the asyncio task so it stops burning tokens.
+  async function stopAgent() {
+    const cid = activeChatId;
+    turnDoneRef.current = true;
+    setBusy(false);
+    setMessages((prev) => {
+      const next = prev.map((m) => (m.role === "assistant" && m.isProcessing ? { ...m, isProcessing: false } : m));
+      persist(next, persistIdRef.current);
+      return next;
+    });
+    if (cid) {
+      try { await fetch(`/api/deal-engine/chat/stop?chat_id=${encodeURIComponent(cid)}`, { method: "POST" }); }
+      catch { /* best-effort — the UI is already stopped */ }
+    }
+  }
+  async function openChat(id: string) {
+    setCurrentId(id); setError(null);
     setActiveChatId(null); turnDoneRef.current = true; setBusy(false);
+    syncUrl(id);
+    // Use cached messages if this chat was already opened/sent this session;
+    // otherwise lazy-load just this chat's messages from the DB.
+    const cached = chats.find((x) => x.id === id);
+    if (cached?.messages?.length) { setMessages(cached.messages.slice()); return; }
+    setMessages([]);
+    try {
+      const { data } = await supabase.from("mase_chats").select("title,messages").eq("id", id).single();
+      if (!data) return;
+      const msgs: Msg[] = Array.isArray(data.messages) ? data.messages : [];
+      setMessages(msgs);
+      setChats((prev) => prev.some((x) => x.id === id)
+        ? prev.map((x) => (x.id === id ? { ...x, messages: msgs } : x))
+        : [{ id, title: data.title || "Chat", ts: Date.now(), messages: msgs }, ...prev]);
+    } catch { /* ignore — empty chat */ }
   }
   function deleteChat(id: string) {
     setChats((prev) => prev.filter((c) => c.id !== id));
@@ -652,106 +778,358 @@ function ChatPageInner() {
   const setMode = (mode: ChatScopeMode) => setScope({ ...EMPTY_SCOPE, mode });
   const scoped = scope.mode !== "generic" && inScope.length !== records.length;
 
+  // Run a command-palette action: prefill + (for hints) send immediately.
+  function runCommand(text: string, sendNow = false) {
+    setCmdOpen(false);
+    if (sendNow) { send(text); } else { setInput(text); }
+  }
+
+  // Saved chats grouped by day for the sidebar history.
+  const grouped = useMemo(() => {
+    const sorted = [...chats].sort((a, b) => b.ts - a.ts);
+    const buckets: { label: string; items: Chat[] }[] = [];
+    for (const c of sorted) {
+      const label = dayBucket(c.ts);
+      let g = buckets.find((x) => x.label === label);
+      if (!g) { g = { label, items: [] }; buckets.push(g); }
+      g.items.push(c);
+    }
+    return buckets;
+  }, [chats]);
+
   return (
-    <div className="chatwrap">
-      <div className="chat-side">
-        <button className="newchat" onClick={newChat}>+ New chat</button>
-        <div className="chat-list">
-          {chats.length === 0 ? (
-            <div className="chat-empty">No saved chats yet. Start asking and your conversations are saved here.</div>
-          ) : [...chats].sort((a, b) => b.ts - a.ts).map((c) => (
-            <div key={c.id} className={`citem ${c.id === currentId ? "active" : ""}`} onClick={() => openChat(c.id)}>
-              <div className="ct">{c.title}</div>
-              <div className="cd"><span>{dateLabel(c.ts)}</span><span className="del" onClick={(e) => { e.stopPropagation(); deleteChat(c.id); }} title="Delete">✕</span></div>
+    <div className="h-full w-full overflow-hidden bg-background text-foreground">
+      {/* ⌘K command palette */}
+      <CommandDialog open={cmdOpen} onOpenChange={setCmdOpen}>
+        <CommandInput placeholder="Search deals, accounts, conversations…" />
+        <CommandList>
+          <CommandEmpty>No results found.</CommandEmpty>
+          <CommandGroup heading="Quick actions">
+            <CommandItem onSelect={() => { setCmdOpen(false); newChat(); }}>
+              <PencilLine /> New chat
+            </CommandItem>
+            <CommandItem onSelect={() => runCommand("Search the book for deals matching: ")}>
+              <Handshake /> Search Deals
+            </CommandItem>
+            <CommandItem onSelect={() => runCommand("Find accounts matching: ")}>
+              <Bot /> Search Accounts
+            </CommandItem>
+            <CommandItem onSelect={() => runCommand("Search my conversations for: ")}>
+              <Search /> Search Conversations
+            </CommandItem>
+            <CommandItem onSelect={() => runCommand(HINTS[0].q, true)}>
+              <BadgeCheck /> Run Qualification <CommandShortcut>↵</CommandShortcut>
+            </CommandItem>
+          </CommandGroup>
+          {grouped.length ? (
+            <CommandGroup heading="Recent conversations">
+              {grouped.flatMap((g) => g.items).slice(0, 6).map((c) => (
+                <CommandItem key={c.id} onSelect={() => { setCmdOpen(false); openChat(c.id); }}>
+                  <Clock /> {c.title}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          ) : null}
+        </CommandList>
+      </CommandDialog>
+
+      <ResizablePanelGroup direction="horizontal" className="h-full">
+        {/* ─────────────── LEFT SIDEBAR ─────────────── */}
+        <ResizablePanel defaultSize={20} minSize={14} maxSize={28} className="bg-sidebar">
+          <div className="flex h-full flex-col border-r border-border">
+            {/* Wordmark — same logo as the global header (/mase-logo.svg) */}
+            <div className="flex items-center px-4 pt-4 pb-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/mase-logo.svg" alt="MASE — Agents that close with you" className="h-9 w-auto" />
             </div>
-          ))}
-        </div>
-      </div>
 
-      <div className="chat-main">
-        {/* Admin editor — only when the EFFECTIVE viewer is an admin. `locked` is
-            simulation-aware (true when simulating a scoped VP/rep), so the panel
-            correctly disappears while previewing a non-admin's view. */}
-        {isAdminView && !locked && <AdminPromptPanel />}
-        <div className="chatscope">
-          {locked ? (
-            <span className="scopelock" title="The strategist only sees your deals">
-              {blocked ? "No deals assigned to your account" : <>Scoped to: <b>{scopeName}</b> · {records.length} deal{records.length === 1 ? "" : "s"}</>}
-            </span>
-          ) : (
-          <>
-          <div className="cs-modes">
-            {MODES.map((m) => (
-              <button key={m.key} className={`cs-mode ${scope.mode === m.key ? "active" : ""}`} onClick={() => setMode(m.key)}>{m.label}</button>
-            ))}
-          </div>
-          {scope.mode === "vp" ? (
-            <MultiSelect allLabel="All VPs" options={vpOpts} selected={scope.vps} onChange={(vps) => setScope({ ...scope, vps })} />
-          ) : null}
-          {scope.mode === "rsd" ? (
-            <MultiSelect allLabel="All RSDs" options={ownerOpts} selected={scope.owners} onChange={(owners) => setScope({ ...scope, owners })} />
-          ) : null}
-          {scope.mode === "deal" ? (
-            <MultiSelect single allLabel="Pick a deal" options={dealOpts} selected={scope.oppId ? [scope.oppId] : []} onChange={(v) => setScope({ ...scope, oppId: v[0] || "" })} />
-          ) : null}
-          <span className={`cs-pill ${scoped ? "on" : ""}`}>
-            {scope.mode === "generic"
-              ? `Whole book · ${records.length} deals`
-              : scope.mode === "deal" && !scope.oppId
-                ? "No deal selected"
-                : `${scopeText} · ${inScope.length} deal${inScope.length === 1 ? "" : "s"}`}
-          </span>
-          {(scope.vps.length || scope.owners.length || scope.oppId) ? (
-            <button className="cs-clear" title="Clear selection" onClick={() => setScope({ ...EMPTY_SCOPE, mode: scope.mode })}>✕ Clear</button>
-          ) : null}
-          </>
-          )}
-        </div>
+            {/* New chat */}
+            <div className="px-3">
+              <Button onClick={newChat} className="h-9 w-full justify-center gap-2 rounded-lg bg-gradient-to-br from-[#6E8BFF] to-[#5277F0] text-white shadow-[0_8px_24px_rgba(98,128,240,0.3)] hover:opacity-95">
+                <Plus className="size-4" /> New chat
+              </Button>
+            </div>
 
-        <div className="msgs" ref={msgsRef}>
-          {messages.length === 0 ? (
-            <div className="welcome">
-              <div className="welcome-icon">✦</div>
-              <h3 className="welcome-h">Ask the strategist about your book</h3>
-              <p className="welcome-p">
-                Best-deal questions run the full qualification drill — engagement, champion, access to
-                power, competition, product fit, risk — tested against the facts, not the forecast label.
-              </p>
-              <div className="welcome-chips">
-                {HINTS.map((hn) => (
-                  <button className="welcome-chip" key={hn.label} onClick={() => send(hn.q)}>{hn.label}</button>
-                ))}
+            {/* Nav list */}
+            <nav className="mt-3 space-y-0.5 px-2">
+              {NAV.map((n) => {
+                const Icon = n.icon;
+                const active = n.key === "chat";
+                return (
+                  <Link
+                    key={n.key}
+                    href={n.href}
+                    className={cn(
+                      "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13px] font-medium transition",
+                      active
+                        ? "bg-gradient-to-br from-[#6E8BFF] to-[#5277F0] text-white shadow-[0_8px_24px_rgba(98,128,240,0.3)]"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                  >
+                    <Icon className="size-4" /> {n.label}
+                  </Link>
+                );
+              })}
+            </nav>
+
+            <Separator className="my-3" />
+
+            {/* Chat history grouped by day */}
+            <ScrollArea className="min-h-0 flex-1 px-2">
+              {grouped.length === 0 ? (
+                <div className="px-2 py-4 text-[12px] leading-relaxed text-muted-foreground">
+                  No saved chats yet. Start asking and your conversations are saved here.
+                </div>
+              ) : (
+                grouped.map((g) => (
+                  <div key={g.label} className="mb-2">
+                    <div className="px-2 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{g.label}</div>
+                    {g.items.map((c) => {
+                      const active = c.id === currentId;
+                      return (
+                        <div
+                          key={c.id}
+                          onClick={() => openChat(c.id)}
+                          className={cn(
+                            "group relative flex cursor-pointer items-start gap-2 rounded-md px-2 py-1.5 pr-6 text-[13px] transition",
+                            active ? "bg-gradient-to-br from-[#6E8BFF] to-[#5277F0] text-white shadow-[0_8px_24px_rgba(98,128,240,0.3)]" : "text-foreground hover:bg-muted"
+                          )}
+                        >
+                          <span className="min-w-0 flex-1 break-words leading-snug" title={c.title}>{c.title}</span>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); deleteChat(c.id); }}
+                            className={cn(
+                              "absolute right-1 top-1 hidden rounded p-0.5 group-hover:block",
+                              active ? "text-white/70 hover:bg-white/20 hover:text-white" : "text-muted-foreground hover:bg-background hover:text-destructive"
+                            )}
+                            title="Delete"
+                          >
+                            <X className="size-3" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))
+              )}
+              {chats.length > 0 && (
+                <button className="mb-2 w-full rounded-lg px-2.5 py-1.5 text-left text-[12px] font-medium text-indigo-600 hover:bg-muted">
+                  View all chats
+                </button>
+              )}
+            </ScrollArea>
+
+            <Separator />
+
+            {/* Footer: the real account menu — same <AuthButton/> as the global
+                navbar (signed-in identity, simulate view, Salesforce, sign out).
+                The .mase-chat-authmenu wrapper flips its dropdown to open UPWARD
+                (it's pinned to the bottom of the sidebar). */}
+            <div className="mase-chat-authmenu flex min-w-0 items-center gap-2 px-3 py-3">
+              <AuthButton />
+              <div className="min-w-0 flex-1 leading-tight">
+                <div className="truncate text-[13px] font-medium text-foreground">{userName || scopeName || "Account"}</div>
+                <div className="truncate text-[11px] text-muted-foreground">{scopeName ? `Simulating · ${scopeName}` : "Admin"}</div>
               </div>
             </div>
-          ) : messages.map((m, i) => (
-            <div className={`msg ${m.role}`} key={i}>
-              <div className="who">{m.role === "user" ? "You" : "Strategist"}</div>
-              {m.role === "assistant" ? (
-                <>
-                  {(m.thinkingSteps && m.thinkingSteps.length > 0) || m.isProcessing ? (
-                    <AgentTrace steps={m.thinkingSteps || []} processing={!!m.isProcessing} />
-                  ) : null}
-                  {m.content ? <Bubble text={m.content} /> : null}
-                </>
-              ) : (
-                <Bubble text={m.content} />
+          </div>
+        </ResizablePanel>
+
+        <ResizableHandle />
+
+        {/* ─────────────── CENTER ─────────────── */}
+        <ResizablePanel defaultSize={showContext ? 56 : 80} minSize={36}>
+          <div className="flex h-full flex-col">
+            {/* Scope controls (drive the opp_ids sent to the backend) */}
+            <div className="flex flex-wrap items-center gap-3 border-b border-border px-5 py-2.5">
+              <div className="flex flex-wrap items-center gap-2">
+                {locked ? (
+                  <Badge variant="secondary" className="gap-1" title="The strategist only sees your deals">
+                    <Crosshair className="size-3" />
+                    {blocked ? "No deals assigned" : <>Scoped: {scopeName} · {records.length}</>}
+                  </Badge>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-0.5 rounded-full bg-muted/70 p-0.5">
+                      {MODES.map((m) => (
+                        <button
+                          key={m.key}
+                          onClick={() => setMode(m.key)}
+                          className={cn(
+                            "rounded-full px-3 py-1 text-[12px] font-medium transition",
+                            scope.mode === m.key
+                              ? "bg-gradient-to-br from-[#6E8BFF] to-[#5277F0] text-white shadow-[0_8px_24px_rgba(98,128,240,0.3)]"
+                              : "text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          {m.label}
+                        </button>
+                      ))}
+                    </div>
+                    {scope.mode === "vp" ? (
+                      <MultiSelect allLabel="All VPs" options={vpOpts} selected={scope.vps} onChange={(vps) => setScope({ ...scope, vps })} />
+                    ) : null}
+                    {scope.mode === "rsd" ? (
+                      <MultiSelect allLabel="All RSDs" options={ownerOpts} selected={scope.owners} onChange={(owners) => setScope({ ...scope, owners })} />
+                    ) : null}
+                    {scope.mode === "deal" ? (
+                      <MultiSelect single allLabel="Pick a deal" options={dealOpts} selected={scope.oppId ? [scope.oppId] : []} onChange={(v) => setScope({ ...scope, oppId: v[0] || "" })} />
+                    ) : null}
+                    <Badge variant={scoped ? "default" : "secondary"} className={scoped ? "bg-[#5b8cff]" : ""}>
+                      {scope.mode === "generic"
+                        ? `Whole book · ${records.length}`
+                        : scope.mode === "deal" && !scope.oppId
+                          ? "No deal selected"
+                          : `${scopeText} · ${inScope.length}`}
+                    </Badge>
+                    {(scope.vps.length || scope.owners.length || scope.oppId) ? (
+                      <Button variant="ghost" size="sm" className="h-7" onClick={() => setScope({ ...EMPTY_SCOPE, mode: scope.mode })}>
+                        <X className="size-3" /> Clear
+                      </Button>
+                    ) : null}
+                  </>
+                )}
+              </div>
+              {!showContext && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="ml-auto h-7 gap-1.5 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowContext(true)}
+                >
+                  <PanelRight className="size-3.5" /> System prompt
+                </Button>
               )}
             </div>
-          ))}
-          {error ? (
-            <div className="msg assistant">
-              <div className="who">Strategist</div>
-              <div className="bubble"><span className="err">{error}</span></div>
+
+            {/* Conversation */}
+            <div ref={msgsRef} className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
+              {messages.length === 0 ? (
+                <div className="mx-auto mt-10 max-w-2xl text-center">
+                  <div className="mx-auto grid size-12 place-items-center rounded-2xl bg-[#5b8cff] text-white shadow-sm">
+                    <Sparkles className="size-6" />
+                  </div>
+                  <h3 className="mt-4 text-xl font-semibold tracking-tight">Ask the strategist about your book</h3>
+                  <p className="mx-auto mt-2 max-w-xl text-[14px] leading-relaxed text-muted-foreground">
+                    Best-deal questions run the full qualification drill — engagement, champion, access to
+                    power, competition, product fit, risk — tested against the facts, not the forecast label.
+                  </p>
+                  <div className="mt-5 flex flex-wrap justify-center gap-2">
+                    {HINTS.map((hn) => (
+                      <button
+                        key={hn.label}
+                        onClick={() => send(hn.q)}
+                        className="rounded-full border border-border/70 bg-muted/40 px-3.5 py-1.5 text-[13px] font-medium text-foreground transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
+                      >
+                        {hn.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="mx-auto max-w-3xl space-y-5">
+                  {messages.map((m, i) => (
+                    <MessageRow key={i} m={m} />
+                  ))}
+                  {error ? (
+                    <div className="flex gap-3">
+                      <Avatar className="size-7 shrink-0 bg-[#5b8cff]">
+                        <AvatarFallback className="bg-[#5b8cff] text-white"><Sparkles className="size-3.5" /></AvatarFallback>
+                      </Avatar>
+                      <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-[14px] text-destructive">{error}</div>
+                    </div>
+                  ) : null}
+                </div>
+              )}
             </div>
-          ) : null}
-        </div>
-        <div className="chatbar">
-          <div className="inner">
-            <textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={onKey} rows={1} disabled={blocked} placeholder={blocked ? "You don't have access to any deals." : `Ask about ${locked ? scopeName : scope.mode === "generic" ? "the book" : scopeText}… (Enter to send, Shift+Enter for newline)`} />
-            <button onClick={() => { const v = input; setInput(""); send(v); }} disabled={busy || blocked}>Send</button>
+
+            {/* Composer */}
+            <div className="px-5 py-4">
+              <div className="mx-auto max-w-3xl rounded-2xl border border-border bg-muted/40 transition focus-within:border-indigo-400 focus-within:bg-card focus-within:ring-2 focus-within:ring-indigo-100">
+                <Textarea
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={onKey}
+                  rows={2}
+                  disabled={blocked}
+                  placeholder={blocked ? "You don't have access to any deals." : "Ask about risks, qualification, next steps, or deal strategy…"}
+                  className="min-h-[52px] resize-none border-0 bg-transparent px-4 py-3 text-[14px] shadow-none focus-visible:ring-0"
+                />
+                <div className="flex items-center gap-2 px-3 pb-2.5">
+                  <div className="flex-1" />
+                  <Button variant="ghost" size="icon" className="size-8 text-muted-foreground">
+                    <Paperclip className="size-4" />
+                  </Button>
+                  {busy ? (
+                    <Button
+                      size="icon"
+                      className="size-9 rounded-full bg-red-500 text-white hover:bg-red-600"
+                      onClick={stopAgent}
+                      title="Stop the agent"
+                    >
+                      <Square className="size-4 fill-current" />
+                    </Button>
+                  ) : (
+                    <Button
+                      size="icon"
+                      className="size-9 rounded-full bg-[#5b8cff] text-white hover:bg-[#5b8cff]/90 disabled:opacity-40"
+                      disabled={blocked || !input.trim()}
+                      onClick={() => { const v = input; setInput(""); send(v); }}
+                    >
+                      <ArrowUp className="size-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
+        </ResizablePanel>
+
+        {/* ─────────────── RIGHT PANEL — agent system-prompt editor ─────────────── */}
+        {showContext && (
+          <>
+            <ResizableHandle />
+            <ResizablePanel defaultSize={30} minSize={22} maxSize={46} className="bg-sidebar">
+              <AgentPromptPanel onClose={() => setShowContext(false)} />
+            </ResizablePanel>
+          </>
+        )}
+      </ResizablePanelGroup>
+    </div>
+  );
+}
+
+// One message in the conversation: user (right, muted bubble) or assistant
+// (left, indigo sparkle avatar + "Strategist" label + AgentTrace + content).
+function MessageRow({ m }: { m: Msg }) {
+  if (m.role === "user") {
+    return (
+      <div className="flex justify-end gap-3">
+        <div className="flex max-w-[80%] flex-col items-end">
+          <div className="rounded-2xl rounded-tr-sm bg-muted px-3.5 py-2 text-[14px] leading-relaxed text-foreground">
+            {m.content}
+          </div>
+          {m.ts ? <span className="mt-1 text-[11px] text-muted-foreground">{timeLabel(m.ts)}</span> : null}
         </div>
+        <Avatar className="size-7 shrink-0">
+          <AvatarFallback className="bg-foreground text-[11px] font-semibold text-background">A</AvatarFallback>
+        </Avatar>
+      </div>
+    );
+  }
+  return (
+    <div className="flex gap-3">
+      <Avatar className="size-7 shrink-0 bg-[#5b8cff]">
+        <AvatarFallback className="bg-[#5b8cff] text-white"><Sparkles className="size-3.5" /></AvatarFallback>
+      </Avatar>
+      <div className="min-w-0 flex-1">
+        <div className="mb-0.5 text-[12px] font-semibold text-indigo-700">Strategist</div>
+        {(m.thinkingSteps && m.thinkingSteps.length > 0) || m.isProcessing ? (
+          <AgentTrace steps={m.thinkingSteps || []} processing={!!m.isProcessing} />
+        ) : null}
+        {m.content ? <Bubble text={m.content} /> : null}
       </div>
     </div>
   );
 }
+

@@ -11,6 +11,34 @@ import {
 } from "@/lib/engine/useBackendTodos";
 import { useAgentRun } from "@/components/agent/AgentRun";
 import { useDashboard } from "@/lib/engine/DashboardContext";
+import { Monogram } from "@/components/ui/Monogram";
+
+// Per-row visual classification: a type icon (call / email / people / doc / flag)
+// derived from the to-do text + category, and a priority (high/med/low) from the
+// urgency field falling back to the category. Display-only — no behavior change.
+function rowKind(it: BackendTodoItem): { icon: "call" | "mail" | "people" | "doc" | "flag"; prio: "high" | "med" | "low" } {
+  const text = String(it.text || "").toLowerCase();
+  const cat = it.category;
+  let icon: "call" | "mail" | "people" | "doc" | "flag" = "doc";
+  if (/\bcall\b|phone|dial|\bring\b/.test(text)) icon = "call";
+  else if (/email|e-mail|\bsend\b|draft|reply|recap|follow[- ]?up|outreach|message/.test(text)) icon = "mail";
+  else if (/meet|workshop|demo|\bexec\b|stakeholder|champion|align|connect|\bintro\b|sponsor|\bmap\b/.test(text)) icon = "people";
+  else if (cat === "critical") icon = "flag";
+  const u = String((it.urgency as string) || "").toLowerCase();
+  let prio: "high" | "med" | "low" = cat === "critical" ? "high" : (cat === "important" || cat === "explicitRequirements") ? "med" : "low";
+  if (/high|critical|urgent|immediate/.test(u)) prio = "high";
+  else if (/\blow\b/.test(u)) prio = "low";
+  return { icon, prio };
+}
+
+function TypeIcon({ kind }: { kind: "call" | "mail" | "people" | "doc" | "flag" }) {
+  const p = { width: 15, height: 15, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  if (kind === "call") return <svg {...p}><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92Z" /></svg>;
+  if (kind === "mail") return <svg {...p}><rect x="2" y="4" width="20" height="16" rx="2" /><path d="m22 7-10 6L2 7" /></svg>;
+  if (kind === "people") return <svg {...p}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></svg>;
+  if (kind === "flag") return <svg {...p}><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" /><line x1="4" y1="22" x2="4" y2="15" /></svg>;
+  return <svg {...p}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /></svg>;
+}
 
 // SHARED to-do renderer — the single source of truth for how a deal's to-dos
 // look and behave. Used by BOTH the Espresso tab and the deal drawer, sourced
@@ -132,9 +160,13 @@ function TodoRow({
     );
   }
 
+  const k = rowKind(it);
+  const avatarName = String((it.intervention_owner as string) || (it.who as string) || ownerName || "");
+  const prioLabel = k.prio === "high" ? "High" : k.prio === "med" ? "Medium" : "Low";
   return (
     <li className={`todo-item ${isDone ? "done" : ""}`} key={`${it.todoKey || it.text}-${idx}`}>
       <input type="checkbox" checked={isDone} disabled={serverPushed} onChange={() => toggle(it.todoKey)} />
+      <span className={`td-ic ${k.prio}`} aria-hidden><TypeIcon kind={k.icon} /></span>
       <div className="td-body">
         <div className="td-txt">
           {it.text}
@@ -142,6 +174,8 @@ function TodoRow({
         </div>
         <ContextMeta it={it} />
       </div>
+      <span className={`prio ${k.prio}`} title={`${prioLabel} priority`}>{prioLabel}</span>
+      {avatarName ? <Monogram kind="person" name={avatarName} size={24} className="td-owner" /> : null}
       {canModify ? <button type="button" style={TD_ICONBTN} title="Edit this to-do" aria-label="Edit" onClick={openEdit}>Edit</button> : null}
       {canModify ? <button type="button" style={TD_ICONBTN} title="Delete this to-do" aria-label="Delete" disabled={busy} onClick={doDelete}>Delete</button> : null}
       <AgentButton it={it} ownerName={ownerName} />

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useDashboard } from "@/lib/engine/DashboardContext";
 import { aiLabel, fmtAmount, verdictTone, type Rec } from "@/lib/engine/helpers";
 import DealDrawer from "@/components/deals/DealDrawer";
+import { Monogram } from "@/components/ui/Monogram";
 
 // Columns are split so Verdict + AIS sit immediately after Opportunity.
 const LEAD_COLS: [string, string, number][] = [
@@ -81,6 +82,14 @@ export default function DealsPage() {
               const cell = ([k, , numeric]: [string, string, number]) => {
                 let v: any = h[k];
                 if (k === "amount") v = fmtAmount(v);
+                if (k === "account_name") return (
+                  <td key={k}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 9, minWidth: 0 }}>
+                      <Monogram name={h.account_name || r.opp_id} kind="account" size={26} />
+                      <span style={{ fontWeight: 600 }}>{v == null ? "—" : v}</span>
+                    </span>
+                  </td>
+                );
                 return <td key={k} className={numeric ? "num" : undefined}>{v == null ? "—" : v}</td>;
               };
               return (
