@@ -1,19 +1,19 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Global, always-available message dock for Espresso — a LinkedIn-style messaging
-// icon (top-right) that opens the list of deal AI conversations. Two views:
-//   • "Chats"   — every persisted deal conversation (mase_chats, "[deal:…]" rows),
-//                 most-recent first; click to reopen (loads saved history).
-//   • "Running" — deals an agent is actively working right now (in-session
-//                 registry); click to reconnect to the live run.
-// Conversations currently running show a live "working…" dot in the Chats list too.
-import React, { useCallback, useEffect, useRef, useState } from "react";
+// icon (top-right) that opens the list of deal AI conversations. The list shows every
+// persisted deal conversation (mase_chats, "[deal:…]" rows) most-recent first; click to
+// reopen (loads saved history). Conversations currently running show a live "working…"
+// dot inline.
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { MessageSquare, X, Loader2, Sparkles } from "lucide-react";
+import { MessageSquare, X, Loader2, Sparkles, Plus, Search } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { getRunning, subscribe, type RunningTask } from "@/lib/engine/dealAiBus";
 import { Monogram } from "@/components/ui/Monogram";
+import { useDashboard } from "@/lib/engine/DashboardContext";
+import { useDealAi } from "./DealAiProvider";
 import type { DealForAgent } from "./DealAgentPanel";
 
 interface DealConvo {
@@ -51,10 +51,15 @@ export default function DealChatsDock({ onOpen, open, onOpenChange, showButton =
   const supabaseRef = useRef(createClient());
   const supabase = supabaseRef.current;
   const router = useRouter();
-  const [tab, setTab] = useState<"chats" | "running">("chats");
+  const { records } = useDashboard();
+  const { openNewDeal } = useDealAi();
   const [convos, setConvos] = useState<DealConvo[]>([]);
   const [loading, setLoading] = useState(false);
   const [running, setRunningState] = useState<RunningTask[]>([]);
+  // "+ New chat" deal picker: a search box over the whole book; picking a deal
+  // starts an EMPTY deal chat (openNewDeal(deal, "") → "Complete tasks with AI" welcome).
+  const [picking, setPicking] = useState(false);
+  const [dealQuery, setDealQuery] = useState("");
 
   useEffect(() => {
     setRunningState(getRunning());
@@ -98,13 +103,42 @@ export default function DealChatsDock({ onOpen, open, onOpenChange, showButton =
     .filter((r) => !persistedKeys.has(r.convoKey))
     .map((r) => ({ id: r.convoKey, kind: "deal" as const, oid: r.oid, accountName: r.accountName, snippet: "Agent working…", updatedAt: new Date(r.startedAt).toISOString(), messages: [] }));
   const merged = [...orphanRunning, ...convos];
-  const shown = tab === "running" ? merged.filter((c) => runningByKey.has(c.id)) : merged;
+  const shown = merged;
 
   const handleOpen = (c: DealConvo) => {
     onOpenChange(false);
     if (c.kind === "chat") { router.push(`/chat/${c.id}`); return; } // strategist chat → /chat
     const run = runningByKey.get(c.id);
     onOpen(c.id, { oid: c.oid, accountName: c.accountName }, c.messages, run?.streamChatId);
+  };
+
+  // Deal search for "+ New chat": filter the book by account / opp name. Capped so
+  // the list stays light even when the query is empty (shows the first slice).
+  const dealResults = useMemo(() => {
+    const q = dealQuery.trim().toLowerCase();
+    const out: { oid: string; accountName: string; oppName?: string; ownerName?: string }[] = [];
+    const seen = new Set<string>();
+    for (const r of records) {
+      const h = (r as any).hard || {};
+      const oid = String((r as any).opp_id || h.opp_id || "");
+      if (!oid || seen.has(oid)) continue;
+      const accountName = String(h.account_name || "").trim();
+      const oppName = String(h.opp_name || "").trim();
+      const ownerName = String(h.owner_name || "").trim();
+      if (q && !`${accountName} ${oppName} ${ownerName}`.toLowerCase().includes(q)) continue;
+      seen.add(oid);
+      out.push({ oid, accountName: accountName || oppName || oid, oppName, ownerName });
+      if (out.length >= 60) break;
+    }
+    return out;
+  }, [records, dealQuery]);
+
+  const startDealChat = (d: { oid: string; accountName: string; oppName?: string; ownerName?: string }) => {
+    setPicking(false);
+    setDealQuery("");
+    onOpenChange(false);
+    // Empty-string seed → blank deal chat with the "Complete tasks with AI" welcome.
+    openNewDeal({ oid: d.oid, accountName: d.accountName, oppName: d.oppName, ownerName: d.ownerName }, "");
   };
 
   return (
@@ -132,31 +166,71 @@ export default function DealChatsDock({ onOpen, open, onOpenChange, showButton =
               <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                 <MessageSquare className="h-4 w-4" /> Conversations
               </div>
-              <button type="button" onClick={() => onOpenChange(false)} className="rounded-md p-1 text-muted-foreground transition hover:bg-muted hover:text-foreground">
-                <X className="h-4 w-4" />
-              </button>
-            </header>
-
-            <div className="flex gap-1 border-b border-border px-3 py-2">
-              {(["chats", "running"] as const).map((t) => (
+              <div className="flex items-center gap-1">
                 <button
-                  key={t}
-                  onClick={() => setTab(t)}
+                  type="button"
+                  onClick={() => { setPicking((p) => !p); setDealQuery(""); }}
+                  title="New chat"
+                  aria-label="New chat"
+                  aria-expanded={picking}
                   className={cn(
-                    "rounded-full px-3 py-1 text-xs font-medium transition",
-                    tab === t ? "bg-[#5b8cff] text-white" : "text-muted-foreground hover:bg-muted",
+                    "flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition",
+                    picking ? "bg-[#5277F0] text-white" : "text-[#5277F0] hover:bg-[#5277F0]/10",
                   )}
                 >
-                  {t === "chats" ? "Chats" : `Running${running.length ? ` (${running.length})` : ""}`}
+                  <Plus className="h-4 w-4" /> New chat
                 </button>
-              ))}
-            </div>
+                <button type="button" onClick={() => onOpenChange(false)} className="rounded-md p-1 text-muted-foreground transition hover:bg-muted hover:text-foreground">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </header>
 
+            {picking ? (
+              <div className="flex min-h-0 flex-1 flex-col">
+                <div className="px-3 py-2">
+                  <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 focus-within:border-[#5277F0] focus-within:ring-1 focus-within:ring-[#5277F0]">
+                    <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <input
+                      autoFocus
+                      value={dealQuery}
+                      onChange={(e) => setDealQuery(e.target.value)}
+                      placeholder="Search deals by account or opportunity…"
+                      className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+                    />
+                    {dealQuery ? (
+                      <button type="button" onClick={() => setDealQuery("")} className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground">
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+                <div className="min-h-0 flex-1 overflow-y-auto">
+                  {dealResults.length === 0 ? (
+                    <Empty text="No matching deals." />
+                  ) : (
+                    dealResults.map((d) => (
+                      <button
+                        key={d.oid}
+                        onClick={() => startDealChat(d)}
+                        className="flex w-full items-center gap-3 border-b border-border/60 px-4 py-2.5 text-left transition hover:bg-muted/60"
+                      >
+                        <Monogram name={d.accountName} kind="account" size={32} />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-medium text-foreground">{d.accountName}</span>
+                          {d.oppName ? <span className="mt-0.5 block truncate text-xs text-muted-foreground">{d.oppName}</span> : null}
+                        </span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            ) : (
             <div className="min-h-0 flex-1 overflow-y-auto">
-              {tab === "chats" && loading && convos.length === 0 ? (
+              {loading && convos.length === 0 ? (
                 <Empty text="Loading…" />
               ) : shown.length === 0 ? (
-                <Empty text={tab === "running" ? "No agents running right now." : "No deal conversations yet. Open a deal and hit ✦ AI."} />
+                <Empty text="No deal conversations yet. Open a deal and hit ✦ AI." />
               ) : (
                 shown.map((c) => {
                   const live = runningByKey.has(c.id);
@@ -189,6 +263,7 @@ export default function DealChatsDock({ onOpen, open, onOpenChange, showButton =
                 })
               )}
             </div>
+            )}
           </aside>
         </>
       ) : null}

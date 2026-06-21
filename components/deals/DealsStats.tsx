@@ -1,14 +1,10 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// Deals page header: stat cards + AI insights bar (mockup #38). Numbers are REAL,
-// computed from the currently-filtered book + the backend to-dos. Sparklines are
-// illustrative (we don't track historical pipeline yet) — shape only.
-import Link from "next/link";
+// Deals page header: stat cards (mockup #38). Numbers are REAL, computed from the
+// currently-filtered book. Sparklines are illustrative (we don't track historical
+// pipeline yet) — shape only.
 import { useDashboard } from "@/lib/engine/DashboardContext";
-import { fmtAmount, verdictTone } from "@/lib/engine/helpers";
-import { useBackendTodos } from "@/lib/engine/useBackendTodos";
-import { useTodoDone } from "@/lib/engine/useTodoDone";
-import { sfKey } from "@/components/deals/DealTodos";
+import { verdictTone } from "@/lib/engine/helpers";
 
 function fmtM(n: number): string {
   if (n >= 1e6) return "$" + (n / 1e6).toFixed(1).replace(/\.0$/, "") + "M";
@@ -27,22 +23,8 @@ function Spark({ color, up }: { color: string; up: boolean }) {
   );
 }
 
-function Insight({ icon, n, label, sub }: { icon: string; n: string | number; label: string; sub: string }) {
-  return (
-    <div className="dl-insight">
-      <span className="dl-ins-ic" aria-hidden>{icon}</span>
-      <div>
-        <div className="dl-ins-top"><b>{n}</b> {label}</div>
-        <div className="dl-ins-sub">{sub}</div>
-      </div>
-    </div>
-  );
-}
-
 export default function DealsStats() {
   const { filtered } = useDashboard();
-  const backend = useBackendTodos();
-  const { done } = useTodoDone();
 
   const recs = filtered;
   const amt = (r: any) => Number(r.hard?.amount) || 0;
@@ -59,18 +41,6 @@ export default function DealsStats() {
   const weight = (fc: string) => fc === "Commit" ? 0.9 : fc === "Best Case" ? 0.6 : fc === "Upside" ? 0.4 : fc === "Pipeline" ? 0.25 : 0.15;
   const weighted = recs.reduce((n, r) => n + amt(r) * weight(r.hard?.forecast_category), 0);
   const weightedPct = pipeline ? Math.round((weighted / pipeline) * 100) : 0;
-
-  // To-do based insights, scoped to the filtered deals.
-  const scope = new Set(recs.map((r: any) => sfKey(r.opp_id)));
-  const flat = backend.flat.filter((it) => scope.has(sfKey(it.opp_id)));
-  const todayMs = Date.parse(new Date().toISOString().slice(0, 10) + "T00:00:00");
-  const overdue = flat.filter((it) => { const d = (it.act_by || it.due) as string | undefined; const t = d ? Date.parse(d + "T00:00:00") : NaN; return !isNaN(t) && t < todayMs; }).length;
-  const actionsTotal = flat.length;
-  const completed = flat.filter((it) => backend.isPushed(it) || done.has(it.todoKey)).length;
-  const completedPct = actionsTotal ? Math.round((completed / actionsTotal) * 100) : 0;
-  const fcRisks = recs.filter((r: any) => r.ai?.north_star_verdict?.forecast_defensible === false);
-  const fcRiskAmt = fcRisks.reduce((n, r) => n + amt(r), 0);
-  const moved = recs.filter((r: any) => { const t = r.ai?.north_star_verdict?.trajectory; return t === "stronger" || t === "weaker"; }).length;
 
   return (
     <div className="dl-head">
@@ -97,15 +67,6 @@ export default function DealsStats() {
           <div className="dl-top">Weighted Forecast</div>
           <div className="dl-row"><div><div className="dl-big">{fmtM(weighted)}</div><div className="dl-sub">{weightedPct}% of pipeline</div></div><div className="dl-spark"><Spark color="#7c4dff" up /></div></div>
         </div>
-      </div>
-
-      <div className="dl-insights">
-        <div className="dl-ins-title"><span aria-hidden>✦</span> AI Insights</div>
-        <Insight icon="◆" n={atRiskRecs.length} label="Deals need attention" sub={`${overdue} overdue actions`} />
-        <Insight icon="◆" n={fcRisks.length} label="Forecast risks" sub={`${fmtAmount(fcRiskAmt)} potential impact`} />
-        <Insight icon="◆" n={moved} label="Verdict shifts" sub="AI detected this sweep" />
-        <Insight icon="◆" n={actionsTotal} label="Actions generated" sub={`${completedPct}% completed`} />
-        <Link href="/espresso" className="dl-ins-btn">View all insights</Link>
       </div>
     </div>
   );

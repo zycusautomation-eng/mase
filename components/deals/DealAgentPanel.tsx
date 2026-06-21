@@ -29,6 +29,17 @@ export interface DealForAgent { oid: string; accountName: string; oppName?: stri
 interface Step { type: "thinking" | "tool_call" | "tool_result"; tool?: string; args?: string; content?: string; group?: "todo" }
 interface Msg { role: "user" | "assistant"; content: string; thinkingSteps?: Step[]; isProcessing?: boolean; chatId?: string }
 
+// MASE 4-point sparkle star — the agent mark. Uses currentColor so it inherits the
+// avatar/header text color (white on the blue gradient).
+function MaseStar({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 144 164" fill="none" aria-hidden className={className}>
+      <path d="M72,20 Q72,82 126,80 Q72,82 72,144 Q72,82 18,80 Q72,82 72,20 Z" fill="currentColor" />
+      <path d="M120,30 Q120,48 138,48 Q120,48 120,66 Q120,48 102,48 Q120,48 120,30 Z" fill="currentColor" />
+    </svg>
+  );
+}
+
 function parseMeta(meta: any): any {
   if (!meta) return {};
   if (typeof meta === "string") { try { return JSON.parse(meta) || {}; } catch { return {}; } }
@@ -121,9 +132,8 @@ function TodoSubTrace({ steps, processing }: { steps: Step[]; processing: boolea
 }
 
 function AgentTrace({ steps, processing }: { steps: Step[]; processing: boolean }) {
-  const [open, setOpen] = useState(processing);
-  const wasProcessing = useRef(processing);
-  useEffect(() => { if (processing && !wasProcessing.current) setOpen(true); wasProcessing.current = processing; }, [processing]);
+  // Closed by default even while processing — the user expands to see the actions.
+  const [open, setOpen] = useState(false);
   if (!steps || steps.length === 0) {
     return processing ? <div className="mt-1 flex items-center gap-2 text-[13px] text-muted-foreground"><Dots /><span>Working…</span></div> : null;
   }
@@ -170,53 +180,104 @@ function buildAssistantTurn(rows: any[]): { content: string; steps: Step[]; term
 }
 
 // ── Interactive MCQ ─────────────────────────────────────────────────────────
-// The agent appends a hidden marker `<!--mase-choice {"options":[...],"multi":bool}-->`
-// when it wants the user to pick. It's an HTML comment → invisible in any client that
-// doesn't parse it (graceful for the live UI), and here we render clickable buttons.
-interface Choice { options: string[]; multi: boolean }
-const CHOICE_RE = /<!--\s*mase-choice\s*(\{[\s\S]*?\})\s*-->/i;
-function parseChoices(text: string): { text: string; choice: Choice | null } {
-  const m = CHOICE_RE.exec(text || "");
-  if (!m) return { text: text || "", choice: null };
-  let choice: Choice | null = null;
-  try {
-    const obj = JSON.parse(m[1]);
-    if (obj && Array.isArray(obj.options) && obj.options.length) {
-      choice = { options: obj.options.map((o: unknown) => String(o)).filter(Boolean), multi: !!obj.multi };
-    }
-  } catch { /* malformed → no buttons, just the text */ }
-  return { text: (text || "").replace(CHOICE_RE, "").trim(), choice };
+// The agent appends one or more hidden markers, ONE PER QUESTION:
+//   <!--mase-choice {"question":"...","options":[...],"multi":bool}-->
+// Each renders as an MCQ card. The marker is an HTML comment, so it's invisible in any
+// client that doesn't parse it (graceful for the live UI).
+interface Choice { question?: string; options: string[]; multi: boolean }
+const CHOICE_RE = /<!--\s*mase-choice\s*(\{[\s\S]*?\})\s*-->/gi;
+function parseChoices(text: string): { text: string; choices: Choice[] } {
+  const src = text || "";
+  const choices: Choice[] = [];
+  const re = new RegExp(CHOICE_RE.source, "gi");
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(src)) !== null) {
+    try {
+      const obj = JSON.parse(m[1]);
+      if (obj && Array.isArray(obj.options) && obj.options.length) {
+        choices.push({
+          question: typeof obj.question === "string" ? obj.question.trim() : undefined,
+          options: obj.options.map((o: unknown) => String(o)).filter(Boolean),
+          multi: !!obj.multi,
+        });
+      }
+    } catch { /* malformed marker → skip it */ }
+  }
+  return { text: src.replace(new RegExp(CHOICE_RE.source, "gi"), "").trim(), choices };
 }
 
-function ChoiceBlock({ choice, onAnswer, disabled }: { choice: Choice; onAnswer: (t: string) => void; disabled: boolean }) {
-  const [sel, setSel] = useState<string[]>([]);
-  if (choice.multi) {
-    const toggle = (o: string) => setSel((s) => (s.includes(o) ? s.filter((x) => x !== o) : [...s, o]));
-    return (
-      <div className="mt-2.5 flex flex-col gap-2">
-        <div className="flex flex-wrap gap-2">
-          {choice.options.map((o) => (
-            <button key={o} type="button" disabled={disabled} onClick={() => toggle(o)}
-              className={cn("rounded-full border px-3 py-1.5 text-[13px] font-medium transition disabled:opacity-50",
-                sel.includes(o) ? "border-[#5277F0] bg-[#5277F0] text-white" : "border-border bg-card text-foreground hover:border-[#5277F0]")}>
+// One MCQ card (question + its options). `selected` is controlled by the parent so a
+// multi-question group can submit all answers together.
+function ChoiceCard({ choice, index, total, selected, onSelect, onInstant, disabled }: {
+  choice: Choice; index: number; total: number; selected: string[];
+  onSelect: (vals: string[]) => void; onInstant?: (val: string) => void; disabled: boolean;
+}) {
+  const click = (o: string) => {
+    if (disabled) return;
+    if (choice.multi) onSelect(selected.includes(o) ? selected.filter((x) => x !== o) : [...selected, o]);
+    else if (onInstant) onInstant(o);   // single question, single-select → send right away
+    else onSelect([o]);                  // part of a multi-question group → just select
+  };
+  return (
+    <div className="rounded-xl border border-[#5277F0]/30 bg-[#5277F0]/[0.05] p-3">
+      <div className="mb-2 flex items-start gap-2">
+        {total > 1 ? (
+          <span className="mt-px grid size-[18px] shrink-0 place-items-center rounded-md bg-[#5277F0] text-[10px] font-bold text-white">{index + 1}</span>
+        ) : (
+          <Sparkles className="mt-0.5 size-3.5 shrink-0 text-[#5277F0]" />
+        )}
+        <span className="text-[13px] font-semibold leading-snug text-foreground">
+          {choice.question || (choice.multi ? "Select all that apply" : "Pick one")}
+        </span>
+        {choice.multi ? <span className="ml-auto whitespace-nowrap text-[11px] text-muted-foreground">choose any</span> : null}
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {choice.options.map((o) => {
+          const active = selected.includes(o);
+          return (
+            <button key={o} type="button" disabled={disabled} onClick={() => click(o)}
+              className={cn("rounded-lg border px-3 py-1.5 text-[13px] font-medium transition disabled:opacity-50",
+                active ? "border-[#5277F0] bg-[#5277F0] text-white shadow-sm"
+                       : "border-border bg-card text-foreground hover:border-[#5277F0] hover:bg-[#5277F0]/[0.06]")}>
               {o}
             </button>
-          ))}
-        </div>
-        <Button size="sm" className="self-start bg-gradient-to-br from-[#6E8BFF] to-[#5277F0] text-white hover:opacity-95" disabled={disabled || !sel.length} onClick={() => onAnswer(sel.join("; "))}>
-          Send{sel.length ? ` (${sel.length})` : ""}
-        </Button>
+          );
+        })}
       </div>
-    );
-  }
+    </div>
+  );
+}
+
+// Renders all MCQ cards in a message. A single single-select question sends on click;
+// multiple questions (or any multi-select) collect across cards and submit together.
+function ChoiceGroup({ choices, onAnswer, disabled }: { choices: Choice[]; onAnswer: (t: string) => void; disabled: boolean }) {
+  const [answers, setAnswers] = useState<string[][]>(() => choices.map(() => []));
+  const [sent, setSent] = useState(false);
+  const instant = choices.length === 1 && !choices[0].multi;
+  const allAnswered = answers.every((a) => a.length > 0);
+  const send = (text: string) => { if (disabled || sent || !text) return; setSent(true); onAnswer(text); };
+  const submitAll = () => {
+    if (!allAnswered) return;
+    const text = choices.length === 1
+      ? answers[0].join("; ")
+      : choices.map((c, i) => `${c.question || `Question ${i + 1}`} → ${answers[i].join(", ")}`).join("\n");
+    send(text);
+  };
   return (
-    <div className="mt-2.5 flex flex-wrap gap-2">
-      {choice.options.map((o) => (
-        <button key={o} type="button" disabled={disabled} onClick={() => onAnswer(o)}
-          className="rounded-full border border-border bg-card px-3 py-1.5 text-[13px] font-medium text-foreground transition hover:border-[#5277F0] disabled:opacity-50">
-          {o}
-        </button>
+    <div className="mt-3 flex flex-col gap-2.5">
+      {choices.map((c, i) => (
+        <ChoiceCard key={i} choice={c} index={i} total={choices.length}
+          selected={answers[i] || []}
+          onSelect={(vals) => setAnswers((a) => a.map((x, j) => (j === i ? vals : x)))}
+          onInstant={instant ? (v) => send(v) : undefined}
+          disabled={disabled || sent} />
       ))}
+      {!instant ? (
+        <Button size="sm" className="self-start bg-gradient-to-br from-[#6E8BFF] to-[#5277F0] text-white hover:opacity-95"
+          disabled={disabled || sent || !allAnswered} onClick={submitAll}>
+          {sent ? "Sent" : `Send${choices.length > 1 ? " answers" : ""}`}
+        </Button>
+      ) : null}
     </div>
   );
 }
@@ -233,7 +294,7 @@ function DealChatWelcome({ deal, onPick }: { deal: DealForAgent; onPick: (p: str
   ];
   return (
     <div className="flex flex-col items-center px-6 py-10 text-center">
-      <div className="mb-4 grid size-12 place-items-center rounded-2xl bg-gradient-to-br from-[#6E8BFF] to-[#5277F0] text-white shadow-lg"><Sparkles className="size-6" /></div>
+      <div className="mb-4 grid size-12 place-items-center rounded-2xl bg-gradient-to-br from-[#6E8BFF] to-[#5277F0] text-white shadow-lg"><MaseStar className="size-6" /></div>
       <h3 className="text-[17px] font-bold text-foreground">Complete tasks with AI</h3>
       <p className="mt-1.5 max-w-[360px] text-[13px] leading-relaxed text-muted-foreground">
         Let the agent do the legwork on {deal.accountName} — draft the emails, build the docs, line up references. Pick one to start, or just ask anything below.
@@ -455,20 +516,31 @@ export default function DealAgentPanel({ deal, onClose, onBack, convoKey, initia
             ) : (
               <div key={i} className="flex gap-3">
                 <Avatar className="size-7 shrink-0 bg-gradient-to-br from-[#6E8BFF] to-[#5277F0]">
-                  <AvatarFallback className="bg-transparent text-white"><Sparkles className="size-3.5" /></AvatarFallback>
+                  <AvatarFallback className="bg-transparent text-white"><MaseStar className="size-3.5" /></AvatarFallback>
                 </Avatar>
                 <div className="min-w-0 flex-1">
-                  <div className="mb-0.5 text-[12px] font-semibold text-indigo-700">Strategist</div>
+                  <div className="mb-0.5 text-[12px] font-semibold text-indigo-700">Jarvis</div>
                   {(m.thinkingSteps && m.thinkingSteps.length > 0) || m.isProcessing ? (
                     <AgentTrace steps={m.thinkingSteps || []} processing={!!m.isProcessing} />
                   ) : null}
                   {(() => {
-                    const { text, choice } = parseChoices(m.content);
+                    const parsed = parseChoices(m.content);
+                    let bubbleText = parsed.text;
+                    let effChoices = parsed.choices;
+                    // If a single question has no explicit "question" field, lift the
+                    // lead-in prose's last line into the card as its question (so it shows
+                    // INSIDE the card, not as loose prose above it).
+                    if (effChoices.length === 1 && !effChoices[0].question && bubbleText.trim()) {
+                      const lines = bubbleText.trim().split(/\n+/);
+                      const q = lines.pop() || "";
+                      effChoices = [{ ...effChoices[0], question: q }];
+                      bubbleText = lines.join("\n").trim();
+                    }
                     return (
                       <>
-                        {text ? <Bubble text={text} /> : null}
-                        {choice && i === convo.length - 1 && !busy ? (
-                          <ChoiceBlock choice={choice} disabled={busy} onAnswer={(t) => send(t)} />
+                        {bubbleText ? <Bubble text={bubbleText} /> : null}
+                        {effChoices.length > 0 && i === convo.length - 1 && !busy ? (
+                          <ChoiceGroup choices={effChoices} disabled={busy} onAnswer={(t) => send(t)} />
                         ) : null}
                       </>
                     );
