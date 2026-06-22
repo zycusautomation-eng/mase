@@ -6,6 +6,40 @@
 
 ---
 
+## 2026-06-22 — Auth: request Outlook mail scopes + capture per-user MS refresh token
+
+**What.** Two changes so MASE can send/draft/read email as the signed-in user from their own Outlook:
+1. **`app/login/page.tsx`** — the "Sign in with Microsoft" `signInWithOAuth` now requests
+   `offline_access`, `https://graph.microsoft.com/Mail.ReadWrite`, and
+   `https://graph.microsoft.com/Mail.Send` on top of `openid profile email`. Users see a
+   one-time Microsoft consent prompt for mail access on their next login.
+2. **`app/auth/callback/route.ts`** — after `exchangeCodeForSession`, the user's
+   `provider_refresh_token` is upserted into `public.user_ms_tokens` via a **service-role**
+   client (best-effort; a failure never blocks sign-in). That token is only present on the
+   session immediately after the OAuth exchange, so it must be captured here.
+
+**Why.** The backend Outlook MCP server (`outlook_send_mail` / `outlook_create_draft` /
+`outlook_list_messages` / `outlook_get_message` / `outlook_reply`) acts as the user via Graph
+`/me/...`, resolving `chat_id → chats.user_id → user_ms_tokens.refresh_token`. Without
+capturing the token here, the backend has nothing to send with.
+
+**Contract / backend.** Requires table `public.user_ms_tokens` (`user_id` pk, `refresh_token`,
+`scope`, `updated_at`; RLS on, service-role only) and admin consent on the Entra SSO app
+(`98489e0f…`) for delegated `Mail.ReadWrite` / `Mail.Send` / `offline_access`. **Existing users
+must sign in again** to grant the new scopes and have their token captured. Token is stored
+plaintext for now — encrypt-at-rest is a follow-up.
+
+**Also added — direct Outlook test surface (no chatbot):**
+- **`app/api/outlook/[[...path]]/route.ts`** — server-side proxy to the backend
+  `/api/outlook/*` endpoints; attaches the shared Bearer token and **injects the signed-in
+  user's Supabase id** (a user can only act as themselves; the browser can't impersonate).
+- **`app/(dashboard)/outlook-test/page.tsx`** — a page (route `/outlook-test`) with connection
+  status + a To/Subject/Body form and **Send / Create draft / List inbox** buttons that call the
+  backend Outlook logic directly (same code as the `outlook_*` MCP tools), bypassing the agent.
+  Backend endpoints: `GET /api/outlook/status|messages`, `POST /api/outlook/send|draft`.
+
+---
+
 ## 2026-06-20 — Proxy: fix "Couldn't save" on Next Step (timeout + author-as-rep)
 
 **What.** Two changes to the deal-engine proxy (`app/api/deal-engine/[[...path]]/route.ts`):
