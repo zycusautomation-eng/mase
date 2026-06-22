@@ -29,6 +29,15 @@ capturing the token here, the backend has nothing to send with.
 must sign in again** to grant the new scopes and have their token captured. Token is stored
 plaintext for now — encrypt-at-rest is a follow-up.
 
+**Also added — direct Outlook test surface (no chatbot):**
+- **`app/api/outlook/[[...path]]/route.ts`** — server-side proxy to the backend
+  `/api/outlook/*` endpoints; attaches the shared Bearer token and **injects the signed-in
+  user's Supabase id** (a user can only act as themselves; the browser can't impersonate).
+- **`app/(dashboard)/outlook-test/page.tsx`** — a page (route `/outlook-test`) with connection
+  status + a To/Subject/Body form and **Send / Create draft / List inbox** buttons that call the
+  backend Outlook logic directly (same code as the `outlook_*` MCP tools), bypassing the agent.
+  Backend endpoints: `GET /api/outlook/status|messages`, `POST /api/outlook/send|draft`.
+
 ---
 
 ## 2026-06-20 — Proxy: fix "Couldn't save" on Next Step (timeout + author-as-rep)
