@@ -12,6 +12,7 @@ import {
   type BackendTodoItem,
 } from "@/lib/engine/useBackendTodos";
 import { DealTodoBuckets, sfKey, type TodoSync, type Backend } from "@/components/deals/DealTodos";
+import { GooeyLoader } from "@/components/ui/loader-10";
 import { BulkPushBar } from "@/components/deals/BulkPushBar";
 import { type DealForAgent } from "@/components/deals/DealAgentPanel";
 import { Monogram } from "@/components/ui/Monogram";
@@ -130,7 +131,7 @@ export default function EspressoPage() {
     return { total: t, doneCount: d };
   }, [shown, done, backend]);
 
-  if (backend.loading && !backend.flat.length) return <div className="empty-s">Loading to-dos…</div>;
+  if (backend.loading && !backend.flat.length) return <div className="empty-s"><GooeyLoader primaryColor="#5277F0" secondaryColor="#7B9CFF" borderColor="#dbe2ee" /></div>;
   if (backend.error && !backend.flat.length) return <div className="empty-s">Couldn&apos;t load to-dos. {backend.error}</div>;
   if (!records.length) return <div className="empty-s">No swept records yet.</div>;
 

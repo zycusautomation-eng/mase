@@ -5,6 +5,7 @@ import { useDashboard } from "@/lib/engine/DashboardContext";
 import { aiLabel, fmtAmount, verdictTone, type Rec } from "@/lib/engine/helpers";
 import DealDrawer from "@/components/deals/DealDrawer";
 import { Monogram } from "@/components/ui/Monogram";
+import { GooeyLoader } from "@/components/ui/loader-10";
 
 // Columns are split so Verdict + AIS sit immediately after Opportunity.
 const LEAD_COLS: [string, string, number][] = [
@@ -47,7 +48,7 @@ export default function DealsPage() {
   const pageRows = rows.slice(start, start + PAGE_SIZE);
 
   if (loading && !rows.length) {
-    return <div className="empty">Loading deals…</div>;
+    return <div className="empty"><GooeyLoader primaryColor="#5277F0" secondaryColor="#7B9CFF" borderColor="#dbe2ee" /></div>;
   }
   if (!rows.length) {
     return <div className="empty">No opportunities match the current scope and filters.</div>;

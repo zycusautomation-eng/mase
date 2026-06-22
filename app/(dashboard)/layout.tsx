@@ -12,6 +12,7 @@ import { DealAiProvider } from "@/components/deals/DealAiProvider";
 import { AgentRunProvider } from "@/components/agent/AgentRun";
 import { SfdcProvider } from "@/components/sfdc/SfdcProvider";
 import { AccountLogosProvider } from "@/lib/engine/AccountLogosProvider";
+import { GooeyLoader } from "@/components/ui/loader-10";
 
 function Shell({ children }: { children: React.ReactNode }) {
   const { loading, error, blocked } = useDashboard();
@@ -75,7 +76,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             {error ? (
               <div className="empty">Couldn&apos;t load the book.<br /><br /><span className="err">{error}</span></div>
             ) : loading ? (
-              <div className="empty">Loading the book…</div>
+              <div className="empty"><GooeyLoader primaryColor="#5277F0" secondaryColor="#7B9CFF" borderColor="#dbe2ee" /></div>
             ) : blocked ? (
               <div className="empty">You don&apos;t have access to MASE.<br /><br /><span className="sub">This account isn&apos;t on the access list. If you believe this is a mistake, contact an admin.</span></div>
             ) : (
