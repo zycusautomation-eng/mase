@@ -8,7 +8,7 @@ import { useDashboard } from "@/lib/engine/DashboardContext";
 import { useDealAi } from "@/components/deals/DealAiProvider";
 
 export default function TopNav() {
-  const { query, setQuery } = useDashboard();
+  const { query, setQuery, isAdminView } = useDashboard();
   const { openDock } = useDealAi();
   const router = useRouter();
   const pathname = usePathname();
@@ -42,12 +42,17 @@ export default function TopNav() {
         />
         <span className="kbd">⌘K</span>
       </div>
-      <button type="button" className="mase-nav-ai" onClick={openDock} title="Ask AI — deal conversations">
-        <svg viewBox="0 0 24 24" fill="currentColor" width={15} height={15} aria-hidden>
-          <path d="M12 3l1.9 4.6L18.5 9.5 13.9 11.4 12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3Z" />
-        </svg>
-        Ask AI
-      </button>
+      {/* Ask AI opens the deal-conversation dock — the same surface as the
+          admin-only /chat route — so it is shown to admins only (and hidden
+          while an admin simulates a rep/VP, matching the sidebar gate). */}
+      {isAdminView ? (
+        <button type="button" className="mase-nav-ai" onClick={openDock} title="Ask AI — deal conversations">
+          <svg viewBox="0 0 24 24" fill="currentColor" width={15} height={15} aria-hidden>
+            <path d="M12 3l1.9 4.6L18.5 9.5 13.9 11.4 12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3Z" />
+          </svg>
+          Ask AI
+        </button>
+      ) : null}
     </div>
   );
 }

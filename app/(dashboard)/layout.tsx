@@ -12,7 +12,7 @@ import { DealAiProvider } from "@/components/deals/DealAiProvider";
 import { AgentRunProvider } from "@/components/agent/AgentRun";
 import { SfdcProvider } from "@/components/sfdc/SfdcProvider";
 import { AccountLogosProvider } from "@/lib/engine/AccountLogosProvider";
-import { GooeyLoader } from "@/components/ui/loader-10";
+import { PageLoader } from "@/components/ui/page-loader";
 
 function Shell({ children }: { children: React.ReactNode }) {
   const { loading, error, blocked } = useDashboard();
@@ -25,7 +25,10 @@ function Shell({ children }: { children: React.ReactNode }) {
   const onEspresso = pathname.startsWith("/espresso");
   const onChat = pathname.startsWith("/chat");
   // Per-tab accent hue: warm/coffee on Espresso, green on Matcha (bg stays white).
-  const tabTheme = onEspresso ? "theme-espresso" : pathname.startsWith("/matcha") ? "theme-matcha" : "";
+  const onMatcha = pathname.startsWith("/matcha");
+  const tabTheme = onEspresso ? "theme-espresso" : onMatcha ? "theme-matcha" : "";
+  // The book loader matches the active tab accent (coffee / green / blue).
+  const loaderTone = onEspresso ? "espresso" : onMatcha ? "matcha" : "blue";
 
   // Sticky offsets for the deal views. There is no global header anymore, so
   // --hdr-h is 0 (the espresso filter/tier bars read it and now pin to the top).
@@ -76,7 +79,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             {error ? (
               <div className="empty">Couldn&apos;t load the book.<br /><br /><span className="err">{error}</span></div>
             ) : loading ? (
-              <div className="empty"><GooeyLoader primaryColor="#5277F0" secondaryColor="#7B9CFF" borderColor="#dbe2ee" /></div>
+              <PageLoader label="Loading the book…" tone={loaderTone} />
             ) : blocked ? (
               <div className="empty">You don&apos;t have access to MASE.<br /><br /><span className="sub">This account isn&apos;t on the access list. If you believe this is a mistake, contact an admin.</span></div>
             ) : (

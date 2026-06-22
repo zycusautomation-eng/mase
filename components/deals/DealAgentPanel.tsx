@@ -209,8 +209,8 @@ function parseChoices(text: string): { text: string; choices: Choice[] } {
 
 // One self-contained MCQ card: header (optional muted title + bold question +
 // collapse chevron), radio/checkbox option rows, and a Skip / Send response footer.
-// Fixed dark styling so MASE and VIBE render IDENTICALLY (kept in sync with
-// VIBE's components/chat/ChoiceCards.tsx).
+// Light + compact, themed off the dashboard CSS vars (--accent/--surface/--line)
+// so it blends with the deal-AI panel and follows the active tab accent.
 function ChoiceCard({ choice, onAnswer, disabled }: {
   choice: Choice; onAnswer: (t: string) => void; disabled: boolean;
 }) {
@@ -226,56 +226,57 @@ function ChoiceCard({ choice, onAnswer, disabled }: {
   const sendResponse = () => { if (locked || !selected.length) return; setDone("sent"); onAnswer(selected.join(choice.multi ? ", " : "; ")); };
   const skip = () => { if (locked) return; setDone("skipped"); };
   return (
-    <div className="my-3 rounded-2xl border border-white/10 bg-[#1b1b1e] px-6 py-5 text-left shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div className="text-[15px] leading-snug">
-          {choice.title ? <span className="font-medium text-zinc-400">{choice.title} : </span> : null}
-          <span className="font-semibold text-white">
+    <div className="my-2 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-left shadow-sm">
+      <div className="flex items-start justify-between gap-2.5">
+        <div className="text-[13.5px] leading-snug">
+          {choice.title ? <span className="font-medium text-[var(--muted)]">{choice.title} : </span> : null}
+          <span className="font-semibold text-[var(--ink)]">
             {choice.question || (choice.multi ? "Select all that apply" : "Pick one")}
           </span>
         </div>
         <button type="button" onClick={() => setCollapsed((c) => !c)} aria-label={collapsed ? "Expand" : "Collapse"}
-          className="-mr-1 mt-0.5 shrink-0 rounded p-0.5 text-zinc-500 transition hover:text-zinc-300">
+          className="-mr-0.5 mt-0.5 shrink-0 rounded p-0.5 text-[var(--muted)] transition hover:text-[var(--ink)]">
           {collapsed ? <ChevronDown className="size-4" /> : <ChevronUp className="size-4" />}
         </button>
       </div>
       {!collapsed && (
         <>
           {done === "skipped" ? (
-            <div className="mt-3 text-[14px] text-zinc-500">Skipped</div>
+            <div className="mt-2 text-[12.5px] text-[var(--muted)]">Skipped</div>
           ) : (
-            <div className="mt-4 flex flex-col">
+            <div className="mt-2.5 flex flex-col gap-0.5">
               {choice.options.map((o) => {
                 const active = selected.includes(o);
                 return (
                   <button key={o} type="button" disabled={locked} onClick={() => toggle(o)}
-                    className={cn("flex items-center gap-3 rounded-lg px-2 py-2.5 text-left transition",
-                      locked ? "cursor-default" : "hover:bg-white/[0.04]",
+                    className={cn("flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition",
+                      locked ? "cursor-default" : "hover:bg-[var(--accent-soft)]",
                       done === "sent" && !active ? "opacity-40" : "")}>
-                    <span className={cn("grid h-5 w-5 shrink-0 place-items-center border-2 transition",
-                      choice.multi ? "rounded-[6px]" : "rounded-full",
-                      active ? "border-white" : "border-zinc-500")}>
-                      {active ? <span className={cn("bg-white", choice.multi ? "h-2.5 w-2.5 rounded-[2px]" : "h-2.5 w-2.5 rounded-full")} /> : null}
+                    <span className={cn("grid h-[17px] w-[17px] shrink-0 place-items-center border-2 transition",
+                      choice.multi ? "rounded-[5px]" : "rounded-full")}
+                      style={{ borderColor: active ? "var(--accent)" : "#c3cbd9" }}>
+                      {active ? <span className={choice.multi ? "h-2 w-2 rounded-[1px]" : "h-2 w-2 rounded-full"} style={{ background: "var(--accent)" }} /> : null}
                     </span>
-                    <span className="text-[15px] text-zinc-100">{o}</span>
+                    <span className="text-[13px] text-[var(--ink2)]">{o}</span>
                   </button>
                 );
               })}
             </div>
           )}
           {done === null ? (
-            <div className="mt-5 flex items-center justify-end gap-1">
+            <div className="mt-3 flex items-center justify-end gap-1">
               <button type="button" disabled={disabled} onClick={skip}
-                className="rounded-lg px-4 py-2 text-[15px] font-medium text-zinc-400 transition hover:text-white disabled:opacity-40">
+                className="rounded-lg px-3 py-1.5 text-[13px] font-medium text-[var(--muted)] transition hover:text-[var(--ink)] disabled:opacity-40">
                 Skip
               </button>
               <button type="button" disabled={disabled || !selected.length} onClick={sendResponse}
-                className="rounded-lg bg-white px-5 py-2 text-[15px] font-semibold text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-40">
+                className="rounded-lg px-4 py-1.5 text-[13px] font-semibold text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-40"
+                style={{ background: "var(--accent)" }}>
                 Send response
               </button>
             </div>
           ) : done === "sent" ? (
-            <div className="mt-3 text-[14px] text-zinc-400">Response sent</div>
+            <div className="mt-2 text-[12.5px] text-[var(--muted)]">Response sent</div>
           ) : null}
         </>
       )}
