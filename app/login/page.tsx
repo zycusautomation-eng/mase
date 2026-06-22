@@ -41,7 +41,13 @@ function LoginInner() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "azure",
       options: {
-        scopes: "openid profile email",
+        // Identity + delegated Graph mail scopes so MASE can send/draft/read
+        // from the signed-in user's own Outlook. offline_access yields a
+        // refresh token (captured in /auth/callback) for later server-side use.
+        scopes:
+          "openid profile email offline_access " +
+          "https://graph.microsoft.com/Mail.ReadWrite " +
+          "https://graph.microsoft.com/Mail.Send",
         redirectTo: `${window.location.origin}/auth/callback`,
       },
     });
