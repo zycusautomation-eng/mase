@@ -11,7 +11,7 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { ChevronDown, X, Sparkles, ArrowUp, ArrowLeft } from "lucide-react";
+import { ChevronDown, ChevronUp, X, Sparkles, ArrowUp, ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { setRunning, clearRunning } from "@/lib/engine/dealAiBus";
 import { cn } from "@/lib/utils";
@@ -184,7 +184,7 @@ function buildAssistantTurn(rows: any[]): { content: string; steps: Step[]; term
 //   <!--mase-choice {"question":"...","options":[...],"multi":bool}-->
 // Each renders as an MCQ card. The marker is an HTML comment, so it's invisible in any
 // client that doesn't parse it (graceful for the live UI).
-interface Choice { question?: string; options: string[]; multi: boolean }
+interface Choice { title?: string; question?: string; options: string[]; multi: boolean }
 const CHOICE_RE = /<!--\s*mase-choice\s*(\{[\s\S]*?\})\s*-->/gi;
 function parseChoices(text: string): { text: string; choices: Choice[] } {
   const src = text || "";
@@ -196,6 +196,7 @@ function parseChoices(text: string): { text: string; choices: Choice[] } {
       const obj = JSON.parse(m[1]);
       if (obj && Array.isArray(obj.options) && obj.options.length) {
         choices.push({
+          title: typeof obj.title === "string" ? obj.title.trim() : undefined,
           question: typeof obj.question === "string" ? obj.question.trim() : undefined,
           options: obj.options.map((o: unknown) => String(o)).filter(Boolean),
           multi: !!obj.multi,
@@ -206,78 +207,88 @@ function parseChoices(text: string): { text: string; choices: Choice[] } {
   return { text: src.replace(new RegExp(CHOICE_RE.source, "gi"), "").trim(), choices };
 }
 
-// One MCQ card (question + its options). `selected` is controlled by the parent so a
-// multi-question group can submit all answers together.
-function ChoiceCard({ choice, index, total, selected, onSelect, onInstant, disabled }: {
-  choice: Choice; index: number; total: number; selected: string[];
-  onSelect: (vals: string[]) => void; onInstant?: (val: string) => void; disabled: boolean;
+// One self-contained MCQ card: header (optional muted title + bold question +
+// collapse chevron), radio/checkbox option rows, and a Skip / Send response footer.
+// Fixed dark styling so MASE and VIBE render IDENTICALLY (kept in sync with
+// VIBE's components/chat/ChoiceCards.tsx).
+function ChoiceCard({ choice, onAnswer, disabled }: {
+  choice: Choice; onAnswer: (t: string) => void; disabled: boolean;
 }) {
-  const click = (o: string) => {
-    if (disabled) return;
-    if (choice.multi) onSelect(selected.includes(o) ? selected.filter((x) => x !== o) : [...selected, o]);
-    else if (onInstant) onInstant(o);   // single question, single-select → send right away
-    else onSelect([o]);                  // part of a multi-question group → just select
+  const [selected, setSelected] = useState<string[]>([]);
+  const [done, setDone] = useState<null | "sent" | "skipped">(null);
+  const [collapsed, setCollapsed] = useState(false);
+  const locked = disabled || done !== null;
+  const toggle = (o: string) => {
+    if (locked) return;
+    if (choice.multi) setSelected((s) => (s.includes(o) ? s.filter((x) => x !== o) : [...s, o]));
+    else setSelected([o]);
   };
+  const sendResponse = () => { if (locked || !selected.length) return; setDone("sent"); onAnswer(selected.join(choice.multi ? ", " : "; ")); };
+  const skip = () => { if (locked) return; setDone("skipped"); };
   return (
-    <div className="rounded-xl border border-[#5277F0]/30 bg-[#5277F0]/[0.05] p-3">
-      <div className="mb-2 flex items-start gap-2">
-        {total > 1 ? (
-          <span className="mt-px grid size-[18px] shrink-0 place-items-center rounded-md bg-[#5277F0] text-[10px] font-bold text-white">{index + 1}</span>
-        ) : (
-          <Sparkles className="mt-0.5 size-3.5 shrink-0 text-[#5277F0]" />
-        )}
-        <span className="text-[13px] font-semibold leading-snug text-foreground">
-          {choice.question || (choice.multi ? "Select all that apply" : "Pick one")}
-        </span>
-        {choice.multi ? <span className="ml-auto whitespace-nowrap text-[11px] text-muted-foreground">choose any</span> : null}
+    <div className="my-3 rounded-2xl border border-white/10 bg-[#1b1b1e] px-6 py-5 text-left shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="text-[15px] leading-snug">
+          {choice.title ? <span className="font-medium text-zinc-400">{choice.title} : </span> : null}
+          <span className="font-semibold text-white">
+            {choice.question || (choice.multi ? "Select all that apply" : "Pick one")}
+          </span>
+        </div>
+        <button type="button" onClick={() => setCollapsed((c) => !c)} aria-label={collapsed ? "Expand" : "Collapse"}
+          className="-mr-1 mt-0.5 shrink-0 rounded p-0.5 text-zinc-500 transition hover:text-zinc-300">
+          {collapsed ? <ChevronDown className="size-4" /> : <ChevronUp className="size-4" />}
+        </button>
       </div>
-      <div className="flex flex-wrap gap-1.5">
-        {choice.options.map((o) => {
-          const active = selected.includes(o);
-          return (
-            <button key={o} type="button" disabled={disabled} onClick={() => click(o)}
-              className={cn("rounded-lg border px-3 py-1.5 text-[13px] font-medium transition disabled:opacity-50",
-                active ? "border-[#5277F0] bg-[#5277F0] text-white shadow-sm"
-                       : "border-border bg-card text-foreground hover:border-[#5277F0] hover:bg-[#5277F0]/[0.06]")}>
-              {o}
-            </button>
-          );
-        })}
-      </div>
+      {!collapsed && (
+        <>
+          {done === "skipped" ? (
+            <div className="mt-3 text-[14px] text-zinc-500">Skipped</div>
+          ) : (
+            <div className="mt-4 flex flex-col">
+              {choice.options.map((o) => {
+                const active = selected.includes(o);
+                return (
+                  <button key={o} type="button" disabled={locked} onClick={() => toggle(o)}
+                    className={cn("flex items-center gap-3 rounded-lg px-2 py-2.5 text-left transition",
+                      locked ? "cursor-default" : "hover:bg-white/[0.04]",
+                      done === "sent" && !active ? "opacity-40" : "")}>
+                    <span className={cn("grid h-5 w-5 shrink-0 place-items-center border-2 transition",
+                      choice.multi ? "rounded-[6px]" : "rounded-full",
+                      active ? "border-white" : "border-zinc-500")}>
+                      {active ? <span className={cn("bg-white", choice.multi ? "h-2.5 w-2.5 rounded-[2px]" : "h-2.5 w-2.5 rounded-full")} /> : null}
+                    </span>
+                    <span className="text-[15px] text-zinc-100">{o}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {done === null ? (
+            <div className="mt-5 flex items-center justify-end gap-1">
+              <button type="button" disabled={disabled} onClick={skip}
+                className="rounded-lg px-4 py-2 text-[15px] font-medium text-zinc-400 transition hover:text-white disabled:opacity-40">
+                Skip
+              </button>
+              <button type="button" disabled={disabled || !selected.length} onClick={sendResponse}
+                className="rounded-lg bg-white px-5 py-2 text-[15px] font-semibold text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-40">
+                Send response
+              </button>
+            </div>
+          ) : done === "sent" ? (
+            <div className="mt-3 text-[14px] text-zinc-400">Response sent</div>
+          ) : null}
+        </>
+      )}
     </div>
   );
 }
 
-// Renders all MCQ cards in a message. A single single-select question sends on click;
-// multiple questions (or any multi-select) collect across cards and submit together.
+// Renders every MCQ card in a message, stacked. Each card is self-contained
+// (its own selection + Skip + Send response).
 function ChoiceGroup({ choices, onAnswer, disabled }: { choices: Choice[]; onAnswer: (t: string) => void; disabled: boolean }) {
-  const [answers, setAnswers] = useState<string[][]>(() => choices.map(() => []));
-  const [sent, setSent] = useState(false);
-  const instant = choices.length === 1 && !choices[0].multi;
-  const allAnswered = answers.every((a) => a.length > 0);
-  const send = (text: string) => { if (disabled || sent || !text) return; setSent(true); onAnswer(text); };
-  const submitAll = () => {
-    if (!allAnswered) return;
-    const text = choices.length === 1
-      ? answers[0].join("; ")
-      : choices.map((c, i) => `${c.question || `Question ${i + 1}`} → ${answers[i].join(", ")}`).join("\n");
-    send(text);
-  };
   return (
-    <div className="mt-3 flex flex-col gap-2.5">
-      {choices.map((c, i) => (
-        <ChoiceCard key={i} choice={c} index={i} total={choices.length}
-          selected={answers[i] || []}
-          onSelect={(vals) => setAnswers((a) => a.map((x, j) => (j === i ? vals : x)))}
-          onInstant={instant ? (v) => send(v) : undefined}
-          disabled={disabled || sent} />
-      ))}
-      {!instant ? (
-        <Button size="sm" className="self-start bg-gradient-to-br from-[#6E8BFF] to-[#5277F0] text-white hover:opacity-95"
-          disabled={disabled || sent || !allAnswered} onClick={submitAll}>
-          {sent ? "Sent" : `Send${choices.length > 1 ? " answers" : ""}`}
-        </Button>
-      ) : null}
+    <div className="flex flex-col">
+      {choices.map((c, i) => <ChoiceCard key={i} choice={c} onAnswer={onAnswer} disabled={disabled} />)}
     </div>
   );
 }
