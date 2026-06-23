@@ -20,8 +20,6 @@ import { Monogram } from "@/components/ui/Monogram";
 import { useDealAi } from "@/components/deals/DealAiProvider";
 import { pulseChip, type PulseLike } from "@/lib/engine/pulse";
 
-const TABS = ["Overview", "Action plan", "Timeline", "Stakeholders", "Insights"] as const;
-type Tab = (typeof TABS)[number];
 const words = (s: any, n: number) => cleanText(s).split(/\s+/).filter(Boolean).slice(0, n).join(" ");
 
 // Log a new update on the opportunity, to ONE of three destinations: a completed
@@ -95,7 +93,6 @@ export default function DealDetailView({ rec, variant = "page", onClose }: { rec
   const sync = useTodoSync();
   const backend = useBackendTodos();
   const { openNewDeal } = useDealAi();
-  const [tab, setTab] = useState<Tab>("Overview");
 
   const h = rec.hard || {}, ai = rec.ai || {};
   const dealForAi = { oid: rec.opp_id, accountName: h.account_name || rec.opp_id, oppName: h.opp_name, ownerName: h.owner_name };
@@ -174,132 +171,125 @@ export default function DealDetailView({ rec, variant = "page", onClose }: { rec
         </div>
       </div>
 
-      <div className="dp-tabs">
-        {TABS.map((t) => (
-          <button key={t} type="button" className={`dp-tab ${tab === t ? "active" : ""}`} onClick={() => setTab(t)}>
-            {t}{t === "Action plan" && todoCount ? <span className="dp-tabc">{todoCount}</span> : null}
-          </button>
-        ))}
-      </div>
-
       <div className={`dp-grid ${variant === "drawer" ? "dp-grid-compact" : ""}`}>
         <div className="dp-main">
-          {tab === "Overview" ? (
-            <>
-              <div className="card dp-ai">
-                <div className="dp-card-h">
-                  <h3 className="dp-ai-h">✦ AI Summary</h3>
-                  <div className="dp-ai-chips">
-                    {verdict.verdict ? <span className={`chip ${vt}`}>{verdict.verdict}</span> : null}
-                    {pchip ? <span className="dp-pulse" title={pchip.title} style={{ background: pchip.color }}>{pchip.label}</span> : null}
-                    {verdict.forecast_defensible === false && recFcCat ? <span className="duechip heavy" title={`Recommend ${recFcRaw}`}>Forecast → {recFcCat}</span> : null}
-                  </div>
-                </div>
-                {pchip && pulse?.summary ? <div className="dp-pulse-line">Pulse — {pulse.summary}</div> : null}
-                {riskSummary ? <div className="dp-ai-alert">⚠ {riskSummary}</div> : null}
-                {riskCats.length ? <div className="dp-riskcats">{riskCats.slice(0, 6).map((c) => <span key={c} className="duechip heavy">{c.replace(/_/g, " ")}</span>)}</div> : null}
-                {(verdict.headline || verdict.math) ? <div className="body" style={{ margin: "0 0 12px" }}>{cleanText(verdict.headline || verdict.math)}</div> : null}
-                {!riskSummary && !verdict.headline && !verdict.math ? <div className="body">No AI summary yet.</div> : null}
-                <div className="dp-ai-grid">
-                  <div><div className="k">Verdict</div><div className="v">{verdict.verdict || "—"}</div></div>
-                  <div><div className="k">Main blocker</div><div className="v">{openVulns[0] ? words(openVulns[0].category || openVulns[0].detail, 5).replace(/_/g, " ") : "—"}</div></div>
-                  <div><div className="k">Impact</div><div className="v">{fmtAmount(h.amount)} at stake</div></div>
-                  <div><div className="k">Recommended next step</div><div className="v">{topMove ? words(topMove.action, 8) : "—"}</div></div>
-                  <div><div className="k">Confidence</div><div className="v">{rec.analysis_confidence || "—"}</div></div>
-                </div>
+          {/* Single scroll — every section once, top to bottom. */}
+          <div className="card dp-ai">
+            <div className="dp-card-h">
+              <h3 className="dp-ai-h">✦ AI Summary</h3>
+              <div className="dp-ai-chips">
+                {verdict.verdict ? <span className={`chip ${vt}`}>{verdict.verdict}</span> : null}
+                {pchip ? <span className="dp-pulse" title={pchip.title} style={{ background: pchip.color }}>{pchip.label}</span> : null}
+                {verdict.forecast_defensible === false && recFcCat ? <span className="duechip heavy" title={`Recommend ${recFcRaw}`}>Forecast → {recFcCat}</span> : null}
               </div>
-              <div className="card">
-                <div className="dp-card-h"><h3>Action plan{tier ? <span className="dp-sub"> · {tier.label.split(" —")[0]}</span> : null}</h3>{todoCount > 4 ? <button className="dp-link" type="button" onClick={() => setTab("Action plan")}>View all →</button> : null}</div>
-                {backend.loading && !backend.flat.length ? <div className="body">Loading to-dos…</div>
-                  : buckets.length ? <DealTodoBuckets buckets={buckets} ownerName={h.owner_name} done={done} toggle={toggle} sync={sync} backend={backend} />
-                    : <div className="body">No open to-dos for this deal.</div>}
-              </div>
-            </>
-          ) : null}
+            </div>
+            {pchip && pulse?.summary ? <div className="dp-pulse-line">Pulse — {pulse.summary}</div> : null}
+            {riskSummary ? <div className="dp-ai-alert">⚠ {riskSummary}</div> : null}
+            {riskCats.length ? <div className="dp-riskcats">{riskCats.slice(0, 6).map((c) => <span key={c} className="duechip heavy">{c.replace(/_/g, " ")}</span>)}</div> : null}
+            {(verdict.headline || verdict.math) ? <div className="body" style={{ margin: "0 0 12px" }}>{cleanText(verdict.headline || verdict.math)}</div> : null}
+            {!riskSummary && !verdict.headline && !verdict.math ? <div className="body">No AI summary yet.</div> : null}
+            <div className="dp-ai-grid">
+              <div><div className="k">Verdict</div><div className="v">{verdict.verdict || "—"}</div></div>
+              <div><div className="k">Main blocker</div><div className="v">{openVulns[0] ? words(openVulns[0].category || openVulns[0].detail, 5).replace(/_/g, " ") : "—"}</div></div>
+              <div><div className="k">Impact</div><div className="v">{fmtAmount(h.amount)} at stake</div></div>
+              <div><div className="k">Recommended next step</div><div className="v">{topMove ? words(topMove.action, 8) : "—"}</div></div>
+              <div><div className="k">Confidence</div><div className="v">{rec.analysis_confidence || "—"}</div></div>
+            </div>
+          </div>
 
-          {tab === "Action plan" ? (
-            <div className="card">
-              <h3>Action plan{tier ? <span className="dp-sub"> · {tier.label.split(" —")[0]}</span> : null}</h3>
-              {backend.loading && !backend.flat.length ? <div className="body">Loading to-dos…</div>
-                : buckets.length ? <DealTodoBuckets buckets={buckets} ownerName={h.owner_name} done={done} toggle={toggle} sync={sync} backend={backend} />
-                  : <div className="body">No open to-dos for this deal.</div>}
+          {/* Action plan — the 4 buckets, ONCE */}
+          <div className="card">
+            <h3>Action plan{tier ? <span className="dp-sub"> · {tier.label.split(" —")[0]}</span> : null}{todoCount ? <span className="dp-tabc">{todoCount}</span> : null}</h3>
+            {backend.loading && !backend.flat.length ? <div className="body">Loading to-dos…</div>
+              : buckets.length ? <DealTodoBuckets buckets={buckets} ownerName={h.owner_name} done={done} toggle={toggle} sync={sync} backend={backend} />
+                : <div className="body">No open to-dos for this deal.</div>}
+          </div>
+
+          {/* Recently completed */}
+          <div className="card">
+            <h3>Recently completed</h3>
+            {completed.length ? (
+              <ul className="todo-list">
+                {completed.slice(0, 12).map((d: any, i: number) => (
+                  <li className="todo-item done" key={i}>
+                    <span style={{ color: "#0F9D6B", fontWeight: 700, marginRight: 4 }}>✓</span>
+                    <div className="td-body">
+                      <div className="td-txt">{cleanText(d.commitment)}</div>
+                      <div className="td-meta">{d.who ? <span className="ownerchip">{d.who}</span> : null}{(d.date || d.due) ? <span className="ownerchip">{d.date || d.due}</span> : null}{d.source ? <span className="td-meta">{cleanText(d.source)}</span> : null}</div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : <div className="body">Nothing logged yet.</div>}
+            <AddUpdateForm oppId={rec.opp_id} backend={backend} />
+          </div>
+
+          {/* Champion */}
+          {(champ.champion || champ.summary) ? (
+            <div className="card"><h3>Champion</h3>
+              <div style={{ marginBottom: 4 }}>
+                {champ.champion ? <span className="ownerchip vp">{champ.champion}</span> : null}
+                {champ.strength ? <span className={`duechip ${champ.at_risk ? "heavy" : ""}`}>{champ.strength}</span> : null}
+                {champ.trajectory ? <span className="ownerchip" title="Relationship trajectory vs the last read">{champ.trajectory === "strengthening" ? "▲ strengthening" : champ.trajectory === "weakening" ? "▼ weakening" : "▬ steady"}</span> : null}
+              </div>
+              {champ.summary ? <div className="body">{words(champ.summary, 90)}</div> : null}
+              {champ.alternate_champion && champ.alternate_champion.name ? (
+                <div className="td-meta" style={{ marginTop: 6 }}><b>Develop an alternate:</b> {champ.alternate_champion.name}{champ.alternate_champion.title ? ` (${champ.alternate_champion.title})` : ""}{champ.alternate_champion.why ? ` — ${words(champ.alternate_champion.why, 25)}` : ""}</div>
+              ) : null}
             </div>
           ) : null}
 
-          {tab === "Timeline" ? (
-            <div className="card">
-              <h3>Recently completed</h3>
-              {completed.length ? (
-                <ul className="todo-list">
-                  {completed.slice(0, 12).map((d: any, i: number) => (
-                    <li className="todo-item done" key={i}>
-                      <span style={{ color: "#0F9D6B", fontWeight: 700, marginRight: 4 }}>✓</span>
-                      <div className="td-body">
-                        <div className="td-txt">{cleanText(d.commitment)}</div>
-                        <div className="td-meta">{d.who ? <span className="ownerchip">{d.who}</span> : null}{(d.date || d.due) ? <span className="ownerchip">{d.date || d.due}</span> : null}{d.source ? <span className="td-meta">{cleanText(d.source)}</span> : null}</div>
-                      </div>
-                    </li>
+          {/* AI Excitement */}
+          {(aiCategory || aiWhy) ? (
+            <div className="card"><h3>AI Excitement</h3>
+              <div style={{ marginBottom: 6 }}>{aiCategory ? <span className="chip v-on">{aiCategory}</span> : null}{aiScore ? <span className="ownerchip" style={{ marginLeft: 6 }}>{aiScore}</span> : null}</div>
+              {aiWhy ? <div className="body">{words(aiWhy, 120)}</div> : null}
+              {(fit.baseline || fit.latest) ? (
+                <div className="td-meta" style={{ marginTop: 6 }}>{fit.baseline ? <span><b>Started:</b> {words(fit.baseline, 30)} </span> : null}{fit.latest ? <span><b>Now:</b> {words(fit.latest, 30)}</span> : null}</div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {/* Stakeholders & MEDDPICC */}
+          <div className="card">
+            <h3>Stakeholders &amp; MEDDPICC</h3>
+            {stake.length ? (
+              <table className="itab" style={{ marginBottom: 12 }}>
+                <thead><tr><th>Name</th><th>Role</th><th>Read</th></tr></thead>
+                <tbody>
+                  {stake.map((s: any, i: number) => (
+                    <tr key={i}>
+                      <td className="owner"><span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}><Monogram name={s.name || "?"} kind="person" size={24} />{s.name}</span>{s.title ? <div className="td-meta">{s.title}</div> : null}</td>
+                      <td>{s.role || "—"}</td>
+                      <td>{cleanText(s.sentiment)}{s.risk ? <div className="td-meta" style={{ marginTop: 3 }}>⚠ {cleanText(s.risk)}</div> : null}{s.last_contact_date ? <div className="td-meta">last contact {s.last_contact_date}</div> : null}</td>
+                    </tr>
                   ))}
-                </ul>
-              ) : <div className="body">Nothing logged yet.</div>}
-              <AddUpdateForm oppId={rec.opp_id} backend={backend} />
+                </tbody>
+              </table>
+            ) : <div className="body" style={{ marginBottom: 10 }}>No stakeholders mapped yet.</div>}
+            <div className="medd">
+              <div className="medd-row">{medd.map((m) => <span key={m.dim} className={`medd-chip ${m.state}`} title={m.note}>{m.dim}</span>)}</div>
+              <ul className="medd-gaps">{medd.filter((m) => m.state !== "have").map((m) => <li key={m.dim}><b>{m.dim}:</b> {m.note}</li>)}</ul>
             </div>
-          ) : null}
+          </div>
 
-          {tab === "Stakeholders" ? (
-            <div className="card">
-              <h3>Stakeholders &amp; MEDDPICC</h3>
-              {stake.length ? (
-                <table className="itab" style={{ marginBottom: 12 }}>
-                  <thead><tr><th>Name</th><th>Role</th><th>Read</th></tr></thead>
-                  <tbody>
-                    {stake.map((s: any, i: number) => (
-                      <tr key={i}>
-                        <td className="owner"><span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}><Monogram name={s.name || "?"} kind="person" size={24} />{s.name}</span>{s.title ? <div className="td-meta">{s.title}</div> : null}</td>
-                        <td>{s.role || "—"}</td>
-                        <td>{cleanText(s.sentiment)}{s.risk ? <div className="td-meta" style={{ marginTop: 3 }}>⚠ {cleanText(s.risk)}</div> : null}{s.last_contact_date ? <div className="td-meta">last contact {s.last_contact_date}</div> : null}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : <div className="body" style={{ marginBottom: 10 }}>No stakeholders mapped yet.</div>}
-              <div className="medd">
-                <div className="medd-row">{medd.map((m) => <span key={m.dim} className={`medd-chip ${m.state}`} title={m.note}>{m.dim}</span>)}</div>
-                <ul className="medd-gaps">{medd.filter((m) => m.state !== "have").map((m) => <li key={m.dim}><b>{m.dim}:</b> {m.note}</li>)}</ul>
+          {/* Competition */}
+          <div className="card"><h3>Competition</h3>
+            {compPos.summary ? <div className="body" style={{ marginBottom: competitors.length ? 10 : 0 }}>{words(compPos.summary, 120)}</div> : null}
+            {competitors.length ? competitors.map((c: any, i: number) => (
+              <div key={i} style={{ padding: "7px 0", borderTop: i ? "1px solid var(--line)" : "none" }}>
+                <span className="ownerchip vp">{c.name}</span>
+                {c.threat_level ? <span className={`chip ${c.threat_level === "high" ? "v-off" : c.threat_level === "medium" ? "v-risk" : ""}`} style={{ marginLeft: 6 }}>{String(c.threat_level)} threat</span> : null}
+                {c.how_we_win ? <div className="body" style={{ marginTop: 3 }}><b>How we win:</b> {cleanText(c.how_we_win)}</div> : null}
               </div>
+            )) : (dealComps(h).length ? <div>{dealComps(h).map((c) => <span key={c} className="chip" style={{ marginRight: 6 }}>{c}</span>)}</div> : (!compPos.summary ? <div className="body">None logged.</div> : null))}
+          </div>
+
+          {/* Open risks */}
+          {openVulns.length ? (
+            <div className="card"><h3>Open risks</h3>
+              <ul className="medd-gaps" style={{ paddingLeft: 18 }}>{openVulns.slice(0, 6).map((v: any, i: number) => <li key={i}><b>{String(v.category || "risk").replace(/_/g, " ")}:</b> {words(v.detail, 30)}</li>)}</ul>
             </div>
-          ) : null}
-
-          {tab === "Insights" ? (
-            <>
-              {(champ.champion || champ.summary) ? (
-                <div className="card"><h3>Champion</h3>
-                  <div style={{ marginBottom: 4 }}>{champ.champion ? <span className="ownerchip vp">{champ.champion}</span> : null}{champ.strength ? <span className={`duechip ${champ.at_risk ? "heavy" : ""}`}>{champ.strength}</span> : null}</div>
-                  {champ.summary ? <div className="body">{words(champ.summary, 90)}</div> : null}
-                </div>
-              ) : null}
-              {(aiCategory || aiWhy) ? (
-                <div className="card"><h3>AI Excitement</h3>
-                  <div style={{ marginBottom: 6 }}>{aiCategory ? <span className="chip v-on">{aiCategory}</span> : null}{aiScore ? <span className="ownerchip" style={{ marginLeft: 6 }}>{aiScore}</span> : null}</div>
-                  {aiWhy ? <div className="body">{words(aiWhy, 120)}</div> : null}
-                </div>
-              ) : null}
-              <div className="card"><h3>Competition</h3>
-                {compPos.summary ? <div className="body" style={{ marginBottom: competitors.length ? 10 : 0 }}>{words(compPos.summary, 120)}</div> : null}
-                {competitors.length ? competitors.map((c: any, i: number) => (
-                  <div key={i} style={{ padding: "7px 0", borderTop: i ? "1px solid var(--line)" : "none" }}>
-                    <span className="ownerchip vp">{c.name}</span>
-                    {c.threat_level ? <span className={`chip ${c.threat_level === "high" ? "v-off" : c.threat_level === "medium" ? "v-risk" : ""}`} style={{ marginLeft: 6 }}>{String(c.threat_level)} threat</span> : null}
-                    {c.how_we_win ? <div className="body" style={{ marginTop: 3 }}><b>How we win:</b> {cleanText(c.how_we_win)}</div> : null}
-                  </div>
-                )) : (dealComps(h).length ? <div>{dealComps(h).map((c) => <span key={c} className="chip" style={{ marginRight: 6 }}>{c}</span>)}</div> : (!compPos.summary ? <div className="body">None logged.</div> : null))}
-              </div>
-              {openVulns.length ? (
-                <div className="card"><h3>Open risks</h3>
-                  <ul className="medd-gaps" style={{ paddingLeft: 18 }}>{openVulns.slice(0, 6).map((v: any, i: number) => <li key={i}><b>{String(v.category || "risk").replace(/_/g, " ")}:</b> {words(v.detail, 30)}</li>)}</ul>
-                </div>
-              ) : null}
-            </>
           ) : null}
           {/* Bulk push: pushes every ticked-but-unpushed to-do for this deal at once (any tab). */}
           <BulkPushBar items={buckets.flatMap((bk) => bk.items)} done={done} sync={sync} backend={backend} ownerOf={() => h.owner_name} />

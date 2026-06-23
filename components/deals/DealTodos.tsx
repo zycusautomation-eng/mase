@@ -83,26 +83,72 @@ export function bucketsForOpp(flat: BackendTodoItem[], oppId: any): TodoBucket[]
     .filter((b) => b.items.length > 0);
 }
 
-// Which rolling horizon a next-move falls in: prefer the backend `horizon` tag;
-// otherwise derive from the (always-future) due date. Everything lands in one of
-// the three windows so no move is hidden — the board is re-planned daily.
-type Horizon = "next_7_days" | "next_14_days" | "next_30_days";
-const HORIZON_ORDER: Horizon[] = ["next_7_days", "next_14_days", "next_30_days"];
-const HORIZON_LABEL: Record<Horizon, string> = {
-  next_7_days: "Next 7 days", next_14_days: "Next 14 days", next_30_days: "Next 30 days",
-};
-function horizonOf(it: BackendTodoItem): Horizon {
-  const tag = String((it.horizon as string) || "").toLowerCase();
-  if (tag.includes("7")) return "next_7_days";
-  if (tag.includes("14")) return "next_14_days";
-  if (tag.includes("30")) return "next_30_days";
-  const di = dueInfo(it);
-  if (di?.dueBy) {
-    const days = Math.round((Date.parse(di.dueBy + "T00:00:00Z") - Date.parse(todayISO() + "T00:00:00Z")) / 86400000);
-    if (days <= 7) return "next_7_days";
-    if (days <= 14) return "next_14_days";
+// The 4 VP-facing display buckets. Each backend to-do keeps its own `category`
+// (so Edit / Delete / Salesforce push are unchanged); for PRESENTATION it is
+// mapped to one of these. Commitments split by `who`: ours -> Next phase, the
+// buyer's -> Waiting on the buyer.
+export const DISPLAY_BUCKET_META = {
+  prospect:     { label: "Prospect requirements", tone: "impt",  blurb: "What the prospect has asked of us, still open." },
+  next:         { label: "Next phase",            tone: "moves", blurb: "The most important things to do to move the deal." },
+  buyerOwed:    { label: "Waiting on the buyer",  tone: "impl",  blurb: "What the prospect owes us." },
+  bestPractice: { label: "Best practices",        tone: "bpr",   blurb: "From experience, plays that move the outcome." },
+} as const;
+export type DisplayBucketKey = keyof typeof DISPLAY_BUCKET_META;
+const DISPLAY_ORDER: DisplayBucketKey[] = ["prospect", "next", "buyerOwed", "bestPractice"];
+const TOP_N = 5; // only the best to the table; the rest are one click away.
+
+// Buyer-side commitment? Anything not clearly ours (mirrors the backend's
+// who-normalisation, so "Publicis legal" lands under Waiting-on-the-buyer).
+function isBuyerSide(who: unknown): boolean {
+  const w = String(who || "").trim().toLowerCase();
+  if (!w) return false;
+  return !/(zycus|seller|^we\b|^us\b|\bour\b)/.test(w);
+}
+function displayBucketOf(it: BackendTodoItem): DisplayBucketKey {
+  if (it.category === "explicitRequirements") return "prospect";
+  if (it.category === "bestPractice") return "bestPractice";
+  if (it.category === "important") return isBuyerSide(it.who) ? "buyerOwed" : "next";
+  return "next"; // critical (next moves) + implicit (deliverables we promised)
+}
+
+// --- Club homogeneous to-dos (mirror of the backend de-duplicator) ---
+// Collapse near-duplicate items (same theme) into ONE, so a bucket shows the
+// distinct asks, not many phrasings of the same thing. Keeps the longest /
+// most-specific text as the representative. Display-only — every item keeps its
+// own todo_key, so the rep stays editable/pushable.
+const CLUB_STOP = new Set(
+  ("the a an to of for and or by on in with is are be we our us they their them this that at as it its from per " +
+   "not yet no new revised first second third fourth round version send sending provide schedule scheduling secure " +
+   "finalize finalise ensure confirm get make push start begin complete address answer come back return due open " +
+   "overdue still again also now asap week next early late end month before after").split(" "));
+function clubSig(text: string): Set<string> {
+  const t = String(text || "").toLowerCase()
+    .replace(/\d{4}-\d{2}-\d{2}/g, " ")
+    .replace(/\b\d{1,2}\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\b/g, " ")
+    .replace(/\bof[12]\b/g, "orderform")
+    .replace(/[^a-z\s]/g, " ");
+  return new Set(t.split(/\s+/).filter((w) => w.length > 2 && !CLUB_STOP.has(w)));
+}
+function clubItems(items: BackendTodoItem[]): BackendTodoItem[] {
+  const clusters: { sig: Set<string>; rep: BackendTodoItem }[] = [];
+  for (const it of items) {
+    const sig = clubSig(it.text);
+    let placed = false;
+    for (const c of clusters) {
+      let inter = 0;
+      for (const x of sig) if (c.sig.has(x)) inter++;
+      const need = Math.min(2, sig.size, c.sig.size);
+      const overlap = sig.size && c.sig.size ? inter / Math.min(sig.size, c.sig.size) : 0;
+      if (inter >= need && overlap >= 0.5) {
+        for (const x of sig) c.sig.add(x);
+        if (String(it.text || "").length > String(c.rep.text || "").length) c.rep = it;
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) clusters.push({ sig, rep: it });
   }
-  return "next_30_days";
+  return clusters.map((c) => c.rep);
 }
 
 const TD_ICONBTN: React.CSSProperties = {
@@ -184,9 +230,12 @@ function TodoRow({
   );
 }
 
-// Renders the category buckets for one deal. The "critical / next moves" bucket is
-// split into rolling 7 / 14 / 30-day horizons so there is always a clear plan for
-// each window; other buckets render flat.
+// Renders the 4 VP-facing buckets for one deal. Whatever the caller passes (the
+// 5 backend categories) is flattened, re-grouped into Prospect requirements /
+// Next phase / Waiting on the buyer / Best practices, CLUBBED (homogeneous items
+// collapsed to one), then each bucket capped to the top few (rest behind "Show
+// all"). Items keep their backend category, so Edit / Delete / Salesforce push
+// are unchanged.
 export function DealTodoBuckets({
   buckets, ownerName, done, toggle, sync, backend,
 }: {
@@ -208,39 +257,44 @@ export function DealTodoBuckets({
         if (!ed) return it;
         return { ...it, text: ed.text, edited: true, ...(ed.due ? { due: ed.due, act_by: ed.due } : {}) };
       });
+  const grouped: Record<DisplayBucketKey, BackendTodoItem[]> = { prospect: [], next: [], buyerOwed: [], bestPractice: [] };
+  for (const it of effItems(buckets.flatMap((b) => b.items))) grouped[displayBucketOf(it)].push(it);
+  for (const k of DISPLAY_ORDER) grouped[k] = clubItems(grouped[k]); // collapse homogeneous within each bucket
   return (
     <>
-      {buckets.map((bk) => {
-        const meta = CATEGORY_META[bk.category];
-        const items = effItems(bk.items);
-        if (!items.length) return null;
-        if (bk.category === "critical") {
-          const groups: Record<Horizon, BackendTodoItem[]> = { next_7_days: [], next_14_days: [], next_30_days: [] };
-          items.forEach((it) => groups[horizonOf(it)].push(it));
-          return (
-            <div key={bk.category}>
-              <div className={`todo-grp ${meta.tone}`}>{meta.label} <span className="c">{items.length}</span></div>
-              {HORIZON_ORDER.filter((hz) => groups[hz].length).map((hz) => (
-                <div key={hz}>
-                  <div className="td-meta" style={{ margin: "7px 0 2px", fontWeight: 600, color: "var(--accent)" }}>{HORIZON_LABEL[hz]}</div>
-                  <ul className="todo-list">
-                    {groups[hz].map((it, idx) => <TodoRow key={`${it.todoKey || it.text}-${idx}`} it={it} idx={idx} {...rowProps} />)}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          );
-        }
-        return (
-          <div key={bk.category}>
-            <div className={`todo-grp ${meta.tone}`}>{meta.label} <span className="c">{items.length}</span></div>
-            <ul className="todo-list">
-              {items.map((it, idx) => <TodoRow key={`${it.todoKey || it.text}-${idx}`} it={it} idx={idx} {...rowProps} />)}
-            </ul>
-          </div>
-        );
-      })}
+      {DISPLAY_ORDER.map((key) =>
+        grouped[key].length ? <BucketBlock key={key} bucketKey={key} items={grouped[key]} rowProps={rowProps} /> : null,
+      )}
     </>
+  );
+}
+
+// One display bucket: header + blurb, the top TOP_N rows, then a "Show all" toggle.
+function BucketBlock({
+  bucketKey, items, rowProps,
+}: {
+  bucketKey: DisplayBucketKey;
+  items: BackendTodoItem[];
+  rowProps: { ownerName?: string; done: Set<string>; toggle: (id: string) => void; sync: TodoSync; backend: Backend };
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const meta = DISPLAY_BUCKET_META[bucketKey];
+  const shown = expanded ? items : items.slice(0, TOP_N);
+  const hidden = items.length - shown.length;
+  return (
+    <div style={{ marginBottom: 6 }}>
+      <div className={`todo-grp ${meta.tone}`}>{meta.label} <span className="c">{items.length}</span></div>
+      <div className="td-meta" style={{ margin: "0 0 4px", color: "var(--muted,#7E8DA1)" }}>{meta.blurb}</div>
+      <ul className="todo-list">
+        {shown.map((it, idx) => <TodoRow key={`${it.todoKey || it.text}-${idx}`} it={it} idx={idx} {...rowProps} />)}
+      </ul>
+      {hidden > 0 ? (
+        <button type="button" style={TD_ICONBTN} onClick={() => setExpanded(true)}>Show all {items.length} ↓</button>
+      ) : null}
+      {expanded && items.length > TOP_N ? (
+        <button type="button" style={TD_ICONBTN} onClick={() => setExpanded(false)}>Show top {TOP_N} ↑</button>
+      ) : null}
+    </div>
   );
 }
 
