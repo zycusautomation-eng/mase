@@ -22,6 +22,19 @@ import { pulseChip, type PulseLike } from "@/lib/engine/pulse";
 
 const words = (s: any, n: number) => cleanText(s).split(/\s+/).filter(Boolean).slice(0, n).join(" ");
 
+// "Analysed <date>" badge for the top bar — when the deal record was last swept by the
+// AI engine (rec.swept_at). Shows a readable date + a relative hint ("3d ago"); hides
+// entirely if the record has no swept_at. Future-dated outliers get no relative hint.
+function fmtAnalysed(s?: string): { label: string; rel: string } | null {
+  if (!s) return null;
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return { label: String(s), rel: "" };
+  const label = d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+  const n = daysSince(s);
+  const rel = n == null || n < 0 ? "" : n === 0 ? "today" : n === 1 ? "yesterday" : `${n}d ago`;
+  return { label, rel };
+}
+
 // Log a new update on the opportunity, to ONE of three destinations: a completed
 // Salesforce Task (default, original behaviour), an OPEN to-do (MASE row + open SF
 // Task), or an append on the Next Step trail. The rep picks the destination + a date;
@@ -95,6 +108,7 @@ export default function DealDetailView({ rec, variant = "page", onClose }: { rec
   const { openNewDeal } = useDealAi();
 
   const h = rec.hard || {}, ai = rec.ai || {};
+  const analysed = fmtAnalysed(rec.swept_at);
   const dealForAi = { oid: rec.opp_id, accountName: h.account_name || rec.opp_id, oppName: h.opp_name, ownerName: h.owner_name };
   const verdict = ai.north_star_verdict || {};
   const vt = verdictTone(verdict.verdict);
@@ -144,7 +158,14 @@ export default function DealDetailView({ rec, variant = "page", onClose }: { rec
         {variant === "drawer"
           ? <button type="button" className="dp-back" onClick={onClose}>← Close</button>
           : <Link href="/deals" className="dp-back">← Deals</Link>}
-        <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
+          {analysed ? (
+            <span title={`Last analysed ${rec.swept_at}`} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "3px 10px", borderRadius: 999, border: "1px solid var(--line)", fontSize: 12, color: "var(--muted, #6b7280)", whiteSpace: "nowrap" }}>
+              <span style={{ opacity: 0.75 }}>✦ Analysed</span>
+              <strong style={{ fontWeight: 600, color: "var(--text, inherit)" }}>{analysed.label}</strong>
+              {analysed.rel ? <span style={{ opacity: 0.75 }}>· {analysed.rel}</span> : null}
+            </span>
+          ) : null}
           {variant === "drawer" ? <Link href={`/deals/${encodeURIComponent(rec.opp_id)}`} className="dp-action">Full page →</Link> : null}
           {h.sf_link ? <a className="dp-action" href={h.sf_link} target="_blank" rel="noreferrer">Salesforce ↗</a> : null}
           <button type="button" className="dp-action primary" onClick={() => openNewDeal(dealForAi)} title="Complete this deal's tasks with AI">✦ Ask AI</button>

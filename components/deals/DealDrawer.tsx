@@ -5,7 +5,7 @@
 // the drawer and the full page are identical — just narrower (single-column grid).
 import { useEffect, useState } from "react";
 import { type Rec } from "@/lib/engine/helpers";
-import DealDetailView from "@/components/deals/DealDetailView";
+import DealDrawerView from "@/components/deals/DealDrawerView";
 
 export default function DealDrawer({
   record, onClose,
@@ -33,11 +33,7 @@ export default function DealDrawer({
     <>
       <div className={`overlay ${open ? "open" : ""}`} onClick={onClose} />
       <aside className={`drawer ${open ? "open" : ""}`}>
-        {rec ? (
-          <div className="dp-drawerbody">
-            <DealDetailView rec={rec} variant="drawer" onClose={onClose} />
-          </div>
-        ) : null}
+        {rec ? <DealDrawerView rec={rec} onClose={onClose} /> : null}
       </aside>
     </>
   );
