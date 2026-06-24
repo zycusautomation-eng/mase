@@ -77,12 +77,40 @@ function isChatPath(path?: string[]): boolean {
   return !!path && path.length >= 1 && path[0] === "chat";
 }
 
+// The bulk/per-opp sweep rerun trigger (Admin -> Execution "Rerun sweeps"). It
+// enqueues sweeps for a selection (all / failed / by owner / by forecast / one opp),
+// so it is a WRITE and must be admin-only. POST /api/deal-engine/sweep/rerun. The
+// backend trusts the shared token, so this proxy is the real gate.
+function isSweepRerunPath(path?: string[]): boolean {
+  return !!path && path.length === 2 && path[0] === "sweep" && path[1] === "rerun";
+}
+
 async function callerIsAdmin(): Promise<boolean> {
   try {
     const supabase = await createClient();
-    const { data } = await supabase.auth.getUser();
-    return ADMIN_EMAILS.has((data.user?.email || "").toLowerCase());
-  } catch {
+    // Primary: getUser() validates the access token against the Supabase auth
+    // server. On Vercel that round-trip can come back empty when the access token
+    // has expired and the edge middleware (which deliberately does NOT refresh —
+    // see lib/supabase/middleware.ts) left it stale, which wrongly locks out a
+    // real admin whose browser session is still valid.
+    const { data: u, error } = await supabase.auth.getUser();
+    let email = u?.user?.email ?? null;
+    // Fallback: read the email off the signed session JWT in the cookie (no auth
+    // server round-trip). This is a feature gate over a backend that is itself
+    // token-authed, so trusting the httpOnly Supabase cookie here is acceptable —
+    // it only decides whether to forward, never grants backend access on its own.
+    if (!email) {
+      const { data: s } = await supabase.auth.getSession();
+      email = s?.session?.user?.email ?? null;
+    }
+    if (!email) {
+      console.warn("[deal-engine proxy] callerIsAdmin: no user/session resolved",
+        error?.message || "");
+    }
+    return ADMIN_EMAILS.has((email || "").toLowerCase());
+  } catch (e) {
+    console.error("[deal-engine proxy] callerIsAdmin threw:",
+      e instanceof Error ? e.message : String(e));
     return false;
   }
 }
@@ -152,7 +180,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   // Admin-only writes: the team-wide system prompts (chat/sweep + the todo-runner),
   // Learning Observatory mutations, and knowledge uploads. The backend trusts the
   // shared token, so this proxy is the real gate.
-  if ((isPromptPath(path) || isTodoRunnerPromptPath(path) || isLearningsWritePath(path) || isKnowledgePath(path) || isChatPath(path))
+  if ((isPromptPath(path) || isTodoRunnerPromptPath(path) || isLearningsWritePath(path) || isKnowledgePath(path) || isChatPath(path) || isSweepRerunPath(path))
       && !(await callerIsAdmin())) {
     return NextResponse.json({ error: "Admin only." }, { status: 403 });
   }

@@ -1,8 +1,10 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useDashboard } from "@/lib/engine/DashboardContext";
-import { ADMIN_EMAILS } from "@/lib/engine/helpers";
+import { ADMIN_EMAILS, uniqSorted, type Rec } from "@/lib/engine/helpers";
+import { DatalakeSyncCard } from "@/components/admin/DatalakeSyncCard";
+import RunSweepSection from "@/components/admin/RunSweepSection";
 
 // Admin → Agent Control. The single place admins manage MASE's agents: KNOWLEDGE
 // (uploaded docs), the TODO RUNNER prompt, the DEAL SWEEP prompt, EXECUTION (runs +
@@ -49,7 +51,7 @@ export default function AdminPage() {
 }
 
 function AdminInner() {
-  const [tab, setTab] = useState<"docs" | "todorunner" | "sweep" | "chat" | "execution" | "access">("docs");
+  const [tab, setTab] = useState<"docs" | "todorunner" | "sweep" | "runsweep" | "chat" | "execution" | "access">("docs");
   const [dealCount, setDealCount] = useState<number | null>(null);
   useEffect(() => {
     let off = false;
@@ -71,7 +73,7 @@ function AdminInner() {
         </div>
       </div>
       <div className="admin-tabs">
-        {([["docs", "Knowledge"], ["todorunner", "Todo Runner"], ["sweep", "Deal Sweep"], ["chat", "Chat Agent"], ["execution", "Execution"], ["access", "Access & Config"]] as const).map(([k, label]) => (
+        {([["docs", "Knowledge"], ["todorunner", "Todo Runner"], ["sweep", "Deal Sweep"], ["runsweep", "Run Sweep"], ["chat", "Chat Agent"], ["execution", "Execution"], ["access", "Access & Config"]] as const).map(([k, label]) => (
           <button key={k} className={`admin-tab ${tab === k ? "active" : ""}`} onClick={() => setTab(k)}>{label}</button>
         ))}
       </div>
@@ -79,6 +81,7 @@ function AdminInner() {
         {tab === "docs" && <DocumentsSection />}
         {tab === "todorunner" && <TodoRunnerSection />}
         {tab === "sweep" && <SweepPromptSection />}
+        {tab === "runsweep" && <RunSweepSection />}
         {tab === "chat" && <ChatAgentSection />}
         {tab === "execution" && <ExecutionSection />}
         {tab === "access" && <AccessSection />}
@@ -481,6 +484,133 @@ const TR_STATUS: Record<string, { label: string; color?: string }> = {
   running: { label: "running…" },
 };
 
+// Rerun the Deal Intelligence sweep for a selection. Mirrors the backend
+// POST /api/deal-engine/sweep/rerun selectors (exactly one of: all | failed | by
+// forecast category | by owner | one opp). Enqueues into the same queue the worker
+// drains (datalake + temporal anchoring); the worker AUTOSCALER sizes the fleet to
+// the backlog, so nobody scales workers by hand. The forecast/owner option lists are
+// the real values from the tracked book (record.hard.forecast_category / owner_name),
+// so they match what the backend filters on. Admin-gated at the proxy.
+type RerunScope = "failed" | "all" | "forecast" | "owner" | "opp";
+const FIELD_STYLE: CSSProperties = {
+  font: "inherit", fontSize: 13, padding: "8px 10px", borderRadius: 8,
+  border: "1px solid var(--line)", background: "var(--surface2)", color: "var(--ink)",
+};
+function RerunCard({ onDone }: { onDone: () => void }) {
+  const { records } = useDashboard();
+  const [scope, setScope] = useState<RerunScope>("failed");
+  const [value, setValue] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+
+  const forecastOpts = useMemo(
+    () => (uniqSorted((records as Rec[]).map((r) => (r.hard || {}).forecast_category)) as string[]).filter(Boolean),
+    [records]
+  );
+  const ownerOpts = useMemo(
+    () => (uniqSorted((records as Rec[]).map((r) => (r.hard || {}).owner_name)) as string[]).filter(Boolean),
+    [records]
+  );
+
+  const needsValue = scope === "forecast" || scope === "owner" || scope === "opp";
+  const canRun = !busy && (!needsValue || value.trim().length > 0);
+  const v = value.trim();
+  const label =
+    scope === "all" ? "ALL tracked deals" :
+    scope === "failed" ? "all failed runs" :
+    scope === "forecast" ? `forecast “${v}”` :
+    scope === "owner" ? `${v}’s book` :
+    `opp ${v}`;
+
+  function body(): Record<string, unknown> | null {
+    if (scope === "all") return { all: true };
+    if (scope === "failed") return { status: "failed" };
+    if (!v) return null;
+    if (scope === "forecast") return { forecast: v };
+    if (scope === "owner") return { owner: v };
+    return { opp_id: v };
+  }
+
+  async function run() {
+    const b = body();
+    if (!b) return;
+    // Confirm the broad selections — they can enqueue hundreds of sweeps.
+    const broad = scope === "all" || scope === "owner" || scope === "forecast";
+    if (broad && !confirm(`Rerun the sweep for ${label}? The worker fleet autoscales to the backlog.`)) return;
+    setBusy(true); setResult(null);
+    try {
+      const r = await fetch("/api/deal-engine/sweep/rerun", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(b),
+      });
+      const j = await r.json().catch(() => ({}));
+      // 409 = a book sweep is already in flight; 400 = bad selector; 403 = not admin.
+      if (!r.ok) throw new Error(j?.error || `Failed (${r.status})`);
+      const n = typeof j?.count === "number" ? `${j.count} deal${j.count === 1 ? "" : "s"} queued` : "accepted";
+      setResult({ kind: "ok", text: `Queued — ${label} (${n}). Workers autoscaling to the backlog…` });
+      onDone();
+    } catch (e) {
+      setResult({ kind: "err", text: e instanceof Error ? e.message : "Rerun failed" });
+    }
+    setBusy(false);
+  }
+
+  return (
+    <div className="admin-card">
+      <h3>Rerun sweeps</h3>
+      <p className="admin-desc">
+        Re-run the Deal Intelligence sweep for a selection. It enqueues into the same
+        queue the worker drains (datalake Avoma + temporal anchoring); the worker{" "}
+        <b>autoscaler sizes the fleet automatically</b> — you never scale workers by hand.
+      </p>
+      <div className="admin-actions" style={{ flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+        <select
+          style={FIELD_STYLE}
+          value={scope}
+          onChange={(e) => { setScope(e.target.value as RerunScope); setValue(""); setResult(null); }}
+        >
+          <option value="failed">Failed runs only</option>
+          <option value="all">All tracked deals</option>
+          <option value="forecast">By forecast category</option>
+          <option value="owner">By owner</option>
+          <option value="opp">One opportunity</option>
+        </select>
+
+        {scope === "forecast" && (
+          <select style={FIELD_STYLE} value={value} onChange={(e) => setValue(e.target.value)}>
+            <option value="">Select forecast…</option>
+            {forecastOpts.map((o) => <option key={o} value={o}>{o}</option>)}
+          </select>
+        )}
+        {scope === "owner" && (
+          <select style={FIELD_STYLE} value={value} onChange={(e) => setValue(e.target.value)}>
+            <option value="">Select owner…</option>
+            {ownerOpts.map((o) => <option key={o} value={o}>{o}</option>)}
+          </select>
+        )}
+        {scope === "opp" && (
+          <input
+            style={{ ...FIELD_STYLE, minWidth: 240 }}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder="006… Opportunity id"
+          />
+        )}
+
+        <button className="admin-btn primary" onClick={run} disabled={!canRun}>
+          {busy ? "Queuing…" : "↻ Rerun"}
+        </button>
+      </div>
+      {result && (
+        <div className="admin-meta" style={{ marginTop: 10, color: result.kind === "err" ? "var(--red-ink)" : "var(--green-ink)" }}>
+          {result.text}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ExecutionSection() {
   const [sweep, setSweep] = useState<any>(null);
   const [logs, setLogs] = useState<any[]>([]);
@@ -512,6 +642,12 @@ function ExecutionSection() {
       <div className="admin-actions" style={{ marginBottom: 12 }}>
         <button className="admin-btn" onClick={load} disabled={loading}>{loading ? "Refreshing…" : "↻ Refresh both"}</button>
       </div>
+
+      {/* Rerun sweeps — bulk / filtered / per-opp, autoscaled */}
+      <RerunCard onDone={load} />
+
+      {/* Avoma → Datalake transcript sync (logging view) */}
+      <DatalakeSyncCard />
 
       {/* Deal Sweep agent runs */}
       <div className="admin-card">
