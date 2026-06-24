@@ -52,7 +52,7 @@ const UPDATE_DESTS = {
 } as const;
 type UpdateDest = keyof typeof UPDATE_DESTS;
 
-function AddUpdateForm({ oppId, backend }: { oppId: string; backend: ReturnType<typeof useBackendTodos> }) {
+export function AddUpdateForm({ oppId, backend }: { oppId: string; backend: ReturnType<typeof useBackendTodos> }) {
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState("");
   const [destination, setDestination] = useState<UpdateDest>("completed");

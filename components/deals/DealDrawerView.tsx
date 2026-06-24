@@ -8,6 +8,8 @@ import { useMemo, useState } from "react";
 import { fmtAmount, daysSince, type Rec } from "@/lib/engine/helpers";
 import { useDealAi } from "@/components/deals/DealAiProvider";
 import { Monogram } from "@/components/ui/Monogram";
+import { useBackendTodos } from "@/lib/engine/useBackendTodos";
+import { AddUpdateForm } from "@/components/deals/DealDetailView";
 
 const CSS = `
 .ddw{
@@ -203,6 +205,7 @@ const fmtDate = (s: any) => { if (!s) return ""; const d = new Date(s); return i
 
 export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: () => void }) {
   const { openNewDeal } = useDealAi();
+  const backend = useBackendTodos();
   const [tab, setTab] = useState<"action" | "intel" | "people">("action");
   const [filter, setFilter] = useState<string>("all");
   const [checked, setChecked] = useState<Record<string, boolean>>({});
@@ -460,6 +463,12 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
                 <button key={f} className={`fchip ${filter === f ? "active" : ""}`} onClick={() => setFilter(f)}>{col ? <span className="dot" style={{ background: col }} /> : null}{label}</button>
               ))}
             </div>
+          </div>
+
+          <div className="card card-pad mb14">
+            <div className="ic-title" style={{ marginBottom: 4 }}>☁ Log to Salesforce</div>
+            <div className="ic-body" style={{ color: "var(--ink-faint)", marginBottom: 2 }}>Write a completed task, an open to-do, or a Next Step straight to this opportunity in Salesforce.</div>
+            <AddUpdateForm oppId={rec.opp_id} backend={backend} />
           </div>
 
           {buckets.map((b, bi) => {
