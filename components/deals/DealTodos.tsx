@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from "react";
-import { ownerKind } from "@/lib/engine/helpers";
+import { ownerKind, clipWords } from "@/lib/engine/helpers";
 import { useTodoSync, type SyncStatus } from "@/lib/engine/useTodoSync";
 import {
   useBackendTodos,
@@ -231,7 +231,7 @@ function TodoRow({
       <span className={`td-ic ${k.prio}`} aria-hidden><TypeIcon kind={k.icon} /></span>
       <div className="td-body">
         <div className="td-txt">
-          {it.text}
+          {clipWords(it.text, 18)}
           {it.edited ? <span className="ownerchip" style={{ marginLeft: 6 }}>edited</span> : null}
         </div>
         <ContextMeta it={it} />
@@ -276,7 +276,13 @@ export function DealTodoBuckets({
         return { ...it, text: ed.text, edited: true, ...(ed.due ? { due: ed.due, act_by: ed.due } : {}) };
       });
   const grouped: Record<DisplayBucketKey, BackendTodoItem[]> = { prospect: [], commitments: [], buyerOwed: [], bestPractice: [] };
-  for (const it of effItems(buckets.flatMap((b) => b.items))) grouped[displayBucketOf(it)].push(it);
+  for (const it of effItems(buckets.flatMap((b) => b.items))) {
+    // "Commitments made by Zycus" must be GENUINE commitments. An implicit /
+    // we-promised item with no evidence we actually said it on a call (no
+    // grounding quote AND no source) is inferred, not a commitment — drop it.
+    if (it.category === "implicit" && !(it as any).grounding_quote && !(it as any).source) continue;
+    grouped[displayBucketOf(it)].push(it);
+  }
   for (const k of ACTION_ORDER) grouped[k] = clubItems(grouped[k]); // collapse homogeneous within each bucket
   return (
     <>

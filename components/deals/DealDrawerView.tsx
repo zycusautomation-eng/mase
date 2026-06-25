@@ -5,7 +5,7 @@
 // keeps the original DealDetailView, so this is drawer-only and reversible.
 // All CSS is scoped under .ddw so it can never collide with the app's global styles.
 import { useMemo, useState } from "react";
-import { fmtAmount, daysSince, healthLabel, verdictTone, type Rec } from "@/lib/engine/helpers";
+import { fmtAmount, daysSince, healthLabel, verdictTone, clipWords, type Rec } from "@/lib/engine/helpers";
 import { useDealAi } from "@/components/deals/DealAiProvider";
 import { Monogram } from "@/components/ui/Monogram";
 import { useBackendTodos } from "@/lib/engine/useBackendTodos";
@@ -395,11 +395,10 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
             {verdict !== "—" ? <span className={`pill ${vRisk ? "risk" : "live"}`}><span className="dot" />{verdict}</span> : null}
             {pulse.state ? <span className="pill live">{cap(pulse.state)}{lastAct != null ? ` · updated ${lastAct}d ago` : ""}</span> : null}
           </div>
-          {nsv.headline ? <div className="ai-lede">{nsv.headline}</div> : null}
-          {(champ.summary || (ai.confidence_signals || {}).summary || moves[0]) ? (
+          {nsv.headline ? <div className="ai-lede">{clipWords(nsv.headline, 26)}</div> : null}
+          {(champ.summary || (ai.confidence_signals || {}).summary) ? (
             <div className="ai-body">
-              {champ.summary || (ai.confidence_signals || {}).summary || ""}
-              {moves[0]?.action ? <> <b>The move:</b> {moves[0].action}</> : null}
+              {clipWords(champ.summary || (ai.confidence_signals || {}).summary, 28)}
             </div>
           ) : null}
         </div>

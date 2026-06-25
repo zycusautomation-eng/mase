@@ -150,6 +150,13 @@ export function healthLabel(v: any): string {
     : t === "v-off" ? "Off track" : "—";
 }
 
+// Trim a long string to its first `n` words + "…", for compact display. The full
+// text is preserved in the data (this only shortens what's rendered).
+export function clipWords(s: any, n: number): string {
+  const w = String(s || "").trim().split(/\s+/).filter(Boolean);
+  return w.length > n ? w.slice(0, n).join(" ") + "…" : w.join(" ");
+}
+
 // --- VP / RSD hierarchy ---
 // `manager_name` in the raw book is unreliable: Shekhar Varma is the President
 // sitting above the territory VPs (161 deals), and some deals carry a blank

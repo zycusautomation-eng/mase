@@ -6,6 +6,18 @@
 
 ---
 
+## 2026-06-25 — Leaner deal drawer + trustworthy "Commitments by Zycus"
+
+**What.** (1) The drawer reads lighter across all deals: the AI summary lede/body are clipped to ~26/28
+words (`clipWords` in `helpers.ts`) and the redundant "The move:" line dropped; to-do item text is
+clipped to ~18 words in the shared `DealTodoBuckets` (full text preserved in the data + shown on edit).
+(2) **"Commitments made by Zycus"** now drops inferred `implicit`/we-promised items that have **no
+grounding quote AND no source** — only genuine, evidence-backed commitments show.
+
+**Why.** The drawer was heavy/verbose; and the commitments bucket was padded with inferred deliverables
+we never actually committed to on a call. Pairs with the backend prompt rule (we_promised must be an
+explicit, quoted commitment).
+
 ## 2026-06-25 — Deal health: FOUR tiers (split At Risk → Close-date risk + Slowing)
 
 **What.** The verdict now renders as four statuses (was three), via the single
