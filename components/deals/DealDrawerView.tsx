@@ -216,15 +216,6 @@ const fmtDate = (s: any) => { if (!s) return ""; const d = new Date(s); return i
 // A short one-liner that says WHAT the move is — the leading clause of the action,
 // cut at the first natural boundary (the buyer/date/connective), capped. Used as the
 // gate header in place of the owner ("Deal team") label.
-const moveTitle = (s: any) => {
-  let t = String(s || "").replace(/\s+/g, " ").trim();
-  if (!t) return "Next move";
-  const cut = t.search(/[.;(]|\s\b(?:by|to|with|so that|ahead of|for|in a)\b/i);
-  if (cut > 18) t = t.slice(0, cut);
-  t = t.trim().replace(/[,:;\-–—]+$/, "").trim();
-  if (t.length > 58) t = t.slice(0, 55).trimEnd() + "…";
-  return t;
-};
 
 export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: () => void }) {
   const { openNewDeal } = useDealAi();
@@ -409,20 +400,19 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
             <div className="play-top">
               <div>
                 <div className="play-eyebrow">The play · how to win this deal</div>
-                <div className="play-title">Your {gates.length} highest-leverage {gates.length === 1 ? "play" : "plays"} right now</div>
+                <div className="play-title">Top {gates.length} {gates.length === 1 ? "play" : "plays"} right now</div>
               </div>
               <button className="play-cta" onClick={() => openNewDeal(dealForAi)}>Work this with AI →</button>
             </div>
             <div className="gates">
               {gates.map((m: any, i: number) => (
                 <div className="gate" key={i}>
-                  <div className="gate-head"><span className={`gate-num ${i > 1 ? "soft" : ""}`}>{i + 1}</span><span className="gate-tag">{moveTitle(m.action)}{m.act_by ? ` · by ${fmtDate(m.act_by)}` : ""}</span></div>
-                  <div className="gate-t">{m.action}</div>
-                  {m.expected_effect ? <div className="gate-d">{m.expected_effect}</div> : (m.trigger ? <div className="gate-d">{m.trigger}</div> : null)}
+                  <div className="gate-head"><span className={`gate-num ${i > 1 ? "soft" : ""}`}>{i + 1}</span><span className="gate-tag">{m.act_by ? `by ${fmtDate(m.act_by)}` : "next"}</span></div>
+                  <div className="gate-t">{clipWords(m.action, 12)}</div>
                 </div>
               ))}
             </div>
-            {spof ? <div className="spof"><span>⚠</span><div><b>Single point of failure.</b> {spof}</div></div> : null}
+            {spof ? <div className="spof"><span>⚠</span><div><b>Single point of failure.</b> {clipWords(spof, 16)}</div></div> : null}
           </div>
         ) : null}
 
