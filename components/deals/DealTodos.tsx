@@ -98,9 +98,9 @@ export function bucketsForOpp(flat: BackendTodoItem[], oppId: any): TodoBucket[]
 // always visible in the same place on BOTH Espresso and the deal drawer.
 export const DISPLAY_BUCKET_META = {
   prospect:     { label: "Prospect requirements",     tone: "impt", blurb: "Requirements the prospect clearly asked us for." },
-  commitments:  { label: "Commitments made by Zycus", tone: "impl", blurb: "Deliverables Zycus clearly promised, plus the moves we owe next." },
+  commitments:  { label: "Commitments made by Zycus", tone: "impl", blurb: "Only what Zycus explicitly committed to on a call." },
   buyerOwed:    { label: "Waiting on the buyer",      tone: "exp",  blurb: "What the prospect owes us, to unblock our delivery." },
-  bestPractice: { label: "Best practices",            tone: "bpr",  blurb: "Recommended plays and gaps — capped at 7." },
+  bestPractice: { label: "Best practices",            tone: "bpr",  blurb: "Actions to move the deal forward, plus gaps — capped at 7." },
 } as const;
 export type DisplayBucketKey = keyof typeof DISPLAY_BUCKET_META;
 // The four display heads, in order.
@@ -122,11 +122,12 @@ function displayBucketOf(it: BackendTodoItem): DisplayBucketKey {
   // A requirement the prospect CLEARLY stated (we know who asked) -> Prospect
   // requirements; an inferred / unattributed need is not a firm ask -> Best practices.
   if (it.category === "explicitRequirements") return (it as any).said_by ? "prospect" : "bestPractice";
-  // A deliverable we CLEARLY promised (has grounding evidence) -> Commitments; an
-  // inferred "we should…" is not a real commitment -> Best practices.
+  // ONLY what Zycus explicitly committed to ON A CALL (carries grounding evidence /
+  // source) -> Commitments. An inferred "we should…" is NOT a commitment -> Best practices.
   if (it.category === "implicit") return ((it as any).grounding_quote || (it as any).source) ? "commitments" : "bestPractice";
-  // Moves (the day's plays, also surfaced as Play cards) are Zycus's next actions.
-  if (it.category === "critical") return "commitments";
+  // Moves are RECOMMENDED next actions, NOT on-call commitments -> Best practices.
+  // (The top-3 also surface as Play cards — the one allowed overlap.)
+  if (it.category === "critical") return "bestPractice";
   // best_practice flags + everything else.
   return "bestPractice";
 }
