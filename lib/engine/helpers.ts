@@ -122,9 +122,21 @@ export function aiTier(h: Hard, fit?: any): string | null {
 export function aiLabel(h: Hard, fit?: any): string { const t = aiTier(h, fit); return t ? "AI " + t : "Not scored"; }
 
 export function verdictTone(v: any): "v-on" | "v-risk" | "v-off" | "" {
-  if (!v) return "";
-  const k = String(v).toLowerCase();
-  return k.includes("off") ? "v-off" : k.includes("risk") ? "v-risk" : "v-on";
+  const k = String(v || "").toLowerCase();
+  if (!k) return "";
+  if (k.includes("off")) return "v-off";
+  if (k.includes("risk")) return "v-risk";
+  if (/on[\s-]?track/.test(k)) return "v-on";
+  return ""; // unknown/odd wording -> neutral, NEVER silently green ("Healthy")
+}
+
+// The ONE place the three deal-health statuses are named. Every surface reads
+// from here so the label never drifts (page, drawer, deals tab, runs all show
+// the same words). On Track -> "On track", At Risk -> "At risk", Off Track ->
+// "Off track"; anything unrecognised -> "—".
+export function healthLabel(v: any): string {
+  const t = verdictTone(v);
+  return t === "v-on" ? "On track" : t === "v-risk" ? "At risk" : t === "v-off" ? "Off track" : "—";
 }
 
 // --- VP / RSD hierarchy ---

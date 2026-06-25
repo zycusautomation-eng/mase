@@ -8,7 +8,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
-  fmtAmount, verdictTone, dealTier, dealMeddpicc, cleanText, daysSince,
+  fmtAmount, verdictTone, healthLabel, dealTier, dealMeddpicc, cleanText, daysSince,
   dealComps, type Rec, type MeddItem,
 } from "@/lib/engine/helpers";
 import { useTodoDone } from "@/lib/engine/useTodoDone";
@@ -112,7 +112,7 @@ export default function DealDetailView({ rec, variant = "page", onClose }: { rec
   const dealForAi = { oid: rec.opp_id, accountName: h.account_name || rec.opp_id, oppName: h.opp_name, ownerName: h.owner_name };
   const verdict = ai.north_star_verdict || {};
   const vt = verdictTone(verdict.verdict);
-  const healthLabel = vt === "v-on" ? "Healthy" : vt === "v-risk" ? "At Risk" : vt === "v-off" ? "Off track" : "—";
+  const hLabel = healthLabel(verdict.verdict);
   const healthColor = vt === "v-on" ? "var(--green-ink)" : vt === "v-risk" ? "var(--amber-ink)" : vt === "v-off" ? "var(--red-ink)" : "var(--muted)";
   const tier = dealTier(h);
   const buckets = bucketsForOpp(backend.flat, rec.opp_id);
@@ -178,7 +178,7 @@ export default function DealDetailView({ rec, variant = "page", onClose }: { rec
           <div className="dp-hero-id">
             <div className="dp-hero-name">
               <span>{h.account_name || rec.opp_id}</span>
-              {verdict.verdict ? <span className={`chip ${vt}`}>{verdict.verdict}</span> : null}
+              {verdict.verdict ? <span className={`chip ${vt}`}>{hLabel}</span> : null}
               {h.stage ? <span className="chip">{h.stage}</span> : null}
             </div>
             <div className="dp-hero-sub">{h.opp_name || ""}{h.owner_name ? ` · ${h.owner_name}` : ""}{h.close_date ? ` · Close ${h.close_date}` : ""}</div>
@@ -186,7 +186,7 @@ export default function DealDetailView({ rec, variant = "page", onClose }: { rec
         </div>
         <div className="dp-metrics">
           <div className="dp-metric"><div className="k">Deal value</div><div className="v">{fmtAmount(h.amount)}</div><div className="s">USD</div></div>
-          <div className="dp-metric"><div className="k">Deal health</div><div className="v" style={{ color: healthColor }}>{healthLabel}</div>{verdict.trajectory && verdict.trajectory !== "new" ? <div className="s">{verdict.trajectory}</div> : null}</div>
+          <div className="dp-metric"><div className="k">Deal health</div><div className="v" style={{ color: healthColor }}>{hLabel}</div>{verdict.trajectory && verdict.trajectory !== "new" ? <div className="s">{verdict.trajectory}</div> : null}</div>
           <div className="dp-metric"><div className="k">AI confidence</div><div className="v">✦ {rec.analysis_confidence || "—"}</div></div>
           <div className="dp-metric"><div className="k">Owner</div><div className="v dp-owner"><Monogram name={h.owner_name || "?"} kind="person" size={24} /><span>{h.owner_name || "—"}</span></div></div>
         </div>
@@ -199,7 +199,7 @@ export default function DealDetailView({ rec, variant = "page", onClose }: { rec
             <div className="dp-card-h">
               <h3 className="dp-ai-h">✦ AI Summary</h3>
               <div className="dp-ai-chips">
-                {verdict.verdict ? <span className={`chip ${vt}`}>{verdict.verdict}</span> : null}
+                {verdict.verdict ? <span className={`chip ${vt}`}>{hLabel}</span> : null}
                 {pchip ? <span className="dp-pulse" title={pchip.title} style={{ background: pchip.color }}>{pchip.label}</span> : null}
                 {verdict.forecast_defensible === false && recFcCat ? <span className="duechip heavy" title={`Recommend ${recFcRaw}`}>Forecast → {recFcCat}</span> : null}
               </div>
@@ -210,7 +210,7 @@ export default function DealDetailView({ rec, variant = "page", onClose }: { rec
             {(verdict.headline || verdict.math) ? <div className="body" style={{ margin: "0 0 12px" }}>{cleanText(verdict.headline || verdict.math)}</div> : null}
             {!riskSummary && !verdict.headline && !verdict.math ? <div className="body">No AI summary yet.</div> : null}
             <div className="dp-ai-grid">
-              <div><div className="k">Verdict</div><div className="v">{verdict.verdict || "—"}</div></div>
+              <div><div className="k">Verdict</div><div className="v">{hLabel}</div></div>
               <div><div className="k">Main blocker</div><div className="v">{openVulns[0] ? words(openVulns[0].category || openVulns[0].detail, 5).replace(/_/g, " ") : "—"}</div></div>
               <div><div className="k">Impact</div><div className="v">{fmtAmount(h.amount)} at stake</div></div>
               <div><div className="k">Recommended next step</div><div className="v">{topMove ? words(topMove.action, 8) : "—"}</div></div>

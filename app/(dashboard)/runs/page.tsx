@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useDashboard } from "@/lib/engine/DashboardContext";
+import { healthLabel } from "@/lib/engine/helpers";
 
 // Runs / inspection dashboard. Reads the AWS backend (via the same-origin proxy)
 // and shows every tracked opportunity, when it was last swept / triggered, the
@@ -174,7 +175,7 @@ function RowAndDetail({ r, isOpen, onToggle, triggers, showRaw, toggleRaw }: any
         <td style={td}>{r.stage}</td>
         <td style={{ ...td, whiteSpace: "nowrap" }}>{fmtAmt(r.amount)}</td>
         <td style={td}>{r.pulse ? <span style={{ display: "inline-block", padding: "2px 8px", borderRadius: 999, fontSize: 11.5, fontWeight: 600, color: "#fff", background: pulseColor(r.pulse) }}>{r.pulse}</span> : "—"}</td>
-        <td style={td}>{r.verdict || "—"}</td>
+        <td style={td}>{healthLabel(r.verdict)}</td>
         <td style={{ ...td, textAlign: "center" }}>{r.moves}</td>
         <td style={{ ...td, whiteSpace: "nowrap" }}>{d10(r.swept_at)}</td>
         <td style={td}>{r.conf || "—"}</td>
@@ -210,7 +211,7 @@ function Detail({ rec, triggers, showRaw, toggleRaw }: any) {
           ) : <p style={{ color: "var(--muted,#5A6B82)", fontSize: 13 }}>No pulse on this record.</p>}
 
           <h4 style={h4}>Verdict</h4>
-          <p style={{ margin: "0 0 10px", fontSize: 13 }}><b>{nv.verdict || "—"}</b> {nv.headline ? `· ${nv.headline}` : ""}</p>
+          <p style={{ margin: "0 0 10px", fontSize: 13 }}><b>{healthLabel(nv.verdict)}</b> {nv.headline ? `· ${nv.headline}` : ""}</p>
 
           <h4 style={h4}>Recommended moves ({moves.length})</h4>
           <ol style={{ margin: "0 0 10px", paddingLeft: 18, fontSize: 13 }}>

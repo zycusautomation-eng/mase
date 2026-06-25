@@ -6,6 +6,23 @@
 
 ---
 
+## 2026-06-25 — One canonical deal-health label everywhere (kills the "Healthy" drift)
+
+**What.** Added `healthLabel()` in `lib/engine/helpers.ts` as the single source of truth for the three
+statuses: On Track → **"On track"**, At Risk → **"At risk"**, Off Track → **"Off track"**, anything else → **"—"**.
+Routed every surface through it: `DealDetailView` (was showing "Healthy" in the Deal-health metric but raw
+"On Track" in the hero/AI-summary chips and the Verdict field — now all read "On track"), `DealDrawerView`,
+and the `runs` admin table. `DealsTab.tsx` is dead code (not mounted anywhere) and left as-is.
+
+**Why.** The same deal rendered different words on different screens ("Healthy" vs "On Track"), which read as
+random. Also **hardened `verdictTone()`**: it previously defaulted ANY unrecognised string to green/On-Track, so
+a stray verdict wording (Cold / Stalled / Slipping) showed as "Healthy". Now unknown → neutral "—", never
+silently green.
+
+**How to work with it.** Use `healthLabel(verdict)` for any new health display — never re-alias inline. The
+backend verdict enum is unchanged (`On Track|At Risk|Off Track`); the helper is case-insensitive and tolerates
+legacy records. Pairs with the backend's "Verdict definitions locked to three statuses" change.
+
 ## 2026-06-22 — Auth: request Outlook mail scopes + capture per-user MS refresh token
 
 **What.** Two changes so MASE can send/draft/read email as the signed-in user from their own Outlook:
