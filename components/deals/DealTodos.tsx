@@ -97,10 +97,10 @@ export function bucketsForOpp(flat: BackendTodoItem[], oppId: any): TodoBucket[]
 // Moves (critical) fold into "Commitments made by Zycus" so the day's plays are
 // always visible in the same place on BOTH Espresso and the deal drawer.
 export const DISPLAY_BUCKET_META = {
-  prospect:     { label: "Prospect requirements",     tone: "impt", blurb: "What the prospect has asked us to deliver." },
-  commitments:  { label: "Commitments made by Zycus", tone: "impl", blurb: "The plays and deliverables Zycus owes — what we do next to move the deal." },
+  prospect:     { label: "Prospect requirements",     tone: "impt", blurb: "Requirements the prospect clearly asked us for." },
+  commitments:  { label: "Commitments made by Zycus", tone: "impl", blurb: "Deliverables Zycus clearly promised, plus the moves we owe next." },
   buyerOwed:    { label: "Waiting on the buyer",      tone: "exp",  blurb: "What the prospect owes us, to unblock our delivery." },
-  bestPractice: { label: "Best practices",            tone: "bpr",  blurb: "From experience, plays that move the outcome." },
+  bestPractice: { label: "Best practices",            tone: "bpr",  blurb: "Recommended plays and gaps — capped at 7." },
 } as const;
 export type DisplayBucketKey = keyof typeof DISPLAY_BUCKET_META;
 // The four display heads, in order.
@@ -117,11 +117,18 @@ function isBuyerSide(who: unknown): boolean {
   return !/(zycus|seller|^we\b|^us\b|\bour\b)/.test(w);
 }
 function displayBucketOf(it: BackendTodoItem): DisplayBucketKey {
-  if (it.category === "explicitRequirements") return "prospect";
-  if (it.category === "bestPractice") return "bestPractice";
+  // Buyer owes us (their input / approval / info) -> Waiting on the buyer.
   if (it.category === "important") return isBuyerSide(it.who) ? "buyerOwed" : "commitments";
-  // critical (the day's MOVES) + implicit (deliverables we promised) -> Zycus commitments
-  return "commitments";
+  // A requirement the prospect CLEARLY stated (we know who asked) -> Prospect
+  // requirements; an inferred / unattributed need is not a firm ask -> Best practices.
+  if (it.category === "explicitRequirements") return (it as any).said_by ? "prospect" : "bestPractice";
+  // A deliverable we CLEARLY promised (has grounding evidence) -> Commitments; an
+  // inferred "we should…" is not a real commitment -> Best practices.
+  if (it.category === "implicit") return ((it as any).grounding_quote || (it as any).source) ? "commitments" : "bestPractice";
+  // Moves (the day's plays, also surfaced as Play cards) are Zycus's next actions.
+  if (it.category === "critical") return "commitments";
+  // best_practice flags + everything else.
+  return "bestPractice";
 }
 
 // --- Club homogeneous to-dos (mirror of the backend de-duplicator) ---
@@ -276,14 +283,11 @@ export function DealTodoBuckets({
         return { ...it, text: ed.text, edited: true, ...(ed.due ? { due: ed.due, act_by: ed.due } : {}) };
       });
   const grouped: Record<DisplayBucketKey, BackendTodoItem[]> = { prospect: [], commitments: [], buyerOwed: [], bestPractice: [] };
-  for (const it of effItems(buckets.flatMap((b) => b.items))) {
-    // "Commitments made by Zycus" must be GENUINE commitments. An implicit /
-    // we-promised item with no evidence we actually said it on a call (no
-    // grounding quote AND no source) is inferred, not a commitment — drop it.
-    if (it.category === "implicit" && !(it as any).grounding_quote && !(it as any).source) continue;
-    grouped[displayBucketOf(it)].push(it);
-  }
+  // Each item lands in the ONE bucket its nature fits (displayBucketOf); inferred
+  // requirements/commitments fall through to Best practices.
+  for (const it of effItems(buckets.flatMap((b) => b.items))) grouped[displayBucketOf(it)].push(it);
   for (const k of ACTION_ORDER) grouped[k] = clubItems(grouped[k]); // collapse homogeneous within each bucket
+  grouped.bestPractice = grouped.bestPractice.slice(0, 7); // hard cap: never more than 7 best-practice items
   return (
     <>
       {ACTION_ORDER.map((key) =>
