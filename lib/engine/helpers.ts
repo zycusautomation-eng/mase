@@ -202,9 +202,11 @@ export const OWNER_VP: Record<string, string> = {
 // Owner.Manager.Name from Salesforce, never invent one) — this keeps the UI and
 // any deck screenshots correct until a re-sweep lands.
 const NAME_RE = String.raw`[A-Z][a-z]+(?:\s+[A-Z][a-zA-Z'’.\-]+){1,2}`;
-export function fixManagerName(text: string, ownerName: unknown): string {
+export function fixManagerName(text: string, ownerName: unknown, managerName?: unknown): string {
   if (!text || !/manager|executive connect/i.test(text)) return text;
-  const mgr = OWNER_VP[String(ownerName || "")];
+  // Prefer the Salesforce org-chart name passed from the backend (authoritative —
+  // never a model guess); fall back to the static owner->VP map only if absent.
+  const mgr = String(managerName || "").trim() || OWNER_VP[String(ownerName || "")];
   // No mapping, or the owner IS the VP (nobody above them on-team to escalate to):
   // leave the text alone rather than self-referencing the owner as their own manager.
   if (!mgr || mgr === String(ownerName || "")) {
@@ -212,6 +214,7 @@ export function fixManagerName(text: string, ownerName: unknown): string {
     return text.replace(/\(?\bmanager[_ ]name\b\)?/gi, "the deal owner's manager");
   }
   let t = text;
+  t = t.replace(/\bthe deal[ -]?owner['’]?s manager\b/gi, mgr);              // generic phrase -> real name
   t = t.replace(/manager[_ ]name/gi, mgr);                                   // literal token
   t = t.replace(new RegExp(`${NAME_RE}\\s*\\((?:the )?manager\\)`, "g"), `${mgr} (manager)`); // "<Name> (manager)"
   t = t.replace(new RegExp(`(Executive connect:?\\s*\\(?)${NAME_RE}`, "g"), `$1${mgr}`);       // after "Executive connect:"
