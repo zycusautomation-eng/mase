@@ -202,6 +202,9 @@ const CSS = `
 .ddw .sk-row:first-child{border-top:none}
 .ddw .sk-ck{width:19px;height:19px;border-radius:6px;flex:none}
 .ddw .sk-body{flex:1;min-width:0}
+.ddw .sk-hint{font-size:11.5px;color:var(--ink-faint);font-weight:600;margin:0 2px 8px;display:flex;align-items:center;gap:7px}
+.ddw .sk-hint .dot{width:7px;height:7px;border-radius:50%;background:var(--indigo);animation:ddwpulse 1.1s ease infinite}
+@keyframes ddwpulse{0%,100%{opacity:1}50%{opacity:.25}}
 `;
 
 const cap = (s: any) => { const t = String(s || ""); return t ? t[0].toUpperCase() + t.slice(1) : ""; };
@@ -451,25 +454,29 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
             <AddUpdateForm oppId={rec.opp_id} backend={backend} />
           </div>
 
-          {backend.loading && !allTodos.length ? (
-            <div className="card" style={{ overflow: "hidden", marginTop: 12, padding: "4px 4px 8px" }}>
-              <div className="sk sk-grp" />
-              {[0, 1, 2, 3].map((i) => (
-                <div className="sk-row" key={i}>
-                  <span className="sk sk-ck" />
-                  <div className="sk-body">
-                    <div className="sk" style={{ height: 12, width: `${78 - i * 9}%`, marginBottom: 8 }} />
-                    <div className="sk" style={{ height: 10, width: `${55 - i * 6}%` }} />
-                  </div>
+          {/* Moves (Commitments made by Zycus) come from the record and render instantly;
+              the other buckets come from the /todo fetch. While that's loading, show a
+              skeleton BELOW the moves so it's clear the rest is still arriving. */}
+          <DealTodoBuckets buckets={todoBuckets} ownerName={h.owner_name} done={doneSet} toggle={toggle} sync={sync} backend={backend} />
+          {backend.loading ? (
+            <div className="card sk-card" style={{ overflow: "hidden", marginTop: 12, padding: "12px 6px 10px" }}>
+              <div className="sk-hint"><span className="dot" />Loading the rest of this deal&apos;s to-dos…</div>
+              {[0, 1].map((g) => (
+                <div key={g} style={{ marginTop: g ? 14 : 4 }}>
+                  <div className="sk sk-grp" />
+                  {[0, 1].map((i) => (
+                    <div className="sk-row" key={i}>
+                      <span className="sk sk-ck" />
+                      <div className="sk-body">
+                        <div className="sk" style={{ height: 12, width: `${74 - i * 12}%`, marginBottom: 8 }} />
+                        <div className="sk" style={{ height: 10, width: `${50 - i * 8}%` }} />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ))}
             </div>
-          ) : (
-            <>
-              <DealTodoBuckets buckets={todoBuckets} ownerName={h.owner_name} done={doneSet} toggle={toggle} sync={sync} backend={backend} />
-              {!todoBuckets.length ? <div className="card card-pad ic-body" style={{ marginTop: 12 }}>No open to-dos on this deal yet.</div> : null}
-            </>
-          )}
+          ) : (!todoBuckets.length ? <div className="card card-pad ic-body" style={{ marginTop: 12 }}>No open to-dos on this deal yet.</div> : null)}
         </div>
 
         {/* ===== INTEL ===== */}
