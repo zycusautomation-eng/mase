@@ -14,12 +14,14 @@ import { fixManagerName } from "./helpers";
 
 const TODO_ENDPOINT = "/api/deal-engine/todo";
 
-// category -> the field on the backend item that holds the display text.
+// category -> the field on the backend item that holds the display text. In the
+// 4-head MECE model the `implicit` category carries our commitments (head 3a) and
+// `important` carries buyer-owed dependencies (head 3b); both use `deliverable`.
 export const CATEGORY_TEXT_FIELD: Record<BackendCategory, string> = {
   critical: "action",
-  important: "commitment",
+  important: "deliverable",
   explicitRequirements: "requirement",
-  implicit: "inferred_need",
+  implicit: "deliverable",
   bestPractice: "flag",
 };
 
@@ -117,11 +119,19 @@ function annotate(data: unknown): {
     for (const raw of items) {
       if (!raw || typeof raw !== "object") continue;
       const item = raw as BackendTodoRaw;
-      const textVal = item[field];
+      // Resolve the display text from this category's primary field, then fall back
+      // across EVERY known text field so a row is never blank — this tolerates both the
+      // new backend shape (`deliverable`) and the legacy one (`commitment` /
+      // `inferred_need` / `action` / `requirement` / `flag`) during/after rollout.
+      const pickText = (...keys: string[]): string => {
+        for (const k of keys) { const v = item[k]; if (typeof v === "string" && v.trim()) return v; }
+        return "";
+      };
+      const rawText = pickText(field, "deliverable", "commitment", "inferred_need", "action", "requirement", "flag");
       // Correct the owner's manager in the display text: the backend leaves a literal
       // `manager_name` token or fabricates a non-existent manager; resolve it from the
       // deterministic owner→manager map so "Executive connect" moves name the real person.
-      const text = typeof textVal === "string" ? fixManagerName(textVal, item.owner_name) : "";
+      const text = fixManagerName(rawText, item.owner_name);
       // A to-do moves the deal; it does not fill Salesforce. Drop best-practice flags that
       // are CRM data-entry / field hygiene (cite a SF field API name, a boolean/null field
       // state, or a "populate/log activity" task). The same deal gaps survive as clean,

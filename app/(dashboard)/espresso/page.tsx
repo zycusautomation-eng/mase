@@ -122,6 +122,7 @@ export default function EspressoPage() {
   const shown = tiers.find((t) => t.tier.key === active);
 
   // done/total for the ACTIVE tier only (cards are per-tab). Pushed rows count as done.
+  // Every category is displayed (Moves fold into Commitments), so count them all.
   const { total, doneCount } = useMemo(() => {
     let t = 0, d = 0;
     for (const b of (shown?.blocks || [])) for (const bk of b.buckets) for (const it of bk.items) {
@@ -187,7 +188,6 @@ function DealBlock({ b, done, toggle, sync, backend, showVp, onOpenAi }: { b: De
   const [collapsed, setCollapsed] = useState(true); // accordions closed by default
   const vpMeta = showVp && OWNER_VP[b.ownerName] ? ` (${OWNER_VP[b.ownerName]})` : "";
   const todoTotal = b.buckets.reduce((n, bk) => n + bk.items.length, 0);
-  const critCount = b.buckets.find((bk) => bk.category === "critical")?.items.length || 0;
   return (
     <div className="deal-blk">
       {/* Header is a collapse toggle (each deal card folds independently). */}
@@ -207,7 +207,6 @@ function DealBlock({ b, done, toggle, sync, backend, showVp, onOpenAi }: { b: De
               {h.stage ? <span className="dchip">{h.stage}</span> : null}
               {h.close_date ? <span className="dmeta">close {h.close_date}</span> : null}
               {todoTotal ? <span className="dchip todo">{todoTotal} to-do{todoTotal !== 1 ? "s" : ""}</span> : null}
-              {critCount ? <span className="dchip crit">{critCount} critical</span> : null}
             </>
           ) : null}
         </div>
@@ -221,6 +220,10 @@ function DealBlock({ b, done, toggle, sync, backend, showVp, onOpenAi }: { b: De
       {!collapsed ? (
         <>
           <div className="deal-sub">{b.ownerName}{vpMeta} · {h.stage || ""}{h.close_date ? ` · close ${h.close_date}` : ""}{h.forecast_category ? ` · ${h.forecast_category}` : ""}</div>
+          {/* Identical to the deal drawer's Action tab: the SAME four MECE buckets
+              (Prospect requirements / Commitments made by Zycus / Waiting on the
+              buyer / Best practices) via the shared DealTodoBuckets. Moves fold into
+              "Commitments made by Zycus", so they show here too. */}
           <DealTodoBuckets buckets={b.buckets} ownerName={b.ownerName} done={done} toggle={toggle} sync={sync} backend={backend} />
         </>
       ) : null}

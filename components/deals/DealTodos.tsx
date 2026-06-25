@@ -46,12 +46,17 @@ function TypeIcon({ kind }: { kind: "call" | "mail" | "people" | "doc" | "flag" 
 // (same items, same todo_key, same pushed state, same Salesforce push).
 
 // Per-category label + tone (reusing the existing .todo-grp tone classes).
+// 4-head MECE model. The backend to-do CATEGORY strings are kept stable (so the
+// Salesforce push / edit / delete ledger keyed by todo_key survives), but their
+// MEANING is now: critical = Moves, explicitRequirements = Prospect Requirements,
+// implicit = Commitments made by Zycus (head 3a), important = Waiting on the buyer
+// (head 3b), bestPractice = Best practices.
 export const CATEGORY_META: Record<BackendCategory, { label: string; tone: string }> = {
-  critical: { label: "Critical / next moves", tone: "moves" },
-  important: { label: "Commitments", tone: "impt" },
-  explicitRequirements: { label: "Open requirements", tone: "impt" },
-  implicit: { label: "Implicit requirements", tone: "impl" },
-  bestPractice: { label: "Best practice", tone: "bpr" },
+  critical: { label: "Moves", tone: "crit" },
+  important: { label: "Waiting on the buyer", tone: "exp" },
+  explicitRequirements: { label: "Prospect Requirements", tone: "impt" },
+  implicit: { label: "Commitments made by Zycus", tone: "impl" },
+  bestPractice: { label: "Best practices", tone: "bpr" },
 };
 
 // First 15 chars of a SF id — opp_ids come in 15- and 18-char forms; compare on
@@ -83,22 +88,29 @@ export function bucketsForOpp(flat: BackendTodoItem[], oppId: any): TodoBucket[]
     .filter((b) => b.items.length > 0);
 }
 
-// The 4 VP-facing display buckets. Each backend to-do keeps its own `category`
-// (so Edit / Delete / Salesforce push are unchanged); for PRESENTATION it is
-// mapped to one of these. Commitments split by `who`: ours -> Next phase, the
-// buyer's -> Waiting on the buyer.
+// The 4 display buckets. Each backend to-do keeps its own `category` (so Edit /
+// Delete / Salesforce push are unchanged); for PRESENTATION it maps to exactly ONE:
+//   prospect     <- explicitRequirements         (what the prospect asked of us)
+//   commitments  <- implicit + critical (MOVES)  (everything Zycus owes/should do next)
+//   buyerOwed    <- important                     (what the buyer owes us)
+//   bestPractice <- bestPractice                  (advisory levers)
+// Moves (critical) fold into "Commitments made by Zycus" so the day's plays are
+// always visible in the same place on BOTH Espresso and the deal drawer.
 export const DISPLAY_BUCKET_META = {
-  prospect:     { label: "Prospect requirements", tone: "impt",  blurb: "What the prospect has asked of us, still open." },
-  next:         { label: "Next phase",            tone: "moves", blurb: "The most important things to do to move the deal." },
-  buyerOwed:    { label: "Waiting on the buyer",  tone: "impl",  blurb: "What the prospect owes us." },
-  bestPractice: { label: "Best practices",        tone: "bpr",   blurb: "From experience, plays that move the outcome." },
+  prospect:     { label: "Prospect requirements",     tone: "impt", blurb: "What the prospect has asked us to deliver." },
+  commitments:  { label: "Commitments made by Zycus", tone: "impl", blurb: "The plays and deliverables Zycus owes — what we do next to move the deal." },
+  buyerOwed:    { label: "Waiting on the buyer",      tone: "exp",  blurb: "What the prospect owes us, to unblock our delivery." },
+  bestPractice: { label: "Best practices",            tone: "bpr",  blurb: "From experience, plays that move the outcome." },
 } as const;
 export type DisplayBucketKey = keyof typeof DISPLAY_BUCKET_META;
-const DISPLAY_ORDER: DisplayBucketKey[] = ["prospect", "next", "buyerOwed", "bestPractice"];
+// The four display heads, in order.
+const ACTION_ORDER: DisplayBucketKey[] = ["prospect", "commitments", "buyerOwed", "bestPractice"];
 const TOP_N = 5; // only the best to the table; the rest are one click away.
 
-// Buyer-side commitment? Anything not clearly ours (mirrors the backend's
-// who-normalisation, so "Publicis legal" lands under Waiting-on-the-buyer).
+// Buyer-side? Anything not clearly ours. Splitting on `who` keeps this correct against
+// BOTH the new backend (important = buyer_dependent, all Buyer) AND the legacy backend
+// (important = open_deliverables of EITHER side) — so during/after rollout a Zycus
+// commitment never lands under "Waiting on the buyer".
 function isBuyerSide(who: unknown): boolean {
   const w = String(who || "").trim().toLowerCase();
   if (!w) return false;
@@ -107,8 +119,9 @@ function isBuyerSide(who: unknown): boolean {
 function displayBucketOf(it: BackendTodoItem): DisplayBucketKey {
   if (it.category === "explicitRequirements") return "prospect";
   if (it.category === "bestPractice") return "bestPractice";
-  if (it.category === "important") return isBuyerSide(it.who) ? "buyerOwed" : "next";
-  return "next"; // critical (next moves) + implicit (deliverables we promised)
+  if (it.category === "important") return isBuyerSide(it.who) ? "buyerOwed" : "commitments";
+  // critical (the day's MOVES) + implicit (deliverables we promised) -> Zycus commitments
+  return "commitments";
 }
 
 // --- Club homogeneous to-dos (mirror of the backend de-duplicator) ---
@@ -167,8 +180,11 @@ function TodoRow({
   done: Set<string>; toggle: (id: string) => void; sync: TodoSync; backend: Backend;
 }) {
   const serverPushed = backend.isPushed(it);
+  // A move injected from the record but not yet surfaced by the backend /todo book
+  // (shown for visibility; push/edit unlock once the next sweep makes it a real to-do).
+  const pending = Boolean((it as any).pending);
   const isDone = serverPushed || done.has(it.todoKey);
-  const canModify = !!it.todoKey && !serverPushed;
+  const canModify = !!it.todoKey && !serverPushed && !pending;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(it.text);
   const [draftDue, setDraftDue] = useState<string>(String(it.act_by || it.due || ""));
@@ -224,8 +240,10 @@ function TodoRow({
       {avatarName ? <Monogram kind="person" name={avatarName} size={24} className="td-owner" /> : null}
       {canModify ? <button type="button" style={TD_ICONBTN} title="Edit this to-do" aria-label="Edit" onClick={openEdit}>Edit</button> : null}
       {canModify ? <button type="button" style={TD_ICONBTN} title="Delete this to-do" aria-label="Delete" disabled={busy} onClick={doDelete}>Delete</button> : null}
-      <AgentButton it={it} ownerName={ownerName} />
-      <SfButton it={it} ownerName={ownerName} enabled={done.has(it.todoKey)} sync={sync} backend={backend} serverPushed={serverPushed} />
+      {!pending ? <AgentButton it={it} ownerName={ownerName} /> : null}
+      {!pending
+        ? <SfButton it={it} ownerName={ownerName} enabled={done.has(it.todoKey)} sync={sync} backend={backend} serverPushed={serverPushed} />
+        : <span className="ownerchip" title="Surfaces as a Salesforce-pushable to-do on the next sweep" style={{ alignSelf: "center" }}>queued</span>}
     </li>
   );
 }
@@ -257,12 +275,12 @@ export function DealTodoBuckets({
         if (!ed) return it;
         return { ...it, text: ed.text, edited: true, ...(ed.due ? { due: ed.due, act_by: ed.due } : {}) };
       });
-  const grouped: Record<DisplayBucketKey, BackendTodoItem[]> = { prospect: [], next: [], buyerOwed: [], bestPractice: [] };
+  const grouped: Record<DisplayBucketKey, BackendTodoItem[]> = { prospect: [], commitments: [], buyerOwed: [], bestPractice: [] };
   for (const it of effItems(buckets.flatMap((b) => b.items))) grouped[displayBucketOf(it)].push(it);
-  for (const k of DISPLAY_ORDER) grouped[k] = clubItems(grouped[k]); // collapse homogeneous within each bucket
+  for (const k of ACTION_ORDER) grouped[k] = clubItems(grouped[k]); // collapse homogeneous within each bucket
   return (
     <>
-      {DISPLAY_ORDER.map((key) =>
+      {ACTION_ORDER.map((key) =>
         grouped[key].length ? <BucketBlock key={key} bucketKey={key} items={grouped[key]} rowProps={rowProps} /> : null,
       )}
     </>

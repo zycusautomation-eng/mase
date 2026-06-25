@@ -393,7 +393,7 @@
   .sfm-btn.cancel:hover{background:var(--accent-soft)}
   .sfm-btn.confirm{background:var(--accent);color:#fff;border-color:var(--accent)}
   .sfm-btn.confirm:hover{filter:brightness(1.05)}
-  .todo-grp.crit{color:var(--red-ink)} .todo-grp.impt{color:var(--amber-ink)} .todo-grp.bpr{color:var(--accent2)} .todo-grp.impl{color:#7c3aed} .todo-grp.moves{color:var(--accent)}
+  .todo-grp.crit{color:var(--red-ink)} .todo-grp.impt{color:var(--amber-ink)} .todo-grp.bpr{color:var(--accent2)} .todo-grp.impl{color:#7c3aed} .todo-grp.moves{color:var(--accent)} .todo-grp.exp{color:#2256e6}
 
   /* Data Quality */
   .dq-lock{display:flex;justify-content:center;padding:80px 16px}

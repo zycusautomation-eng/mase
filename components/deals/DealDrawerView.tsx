@@ -10,6 +10,9 @@ import { useDealAi } from "@/components/deals/DealAiProvider";
 import { Monogram } from "@/components/ui/Monogram";
 import { useBackendTodos } from "@/lib/engine/useBackendTodos";
 import { AddUpdateForm } from "@/components/deals/DealDetailView";
+import { useTodoDone } from "@/lib/engine/useTodoDone";
+import { useTodoSync } from "@/lib/engine/useTodoSync";
+import { DealTodoBuckets, bucketsForOpp } from "@/components/deals/DealTodos";
 
 const CSS = `
 .ddw{
@@ -82,10 +85,10 @@ const CSS = `
 .ddw .gate{flex:1;min-width:200px;padding:0 18px}
 .ddw .gate:first-child{padding-left:0}
 .ddw .gate+.gate{border-left:1px solid rgba(255,255,255,.12)}
-.ddw .gate-head{display:flex;align-items:center;gap:9px}
+.ddw .gate-head{display:flex;align-items:flex-start;gap:9px}
 .ddw .gate-num{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:800;background:var(--indigo)}
 .ddw .gate-num.soft{background:rgba(255,255,255,.14)}
-.ddw .gate-tag{font-size:10px;font-weight:800;letter-spacing:.6px;color:#9b97f0}
+.ddw .gate-tag{font-size:11.5px;font-weight:700;letter-spacing:.1px;color:#b9b6f5;line-height:1.35}
 .ddw .gate-t{font-size:13.5px;font-weight:700;margin-top:9px;line-height:1.4}
 .ddw .gate-d{font-size:11.5px;color:#c4c2ea;margin-top:6px;line-height:1.5}
 .ddw .spof{margin-top:16px;background:rgba(210,59,84,.16);border:1px solid rgba(210,59,84,.45);border-radius:12px;padding:12px 14px;display:flex;gap:11px;align-items:flex-start;font-size:12px;color:#ffe3e8;line-height:1.55}
@@ -192,29 +195,45 @@ const CSS = `
 .ddw .risk .dot{width:7px;height:7px;border-radius:50%;background:var(--crit);margin-top:6px;flex:none}
 .ddw .risk .txt{font-size:12.5px;color:var(--ink-soft);line-height:1.6}
 .ddw .risk .txt b{color:var(--crit)}
+.ddw .sk{background:linear-gradient(90deg,#ececf4 25%,#f6f6fb 37%,#ececf4 63%);background-size:400% 100%;animation:ddwsk 1.25s ease infinite;border-radius:7px;display:block}
+@keyframes ddwsk{0%{background-position:100% 0}100%{background-position:-100% 0}}
+.ddw .sk-grp{height:11px;width:160px;margin:6px 2px 10px}
+.ddw .sk-row{display:flex;gap:13px;padding:14px 16px;border-top:1px solid var(--line-soft);align-items:flex-start}
+.ddw .sk-row:first-child{border-top:none}
+.ddw .sk-ck{width:19px;height:19px;border-radius:6px;flex:none}
+.ddw .sk-body{flex:1;min-width:0}
 `;
 
-const initials = (s: any) =>
-  String(s || "").trim().split(/\s+/).slice(0, 2).map((w) => w[0] || "").join("").toUpperCase() || "—";
 const cap = (s: any) => { const t = String(s || ""); return t ? t[0].toUpperCase() + t.slice(1) : ""; };
 const sentClass = (s: any) => { const t = String(s || "").toLowerCase(); return /pos/.test(t) ? "pos" : /neg|unk|risk/.test(t) ? "unk" : "neu"; };
 // Sentiment is sometimes a full sentence from the model — the pill must show only a
 // short label (the long prose, if any, drops into the read column instead).
 const sentLabel = (s: any) => { const t = String(s || "").toLowerCase(); return /pos/.test(t) ? "Positive" : /neg|risk|concern|unk/.test(t) ? "At risk" : t ? "Neutral" : "Unknown"; };
 const fmtDate = (s: any) => { if (!s) return ""; const d = new Date(s); return isNaN(d.getTime()) ? String(s) : d.toLocaleDateString(undefined, { day: "numeric", month: "short" }); };
+// A short one-liner that says WHAT the move is — the leading clause of the action,
+// cut at the first natural boundary (the buyer/date/connective), capped. Used as the
+// gate header in place of the owner ("Deal team") label.
+const moveTitle = (s: any) => {
+  let t = String(s || "").replace(/\s+/g, " ").trim();
+  if (!t) return "Next move";
+  const cut = t.search(/[.;(]|\s\b(?:by|to|with|so that|ahead of|for|in a)\b/i);
+  if (cut > 18) t = t.slice(0, cut);
+  t = t.trim().replace(/[,:;\-–—]+$/, "").trim();
+  if (t.length > 58) t = t.slice(0, 55).trimEnd() + "…";
+  return t;
+};
 
 export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: () => void }) {
   const { openNewDeal } = useDealAi();
   const backend = useBackendTodos();
+  const { done: doneSet, toggle } = useTodoDone();
+  const sync = useTodoSync();
   const [tab, setTab] = useState<"action" | "intel" | "people">("action");
-  const [filter, setFilter] = useState<string>("all");
-  const [checked, setChecked] = useState<Record<string, boolean>>({});
 
   const h = rec.hard || {}, ai = rec.ai || {}, pulse = rec.pulse || {};
   const nsv = ai.north_star_verdict || {};
   const verdict = nsv.verdict || "—";
   const vRisk = /risk|off|stall/i.test(verdict);
-  const repInit = initials(h.owner_name);
   const lastAct = daysSince(h.last_activity_date ?? pulse.last_activity_date);
   const analysed = (() => {
     const s = rec.swept_at; if (!s) return null;
@@ -243,75 +262,41 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
     ? ({ economic_buyer: "Economic Buyer", paper_process: "Paper / Legal", metrics: "Metrics", champion: "Champion", decision_process: "Decision Process" } as any)[blockerKey]
     : ((ai.vulnerabilities || {}).items || [])[0]?.category ? cap(((ai.vulnerabilities || {}).items || [])[0].category) : "—";
 
-  // ---- Action buckets, normalised ----
-  const buckets = useMemo(() => {
-    // Deterministic flag rule (assigned here, not guessed by the model):
-    //   crit (blocks close) = top-2 ranked move OR a dated item due on/before close OR a
-    //                         budget/EB/sign-off best-practice gate
-    //   over (overdue/aging) = due date in the past, OR asked/raised > AGING days ago
-    //   dep (needs another team) = owner OR text references a team outside the deal team
-    const now = Date.now();
-    const closeMs = h.close_date ? new Date(h.close_date).getTime() : null;
-    const AGING = 30;
-    const DEP_RE = /\b(solution|technical|infra|cloud|market|reference|legal|msa|contract|security|infosec|presales|product|implement|integration|oracle|erp|data ?cent|sap)\b/i;
-    const CRIT_BP_RE = /budget|economic buyer|\beb\b|sponsor|sign-?off|approval|single-?thread|never (been )?on a call/i;
-    const ms = (d: any) => { if (!d) return null; const t = new Date(d).getTime(); return isNaN(t) ? null : t; };
-    const past = (d: any) => { const t = ms(d); return t != null && t < now; };
-    const aging = (d: any) => { const t = ms(d); return t != null && (now - t) / 86400000 > AGING; };
-    const onBeforeClose = (d: any) => { const t = ms(d); return t != null && closeMs != null && t <= closeMs; };
-    const mkFlags = (o: { due?: any; date?: any; owner?: any; rank?: any; text?: any; bp?: boolean }): [string, string][] => {
-      const fl: [string, string][] = [];
-      const crit = (o.rank != null && o.rank <= 2) || onBeforeClose(o.due) || (!!o.bp && CRIT_BP_RE.test(String(o.text || "")));
-      const over = past(o.due) || aging(o.date);
-      const dep = DEP_RE.test(String(o.owner || "")) || DEP_RE.test(String(o.text || ""));
-      if (crit) fl.push(["crit", "Critical"]);
-      if (over) fl.push(["over", past(o.due) ? "Overdue" : "Aging"]);
-      if (dep) fl.push(["dep", "Dependency"]);
-      return fl;
-    };
-
-    const deliv = (ai.open_deliverables || {}).items || [];
-    const isBuyer = (d: any) => String(d.who || "").toLowerCase().includes("buyer") || d.waiting_on_buyer;
-    const explicit = (ai.explicit_requirements || {}).items || [];
-    const flags = (ai.best_practice_check || {}).flags || [];
-    const zyOwed = deliv.filter((d: any) => !isBuyer(d));
-    const buyerOwed = deliv.filter(isBuyer);
-
-    const b1 = [
-      ...explicit.map((r: any, i: number) => ({
-        id: `e${i}`, title: r.requirement, sub: r.said_by ? `Asked by ${r.said_by}` : "",
-        flags: mkFlags({ due: r.due, date: r.date, text: r.requirement }), chips: r.date ? [[fmtDate(r.date), 0]] : [], owner: "ts",
-      })),
-      ...zyOwed.map((d: any, i: number) => ({
-        id: `z${i}`, title: d.commitment, sub: "",
-        flags: mkFlags({ due: d.due, date: d.date, text: d.commitment }), chips: d.due ? [[`Due ${fmtDate(d.due)}`, 1]] : [], owner: "zy",
-      })),
-    ];
-    const b2 = moves.map((m: any, i: number) => ({
-      id: `m${i}`, title: m.action, sub: m.expected_effect || "",
-      flags: mkFlags({ due: m.act_by, date: m.trigger_date, owner: m.owner, rank: m.rank, text: m.action }),
-      chips: m.act_by ? [[`By ${fmtDate(m.act_by)}`, 1]] : [], owner: "zy",
-    }));
-    const b3 = buyerOwed.map((d: any, i: number) => ({
-      id: `b${i}`, title: d.commitment, sub: "",
-      flags: mkFlags({ due: d.due, date: d.date, text: d.commitment }), chips: d.due ? [[`Due ${fmtDate(d.due)}`, 1]] : [], owner: "bu",
-    }));
-    const b4 = (Array.isArray(flags) ? flags : []).map((f: any, i: number) => {
-      const txt = typeof f === "string" ? f : (f.flag || JSON.stringify(f));
-      return { id: `f${i}`, title: txt, sub: "", flags: mkFlags({ text: txt, bp: true }), chips: [], owner: "ts", advisory: true };
-    });
-
-    return [
-      { color: "#c9831f", title: "Prospect Requirements", desc: "What they asked us to deliver", advisory: false, items: b1 },
-      { color: "#5b5bf0", title: "Zycus to Deliver", desc: "Recommended plays to move the deal", advisory: false, items: b2 },
-      { color: "#2b8fd6", title: "Waiting on the Buyer", desc: "What they owe us", advisory: false, items: b3 },
-      { color: "#6a7180", title: "Best Practices", desc: "Plays from experience · advisory", advisory: true, items: b4 },
-    ].filter((b) => b.items.length);
-  }, [rec]);
-
-  const actionItems = buckets.filter((b) => !b.advisory).flatMap((b) => b.items);
-  const total = actionItems.length;
-  const done = actionItems.filter((it: any) => checked[it.id]).length;
+  // ---- Action items: sourced from the backend to-do book so each row carries its
+  // todo_key + pushed state — that's what makes the per-row "push to Salesforce"
+  // work (same items, same keys, same push as the old drawer + Espresso). ----
+  // Build the to-do buckets from the backend /todo book, then ensure EVERY one of the
+  // deal's recommended moves is present (they fold into "Commitments made by Zycus").
+  // The backend only surfaces moves as to-dos on forecast-critical deals; for every
+  // other deal we inject them straight from the record (the same source as "The Play")
+  // so all moves are always visible. Deduped by action text, so once the backend
+  // surfaces them (after the gate change ships) there is no double-up; the injected
+  // ones are flagged `pending` (visible, but push/edit unlock on the next sweep).
+  const todoBuckets = useMemo(() => {
+    const base: any[] = bucketsForOpp(backend.flat, rec.opp_id);
+    const recMoves = (((rec.ai || {}).recommended_moves || {}).items || []) as any[];
+    if (!recMoves.length) return base;
+    const norm = (s: any) => String(s || "").toLowerCase().replace(/\s+/g, " ").trim();
+    const crit = base.find((b) => b.category === "critical");
+    const have = new Set((crit?.items || []).map((it: any) => norm(it.text || it.action)));
+    const oid15 = String(rec.opp_id || "").slice(0, 15);
+    const extra = recMoves
+      .slice()
+      .sort((a, b) => (a.rank || 99) - (b.rank || 99))
+      .filter((m) => m.action && !have.has(norm(m.action)))
+      .map((m, i) => ({
+        category: "critical", text: m.action, action: m.action,
+        todoKey: `pending:${oid15}:mv${i}`, pending: true, opp_id: rec.opp_id,
+        act_by: m.act_by, trigger_date: m.trigger_date, urgency: m.urgency,
+        horizon: m.horizon, expected_effect: m.expected_effect, intervention_owner: m.owner,
+      }));
+    if (!extra.length) return base;
+    if (crit) return base.map((b) => b.category === "critical" ? { ...b, items: [...b.items, ...extra] } : b);
+    return [{ category: "critical", items: extra }, ...base];
+  }, [backend.flat, rec]);
+  const allTodos = todoBuckets.flatMap((b: any) => b.items);
+  const total = allTodos.length;
+  const done = allTodos.filter((it: any) => backend.isPushed(it) || doneSet.has(it.todoKey)).length;
   const C = 138.23;
 
   // ---- coverage + stakeholders ----
@@ -419,15 +404,15 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
           <div className="play">
             <div className="play-top">
               <div>
-                <div className="play-eyebrow">The play · what moves this deal</div>
-                <div className="play-title">{gates.length} ranked move{gates.length > 1 ? "s" : ""} — top first</div>
+                <div className="play-eyebrow">The play · how to win this deal</div>
+                <div className="play-title">Your {gates.length} highest-leverage {gates.length === 1 ? "play" : "plays"} right now</div>
               </div>
               <button className="play-cta" onClick={() => openNewDeal(dealForAi)}>Work this with AI →</button>
             </div>
             <div className="gates">
               {gates.map((m: any, i: number) => (
                 <div className="gate" key={i}>
-                  <div className="gate-head"><span className={`gate-num ${i > 1 ? "soft" : ""}`}>{i + 1}</span><span className="gate-tag">{(m.owner || "MOVE").toUpperCase()}{m.act_by ? ` · BY ${fmtDate(m.act_by)}` : ""}</span></div>
+                  <div className="gate-head"><span className={`gate-num ${i > 1 ? "soft" : ""}`}>{i + 1}</span><span className="gate-tag">{moveTitle(m.action)}{m.act_by ? ` · by ${fmtDate(m.act_by)}` : ""}</span></div>
                   <div className="gate-t">{m.action}</div>
                   {m.expected_effect ? <div className="gate-d">{m.expected_effect}</div> : (m.trigger ? <div className="gate-d">{m.trigger}</div> : null)}
                 </div>
@@ -456,12 +441,7 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
             </div>
             <div className="progress-meta">
               <div className="t">Action plan</div>
-              <div className="d">{total === 0 ? "No open actions." : done === total ? "All actions complete — push for the close." : "Open actions across requirements, plays and buyer dependencies."}</div>
-            </div>
-            <div className="filters">
-              {[["all", "All", ""], ["crit", "Critical", "var(--crit)"], ["over", "Overdue", "var(--over)"], ["dep", "Dependency", "var(--dep)"]].map(([f, label, col]) => (
-                <button key={f} className={`fchip ${filter === f ? "active" : ""}`} onClick={() => setFilter(f)}>{col ? <span className="dot" style={{ background: col }} /> : null}{label}</button>
-              ))}
+              <div className="d">{total === 0 ? "No open to-dos." : done === total ? "All to-dos pushed to Salesforce." : "Tick a to-do, then push it to Salesforce with the ☁ button."}</div>
             </div>
           </div>
 
@@ -471,65 +451,41 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
             <AddUpdateForm oppId={rec.opp_id} backend={backend} />
           </div>
 
-          {buckets.map((b, bi) => {
-            const items = b.items.filter((it: any) => filter === "all" || (it.flags || []).some((f: any) => f[0] === filter));
-            if (!items.length) return null;
-            return (
-              <div className="bucket" key={bi}>
-                <div className="bucket-head"><span className="sq" style={{ background: b.color }} /><span className="t">{b.title}</span><span className="c">{b.items.length}</span><span className="d">{b.desc}</span></div>
-                <div className="bucket-body">
-                  {items.map((it: any) => {
-                    const isDone = !!checked[it.id];
-                    const accent = (it.flags || []).some((f: any) => f[0] === "crit") ? "var(--crit)" : (it.flags || []).some((f: any) => f[0] === "over") ? "var(--over)" : (it.flags || []).some((f: any) => f[0] === "dep") ? "var(--dep)" : "#e6e6ef";
-                    return (
-                      <div className={`item ${isDone && !b.advisory ? "done" : ""}`} style={{ borderLeftColor: accent }} key={it.id}>
-                        {b.advisory ? <div className="check advisory">◇</div>
-                          : <div className={`check ${isDone ? "on" : ""}`} onClick={() => setChecked((c) => ({ ...c, [it.id]: !c[it.id] }))}>{isDone ? "✓" : ""}</div>}
-                        <div className="it-body">
-                          <div className="it-title">{it.title}</div>
-                          {it.sub ? <div className="it-sub">{it.sub}</div> : null}
-                          {(it.flags?.length || it.chips?.length) ? (
-                            <div className="it-meta">
-                              {(it.flags || []).map((f: any, i: number) => <span className={`flag ${f[0]}`} key={`f${i}`}><span className="dot" />{f[1]}</span>)}
-                              {(it.chips || []).map((c: any, i: number) => <span className={`chip ${c[1] ? "due" : ""}`} key={`c${i}`}>{c[0]}</span>)}
-                            </div>
-                          ) : null}
-                        </div>
-                        <div className="it-right"><div className={`owner ${it.owner}`}>{it.owner === "ts" ? repInit : it.owner.toUpperCase()}</div></div>
-                      </div>
-                    );
-                  })}
+          {backend.loading && !allTodos.length ? (
+            <div className="card" style={{ overflow: "hidden", marginTop: 12, padding: "4px 4px 8px" }}>
+              <div className="sk sk-grp" />
+              {[0, 1, 2, 3].map((i) => (
+                <div className="sk-row" key={i}>
+                  <span className="sk sk-ck" />
+                  <div className="sk-body">
+                    <div className="sk" style={{ height: 12, width: `${78 - i * 9}%`, marginBottom: 8 }} />
+                    <div className="sk" style={{ height: 10, width: `${55 - i * 6}%` }} />
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-          {!buckets.length ? <div className="card card-pad ic-body">No action items on this deal yet.</div> : null}
+              ))}
+            </div>
+          ) : (
+            <>
+              <DealTodoBuckets buckets={todoBuckets} ownerName={h.owner_name} done={doneSet} toggle={toggle} sync={sync} backend={backend} />
+              {!todoBuckets.length ? <div className="card card-pad ic-body" style={{ marginTop: 12 }}>No open to-dos on this deal yet.</div> : null}
+            </>
+          )}
         </div>
 
         {/* ===== INTEL ===== */}
         <div className={`tab ${tab === "intel" ? "active" : ""}`}>
           <div className="card card-pad mb14">
-            <div className="ic-title" style={{ marginBottom: 12 }}>✦ AI Summary {verdict !== "—" ? <span className={`pill ${vRisk ? "crit2" : "pos2"}`}>{verdict}</span> : null}{pulse.state ? <span className="pill pos2">{cap(pulse.state)}</span> : null}</div>
-            <div className="ic-body">{(ai.confidence_signals || {}).summary || nsv.headline || "No summary."}</div>
-          </div>
-          <div className="twocol">
-            <div className="card card-pad">
-              <div className="ic-title">AI Fit {(ai.ai_fit_signal || {}).tier ? <span className="pill crit2">{(ai.ai_fit_signal || {}).tier}</span> : null}</div>
-              {(() => {
-                const tier = String((ai.ai_fit_signal || {}).tier || "").toLowerCase();
-                const score = /hungry/.test(tier) ? 8 : /warm/.test(tier) ? 5 : /latent/.test(tier) ? 3 : /resist|cold/.test(tier) ? 1 : 5;
-                return <div className="meter">{Array.from({ length: 10 }).map((_, i) => <span key={i} className={i < score ? "on" : ""} />)}</div>;
-              })()}
-              <div className="ic-body">{(ai.ai_fit_signal || {}).summary || "No AI-fit signal."}</div>
+            <div className="ic-title">AI Excitement Score (AES)
+              {(ai.ai_fit_signal || {}).tier ? <span className="pill crit2" style={{ marginLeft: 8 }}>{(ai.ai_fit_signal || {}).tier}</span> : null}
+              {h.ais_status ? <span className="pill pos2" style={{ marginLeft: 6 }}>{h.ais_status}</span> : null}
+              {h.ais_score != null && h.ais_score !== "" ? <span className="pill pos2" style={{ marginLeft: 6 }}>Score {h.ais_score}</span> : null}
             </div>
-            <div className="card card-pad">
-              <div className="ic-title">Pulse &amp; Forecast</div>
-              <div className="ic-body" style={{ marginTop: 12 }}>
-                {pulse.summary ? <><b>{cap(pulse.state)}.</b> {pulse.summary}<br /><br /></> : null}
-                <b>Forecast:</b> {h.forecast_category || "—"}{nsv.recommended_forecast && nsv.forecast_defensible === false ? <> → recommend <b style={{ color: "var(--over)" }}>{nsv.recommended_forecast}</b></> : null}.
-                <br /><b>Verdict:</b> {verdict} · Confidence {rec.analysis_confidence || "—"} · {fmtAmount(h.amount)} at stake.
-              </div>
-            </div>
+            {(() => {
+              const tier = String((ai.ai_fit_signal || {}).tier || "").toLowerCase();
+              const score = /hungry/.test(tier) ? 8 : /warm/.test(tier) ? 5 : /latent/.test(tier) ? 3 : /resist|cold/.test(tier) ? 1 : 5;
+              return <div className="meter">{Array.from({ length: 10 }).map((_, i) => <span key={i} className={i < score ? "on" : ""} />)}</div>;
+            })()}
+            <div className="ic-body">{(ai.ai_fit_signal || {}).summary || h.ais_why || "No AI-excitement signal yet."}</div>
           </div>
           <div className="card card-pad">
             <div className="ic-title">Competition</div>
