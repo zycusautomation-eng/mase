@@ -171,6 +171,31 @@ function clubItems(items: BackendTodoItem[]): BackendTodoItem[] {
   return clusters.map((c) => c.rep);
 }
 
+// Cross-bucket MECE: a theme already shown in a higher-precedence bucket
+// (prospect > commitments > buyerOwed > bestPractice) is removed from the lower
+// ones, so the same ask never appears under two heads. Top-3 Play cards read
+// ai.recommended_moves directly and are unaffected (the one allowed overlap).
+function dedupeAcrossBuckets(grouped: Record<DisplayBucketKey, BackendTodoItem[]>): void {
+  const seen: Set<string>[] = [];
+  const isDup = (sig: Set<string>): boolean => {
+    if (!sig.size) return false;
+    return seen.some((s) => {
+      let inter = 0;
+      for (const x of sig) if (s.has(x)) inter++;
+      const need = Math.min(2, sig.size, s.size);
+      return inter >= need && inter / Math.min(sig.size, s.size) >= 0.5;
+    });
+  };
+  for (const k of ACTION_ORDER) {
+    grouped[k] = grouped[k].filter((it) => {
+      const sig = clubSig(it.text);
+      if (isDup(sig)) return false;
+      if (sig.size) seen.push(sig);
+      return true;
+    });
+  }
+}
+
 const TD_ICONBTN: React.CSSProperties = {
   background: "none", border: "none", cursor: "pointer", color: "var(--muted,#7E8DA1)",
   fontSize: 12, padding: "2px 6px", borderRadius: 6, whiteSpace: "nowrap",
@@ -287,6 +312,7 @@ export function DealTodoBuckets({
   // requirements/commitments fall through to Best practices.
   for (const it of effItems(buckets.flatMap((b) => b.items))) grouped[displayBucketOf(it)].push(it);
   for (const k of ACTION_ORDER) grouped[k] = clubItems(grouped[k]); // collapse homogeneous within each bucket
+  dedupeAcrossBuckets(grouped); // cross-bucket MECE: a theme never repeats across heads
   grouped.bestPractice = grouped.bestPractice.slice(0, 7); // hard cap: never more than 7 best-practice items
   return (
     <>
