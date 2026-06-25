@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from "react";
-import { ownerKind, clipWords } from "@/lib/engine/helpers";
+import { ownerKind } from "@/lib/engine/helpers";
 import { useTodoSync, type SyncStatus } from "@/lib/engine/useTodoSync";
 import {
   useBackendTodos,
@@ -231,7 +231,7 @@ function TodoRow({
       <span className={`td-ic ${k.prio}`} aria-hidden><TypeIcon kind={k.icon} /></span>
       <div className="td-body">
         <div className="td-txt">
-          {clipWords(it.text, 18)}
+          {it.text}
           {it.edited ? <span className="ownerchip" style={{ marginLeft: 6 }}>edited</span> : null}
         </div>
         <ContextMeta it={it} />
@@ -387,11 +387,10 @@ export function ContextMeta({ it }: { it: BackendTodoItem }) {
   // Narrative triggers (e.g. "5 overdue deliverables") are long, not bare, so they survive.
   const NOISE = /^(open|overdue|completed|no due date|next_\d+_days)$/i;
   const clean = (s: string | undefined) => (s && !NOISE.test(s.trim()) ? s : undefined);
-  const trigger = clean(it.trigger as string | undefined);
   const urgency = clean(it.urgency as string | undefined);
   const status = clean(it.status as string | undefined);
   const di = dueInfo(it);
-  const hasAny = owner || di || askedBy || trigger || urgency || status;
+  const hasAny = owner || di || askedBy || urgency || status;
   if (!hasAny) return null;
   return (
     <div className="td-meta">
@@ -399,7 +398,6 @@ export function ContextMeta({ it }: { it: BackendTodoItem }) {
       {askedBy ? <span className="ownerchip">asked by {askedBy}</span> : null}
       {di ? <span className="duechip">due {di.dueBy}</span> : null}
       {di?.from ? <span className="ownerchip">from {di.from}</span> : null}
-      {trigger ? <span className="ownerchip">{trigger}</span> : null}
       {urgency ? <span className="ownerchip">{urgency}</span> : null}
       {status ? <span className="ownerchip">{status}</span> : null}
     </div>
