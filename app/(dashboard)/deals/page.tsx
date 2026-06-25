@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useMemo, useState } from "react";
 import { useDashboard } from "@/lib/engine/DashboardContext";
-import { aiLabel, fmtAmount, verdictTone, type Rec } from "@/lib/engine/helpers";
+import { aiLabel, fmtAmount, verdictTone, healthLabel, type Rec } from "@/lib/engine/helpers";
 import DealDrawer from "@/components/deals/DealDrawer";
 import { Monogram } from "@/components/ui/Monogram";
 import { PageLoader } from "@/components/ui/page-loader";
@@ -96,7 +96,7 @@ export default function DealsPage() {
               return (
                 <tr key={r.opp_id} onClick={() => setSelected(r)}>
                   {LEAD_COLS.map(cell)}
-                  <td>{verdict ? <span className={`chip ${verdictTone(verdict)}`}>{verdict}</span> : ""}</td>
+                  <td>{verdict ? <span className={`chip ${verdictTone(verdict)}`}>{healthLabel(verdict)}</span> : ""}</td>
                   <td>{aiLabel(h, ai.ai_fit_signal)}</td>
                   {REST_COLS.map(cell)}
                   <td className={`conf-${r.analysis_confidence}`}>{r.analysis_confidence || "—"}</td>

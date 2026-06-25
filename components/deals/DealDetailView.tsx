@@ -113,7 +113,7 @@ export default function DealDetailView({ rec, variant = "page", onClose }: { rec
   const verdict = ai.north_star_verdict || {};
   const vt = verdictTone(verdict.verdict);
   const hLabel = healthLabel(verdict.verdict);
-  const healthColor = vt === "v-on" ? "var(--green-ink)" : vt === "v-risk" ? "var(--amber-ink)" : vt === "v-off" ? "var(--red-ink)" : "var(--muted)";
+  const healthColor = vt === "v-on" ? "var(--green-ink)" : vt === "v-cdr" ? "var(--lgreen-ink)" : vt === "v-slow" ? "var(--amber-ink)" : vt === "v-off" ? "var(--red-ink)" : "var(--muted)";
   const tier = dealTier(h);
   const buckets = bucketsForOpp(backend.flat, rec.opp_id);
   const todoCount = buckets.reduce((n, b) => n + b.items.length, 0);

@@ -5,7 +5,7 @@
 // keeps the original DealDetailView, so this is drawer-only and reversible.
 // All CSS is scoped under .ddw so it can never collide with the app's global styles.
 import { useMemo, useState } from "react";
-import { fmtAmount, daysSince, healthLabel, type Rec } from "@/lib/engine/helpers";
+import { fmtAmount, daysSince, healthLabel, verdictTone, type Rec } from "@/lib/engine/helpers";
 import { useDealAi } from "@/components/deals/DealAiProvider";
 import { Monogram } from "@/components/ui/Monogram";
 import { useBackendTodos } from "@/lib/engine/useBackendTodos";
@@ -236,7 +236,9 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
   const h = rec.hard || {}, ai = rec.ai || {}, pulse = rec.pulse || {};
   const nsv = ai.north_star_verdict || {};
   const verdict = healthLabel(nsv.verdict);
-  const vRisk = /risk|off/i.test(verdict);
+  // Negative tone = amber/red (Slowing or Off Track). On Track + Close-date risk
+  // are POSITIVE (green / light green), so they must NOT read as risk.
+  const vRisk = ((t) => t === "v-slow" || t === "v-off")(verdictTone(nsv.verdict));
   const lastAct = daysSince(h.last_activity_date ?? pulse.last_activity_date);
   const analysed = (() => {
     const s = rec.swept_at; if (!s) return null;

@@ -28,7 +28,7 @@ export default function DealsStats() {
 
   const recs = filtered;
   const amt = (r: any) => Number(r.hard?.amount) || 0;
-  const isAtRisk = (r: any) => { const v = verdictTone(r.ai?.north_star_verdict?.verdict); return v === "v-risk" || v === "v-off"; };
+  const isAtRisk = (r: any) => { const v = verdictTone(r.ai?.north_star_verdict?.verdict); return v === "v-slow" || v === "v-off"; };
   const pipeline = recs.reduce((n, r) => n + amt(r), 0);
   const commitRecs = recs.filter((r: any) => r.hard?.forecast_category === "Commit");
   const commit = commitRecs.reduce((n, r) => n + amt(r), 0);

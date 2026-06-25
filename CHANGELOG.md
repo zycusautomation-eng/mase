@@ -6,6 +6,23 @@
 
 ---
 
+## 2026-06-25 — Deal health: FOUR tiers (split At Risk → Close-date risk + Slowing)
+
+**What.** The verdict now renders as four statuses (was three), via the single
+`verdictTone`/`healthLabel` helpers (`lib/engine/helpers.ts`):
+- On track → green (`v-on`) · **Close-date risk → light green** (`v-cdr`, NEW) · Slowing → amber
+  (`v-slow`, NEW) · Off track → red (`v-off`).
+- `verdictTone` ORDER matters: "Close Date Risk" contains "risk", so it is caught BEFORE the legacy
+  "risk" check; legacy `At Risk` → `v-slow` (amber); unknown → neutral.
+New CSS tones `.v-cdr` (`--lgreen-*`) + `.v-slow` in `dashboard.css`. Callers updated: `DealDetailView`
+(healthColor), `DealDrawerView` (negative-tone check so Close-date risk reads POSITIVE, not red),
+`DealsStats` (the at-risk tile now counts Slowing+Off, **NOT** Close-date risk), deals-list chip.
+
+**Why.** One "At Risk" bucket lumped healthy-but-late deals (McAfee — live POC, only the date slips)
+with genuinely stalling deals, making the forecast book read alarmingly red. Close-date risk is a
+POSITIVE read (light green) and is excluded from the at-risk tile. Pairs with the backend four-tier
+verdict; existing `At Risk` records render as Slowing until re-swept.
+
 ## 2026-06-25 — One canonical deal-health label everywhere (kills the "Healthy" drift)
 
 **What.** Added `healthLabel()` in `lib/engine/helpers.ts` as the single source of truth for the three

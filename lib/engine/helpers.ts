@@ -121,22 +121,33 @@ export function aiTier(h: Hard, fit?: any): string | null {
 }
 export function aiLabel(h: Hard, fit?: any): string { const t = aiTier(h, fit); return t ? "AI " + t : "Not scored"; }
 
-export function verdictTone(v: any): "v-on" | "v-risk" | "v-off" | "" {
+// Four deal-health tones. ORDER MATTERS: "Close Date Risk" contains "risk", so
+// it must be caught BEFORE the legacy "risk" check.
+//   v-on   = On Track        -> green
+//   v-cdr  = Close Date Risk -> light green (healthy deal, date will slip)
+//   v-slow = Slowing         -> amber (losing momentum / stalled)
+//   v-off  = Off Track       -> red (cold)
+export function verdictTone(v: any): "v-on" | "v-cdr" | "v-slow" | "v-off" | "" {
   const k = String(v || "").toLowerCase();
   if (!k) return "";
   if (k.includes("off")) return "v-off";
-  if (k.includes("risk")) return "v-risk";
+  if (k.includes("close")) return "v-cdr";   // "close date risk"
+  if (k.includes("slow")) return "v-slow";   // "slowing"
   if (/on[\s-]?track/.test(k)) return "v-on";
-  return ""; // unknown/odd wording -> neutral, NEVER silently green ("Healthy")
+  if (k.includes("risk")) return "v-slow";   // legacy "At Risk" -> Slowing (amber)
+  return ""; // unknown/odd wording -> neutral, NEVER silently green
 }
 
-// The ONE place the three deal-health statuses are named. Every surface reads
-// from here so the label never drifts (page, drawer, deals tab, runs all show
-// the same words). On Track -> "On track", At Risk -> "At risk", Off Track ->
-// "Off track"; anything unrecognised -> "—".
+// The ONE place the four deal-health statuses are named. Every surface reads
+// from here so the label never drifts. On Track -> "On track", Close Date Risk
+// -> "Close-date risk", Slowing -> "Slowing", Off Track -> "Off track";
+// anything unrecognised -> "—".
 export function healthLabel(v: any): string {
   const t = verdictTone(v);
-  return t === "v-on" ? "On track" : t === "v-risk" ? "At risk" : t === "v-off" ? "Off track" : "—";
+  return t === "v-on" ? "On track"
+    : t === "v-cdr" ? "Close-date risk"
+    : t === "v-slow" ? "Slowing"
+    : t === "v-off" ? "Off track" : "—";
 }
 
 // --- VP / RSD hierarchy ---
