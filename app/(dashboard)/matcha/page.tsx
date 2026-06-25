@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from "react";
 import { useDashboard } from "@/lib/engine/DashboardContext";
-import { daysSince, fmtAmount, teamOwners, stageRank, type Rec } from "@/lib/engine/helpers";
+import { daysSince, fmtAmount, teamOwners, stageRank, clipWords, type Rec } from "@/lib/engine/helpers";
 import DealDrawer from "@/components/deals/DealDrawer";
 import { useBackendTodos } from "@/lib/engine/useBackendTodos";
 import { topMoveForOpp, replanDue } from "@/components/deals/DealTodos";
@@ -128,7 +128,7 @@ export default function MatchaPage() {
                 ? `last activity ${h.last_activity_date} (${sinceActivity} days ago)`
                 : `no activity logged${refDays != null ? ` · ${refDays}d untouched` : ""}`}</div>
               <div className="why" style={{ marginTop: 5 }}>
-                <b>► Next:</b> {move.text}
+                <b>► Next:</b> {clipWords(move.text, 18)}
                 {move.dueBy ? <span className="duechip" style={{ marginLeft: 6 }}>due {move.dueBy}</span> : null}
               </div>
             </li>
