@@ -6,6 +6,25 @@
 
 ---
 
+## 2026-06-26 — Every prospect requirement lands in "Prospect requirements"
+
+**What.** Two display-layer routing fixes in `DealTodos.tsx` (`displayBucketOf` + the `DealTodoBuckets`
+grouping loop), no re-sweep: (1) **Structured** — `explicitRequirements` items ALWAYS map to the
+`prospect` bucket; the old `said_by ? "prospect" : "bestPractice"` gate is gone (an ask the sweep didn't
+attribute was being demoted to Best practices and disappearing from the bucket the team tracks). (2)
+**Heuristic** — a `critical` (recommended-move) item whose text reads as a prospect-stated ask
+(`PROSPECT_ASK_RE`: buyer asked/requested/requires, RFP/RFI/RFQ/BRD *response/deadline/submission/…*,
+InfoSec/security questionnaire|review|assessment, "at requested levels", responding to their questions)
+is **mirrored** into `prospect` while still showing as a Play card — the one allowed overlap.
+Cross-bucket de-dup then keeps the mirrored copy out of Best practices.
+
+**Why.** Prospect requirements looked too sparse (some deals showed 0–2) and the team needs every
+buyer-stated deliverable visible in one bucket to track due/owed status. Root cause was display routing,
+not data loss: attributed asks were fine, but un-attributed asks and asks the sweep buried inside "moves"
+were landing elsewhere. Regex is deliberately conservative (buyer-noun subjects only; RFP needs a real
+deliverable qualifier so "manual RFP management" / internal team moves don't false-positive). Validated
+on the 62-deal forecast book: 23/314 moves mirrored, all genuine; 0 attributed requirements affected.
+
 ## 2026-06-25 — Leaner deal drawer + trustworthy "Commitments by Zycus"
 
 **What.** (1) The drawer reads lighter across all deals: the AI summary lede/body are clipped to ~26/28
