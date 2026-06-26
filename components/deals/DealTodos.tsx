@@ -119,9 +119,11 @@ function isBuyerSide(who: unknown): boolean {
 function displayBucketOf(it: BackendTodoItem): DisplayBucketKey {
   // Buyer owes us (their input / approval / info) -> Waiting on the buyer.
   if (it.category === "important") return isBuyerSide(it.who) ? "buyerOwed" : "commitments";
-  // A requirement the prospect CLEARLY stated (we know who asked) -> Prospect
-  // requirements; an inferred / unattributed need is not a firm ask -> Best practices.
-  if (it.category === "explicitRequirements") return (it as any).said_by ? "prospect" : "bestPractice";
+  // ANYTHING the engine tagged as a prospect requirement ALWAYS shows under
+  // Prospect requirements — even when the sweep didn't capture a "who asked" name.
+  // (Previously an unattributed ask was demoted to Best practices, hiding a real
+  // prospect deliverable from the bucket the team tracks against.)
+  if (it.category === "explicitRequirements") return "prospect";
   // ONLY what Zycus explicitly committed to ON A CALL (carries grounding evidence /
   // source) -> Commitments. An inferred "we should…" is NOT a commitment -> Best practices.
   if (it.category === "implicit") return ((it as any).grounding_quote || (it as any).source) ? "commitments" : "bestPractice";
@@ -130,6 +132,39 @@ function displayBucketOf(it: BackendTodoItem): DisplayBucketKey {
   if (it.category === "critical") return "bestPractice";
   // best_practice flags + everything else.
   return "bestPractice";
+}
+
+// A recommended "move" sometimes phrases something the PROSPECT actually asked us
+// for (a deliverable they requested, an RFP/questionnaire/security review to
+// answer, written responses to their questions). The sweep didn't tag it as an
+// explicit_requirement, so without this it would only ever read as one of our
+// moves. Detect those conservatively so they ALSO surface under Prospect
+// requirements — they still show as a Play card (the allowed overlap). The regex
+// requires an explicit BUYER-request signal, not a generic "provide/schedule",
+// to keep purely-internal moves out. Display-only; the item keeps its todo_key.
+const PROSPECT_ASK_RE = new RegExp(
+  // The BUYER explicitly asked/requested/requires/wants/needs something. (Subject
+  // is restricted to buyer nouns — NOT "they/their/our team" — so an internal
+  // "position our product team" move isn't mistaken for a prospect ask.)
+  "\\b(?:buyer|prospect|client|customer)\\b[^.]{0,40}?\\b(?:asked|requested|require[sd]?|want(?:s|ed)?|need(?:s|ed)?)\\b" +
+  "|\\b(?:as|per)\\s+(?:requested|their\\s+request)\\b" +
+  "|\\brequested\\s+by\\b" +
+  "|\\b(?:requested|stated|specified)\\s+(?:levels?|criteria|requirements?|experience)\\b" +
+  // Responding to THEIR questions / concerns / RFP.
+  "|\\b(?:respond(?:ing)?|response|written\\s+responses?|reply|answer(?:ing)?)\\s+to\\b[^.]{0,40}?\\b(?:question|ask|request|query|concern|rfp|rfi|rfq|questionnaire|brd)\\b" +
+  "|\\b(?:address(?:ing)?|answer(?:ing)?)\\b[^.]{0,40}?\\b(?:their|buyer'?s?|prospect'?s?|client'?s?)\\b[^.]{0,20}?\\b(?:question|concern|ask|requirement)s?\\b" +
+  // An RFP/RFI/RFQ/BRD with a real deliverable / process qualifier — so "manual
+  // RFP management" (a value-prop topic) does NOT match, but "RFP response",
+  // "RFI debrief", "RFP submission status" do.
+  "|\\b(?:rfp|rfi|rfq|brd)\\s+(?:response|document|requirements?|deadline|submission|submitted|status|timeline|scoring|criteria|shortlist|debrief|process|questionnaire)\\b" +
+  "|\\b(?:respond(?:ing)?\\s+to|submit|complete|deliver|provide|return|fill|craft|prepare)\\b[^.]{0,30}?\\b(?:rfp|rfi|rfq|brd)\\b" +
+  // A buyer-driven security/infosec gate we must satisfy, or a standalone questionnaire.
+  "|\\b(?:infosec|security)\\s+(?:questionnaire|review|assessment)\\b" +
+  "|\\bquestionnaire\\b|\\bvendor\\s+assessment\\b",
+  "i",
+);
+function looksLikeProspectAsk(text: string): boolean {
+  return PROSPECT_ASK_RE.test(String(text || ""));
 }
 
 // --- Club homogeneous to-dos (mirror of the backend de-duplicator) ---
@@ -311,7 +346,15 @@ export function DealTodoBuckets({
   const grouped: Record<DisplayBucketKey, BackendTodoItem[]> = { prospect: [], commitments: [], buyerOwed: [], bestPractice: [] };
   // Each item lands in the ONE bucket its nature fits (displayBucketOf); inferred
   // requirements/commitments fall through to Best practices.
-  for (const it of effItems(buckets.flatMap((b) => b.items))) grouped[displayBucketOf(it)].push(it);
+  for (const it of effItems(buckets.flatMap((b) => b.items))) {
+    grouped[displayBucketOf(it)].push(it);
+    // A "move" that actually phrases a prospect-stated ask is ALSO mirrored into
+    // Prospect requirements (it still appears as a Play card — the allowed
+    // overlap). Cross-bucket de-dup then keeps it out of Best practices.
+    if (it.category === "critical" && looksLikeProspectAsk(it.text)) {
+      grouped.prospect.push({ ...it, mirroredAsk: true } as BackendTodoItem);
+    }
+  }
   for (const k of ACTION_ORDER) grouped[k] = clubItems(grouped[k]); // collapse homogeneous within each bucket
   dedupeAcrossBuckets(grouped); // cross-bucket MECE: a theme never repeats across heads
   grouped.bestPractice = grouped.bestPractice.slice(0, 7); // hard cap: never more than 7 best-practice items
