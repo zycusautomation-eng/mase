@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from "react";
-import { ownerKind } from "@/lib/engine/helpers";
+import { ownerKind, fmtDue, diffDays } from "@/lib/engine/helpers";
 import { useTodoSync, type SyncStatus } from "@/lib/engine/useTodoSync";
 import {
   useBackendTodos,
@@ -451,25 +451,52 @@ export function topMoveForOpp(
   return null;
 }
 
-// Small context chips per category. Owner-ish fields render as ownerchip; the due date is
-// always future; said_by renders as "asked by X".
+// A prospect requirement is date-TRACKED: unlike a move (whose chip is always
+// re-planned into the future), a requirement keeps its true timeliness so a
+// slipped deliverable is visible. The due is whatever the backend derived
+// (a stated deadline, else one back-planned from close) or a mirrored move's act_by.
+function reqDueOf(it: BackendTodoItem): { iso: string; overdue: boolean; n: number; stated: boolean } | null {
+  const iso = (it.act_by || it.due) as string | undefined;
+  if (!iso || !/^\d{4}-\d{2}-\d{2}/.test(iso)) return null;
+  const t = todayISO();
+  const delta = diffDays(t, iso); // iso - today: negative = overdue
+  return { iso, overdue: iso < t, n: Math.abs(delta ?? 0), stated: (it as any).due_source === "stated" };
+}
+
+// Small context chips per category. Owner-ish fields render as ownerchip; said_by
+// renders as "asked by X". Moves get an always-future due chip; a prospect
+// requirement gets a timeliness-preserving one (overdue Nd when slipped).
 export function ContextMeta({ it }: { it: BackendTodoItem }) {
   const owner = (it.intervention_owner || it.who) as string | undefined;
   const askedBy = it.said_by as string | undefined;
   // Drop standalone status-like chips ("overdue" / "open" / "completed" / "no due date") on any
-  // field — the future due chip carries the timing now, and a bare "overdue" contradicts it.
+  // field — the due chip carries the timing now, and a bare "overdue" contradicts it.
   // Narrative triggers (e.g. "5 overdue deliverables") are long, not bare, so they survive.
   const NOISE = /^(open|overdue|completed|no due date|next_\d+_days)$/i;
   const clean = (s: string | undefined) => (s && !NOISE.test(s.trim()) ? s : undefined);
   const urgency = clean(it.urgency as string | undefined);
   const status = clean(it.status as string | undefined);
-  const di = dueInfo(it);
-  const hasAny = owner || di || askedBy || urgency || status;
+  // Requirements (real or mirrored from a move) are date-tracked with timeliness;
+  // everything else keeps the always-future move chip.
+  const isReq = it.category === "explicitRequirements" || Boolean((it as any).mirroredAsk);
+  const reqDue = isReq ? reqDueOf(it) : null;
+  const di = isReq ? null : dueInfo(it);
+  const hasAny = owner || di || reqDue || askedBy || urgency || status;
   if (!hasAny) return null;
   return (
     <div className="td-meta">
       {owner ? <span className={`ownerchip ${ownerKind(owner) === "VP" ? "vp" : ""}`}>{owner}</span> : null}
       {askedBy ? <span className="ownerchip">asked by {askedBy}</span> : null}
+      {reqDue ? (
+        <span
+          className={`duechip${reqDue.overdue ? " overdue" : ""}`}
+          title={reqDue.stated ? "stated deadline" : "target — back-planned from the close date"}
+        >
+          {reqDue.overdue
+            ? `overdue ${reqDue.n}d · was ${fmtDue(reqDue.iso)}`
+            : reqDue.n === 0 ? "due today" : `due ${fmtDue(reqDue.iso)}`}
+        </span>
+      ) : null}
       {di ? <span className="duechip">due {di.dueBy}</span> : null}
       {di?.from ? <span className="ownerchip">from {di.from}</span> : null}
       {urgency ? <span className="ownerchip">{urgency}</span> : null}

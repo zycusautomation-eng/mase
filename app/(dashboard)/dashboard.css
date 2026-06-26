@@ -494,6 +494,7 @@
   .ownerchip.vp{color:#fff;background:var(--accent)}
   .duechip{display:inline-block;font-size:11px;font-weight:600;color:var(--muted);background:var(--inset);border-radius:6px;padding:1px 7px;vertical-align:middle}
   .duechip.heavy{color:var(--amber-ink);background:var(--amber-bg)}
+  .duechip.overdue{color:var(--red-ink,#b42318);background:var(--red-bg,#fee4e2);font-weight:700}
   .activate{width:100%;text-align:left;background:var(--surface2);border:1px dashed var(--line);border-radius:12px;padding:12px 15px;font-size:13.5px;font-weight:700;color:var(--ink2);cursor:pointer}
   .activate:hover{border-color:var(--accent);color:var(--ink)}
   /* winning plays attached from the closed-won playbook */

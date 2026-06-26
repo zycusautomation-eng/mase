@@ -6,6 +6,21 @@
 
 ---
 
+## 2026-06-26 — Prospect requirements show a due date + overdue status
+
+**What.** A prospect requirement now renders a timeliness-preserving due chip in
+`ContextMeta` (`DealTodos.tsx`): `due <date>` when upcoming, red **`overdue Nd · was <date>`**
+when slipped. Unlike the move chips (which always re-plan into the future via `dueInfo`),
+a requirement keeps its true date so a missed deliverable is visible. The date comes from
+the backend (`act_by`/`due` with `due_source` — a stated deadline or one back-planned from
+close); a tooltip distinguishes "stated deadline" from "target — back-planned from close".
+Applies to both real `explicitRequirements` items and moves mirrored into the bucket
+(`mirroredAsk`). New `.duechip.overdue` style.
+
+**Why.** RevOps needs to track when a buyer-owed deliverable is due and whether we hit it.
+Pairs with the backend change of the same date (`derive_todo` now derives the due date from
+the close date / stated text — read-time, no re-sweep).
+
 ## 2026-06-26 — Every prospect requirement lands in "Prospect requirements"
 
 **What.** Two display-layer routing fixes in `DealTodos.tsx` (`displayBucketOf` + the `DealTodoBuckets`
