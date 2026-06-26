@@ -157,6 +157,31 @@ export function clipWords(s: any, n: number): string {
   return w.length > n ? w.slice(0, n).join(" ") + "…" : w.join(" ");
 }
 
+// Like clipWords, but the result must READ AS A FINISHED THOUGHT — never a
+// mid-sentence cut and never a trailing "…". Caps at `n` words; if the source is
+// longer, it trims back to the last sentence (. ! ?) or clause (, ; — –) boundary
+// inside the cap, and as a last resort drops a dangling connector word. Used for
+// the Play card highlights, which must wrap up cleanly within the word budget.
+export function clipWordsClean(s: any, n: number): string {
+  const text = String(s || "").replace(/\s+/g, " ").trim();
+  if (!text) return "";
+  const words = text.split(" ");
+  if (words.length <= n) return text.replace(/[\s,;:–—-]+$/, "");
+  const clip = words.slice(0, n).join(" ");
+  const half = clip.length * 0.5;
+  const sentence = Math.max(clip.lastIndexOf(". "), clip.lastIndexOf("! "), clip.lastIndexOf("? "));
+  if (sentence >= half) return clip.slice(0, sentence + 1).trim();
+  const clause = Math.max(
+    clip.lastIndexOf(", "), clip.lastIndexOf("; "),
+    clip.lastIndexOf(" — "), clip.lastIndexOf(" – "),
+  );
+  if (clause >= half) return clip.slice(0, clause).trim();
+  return clip
+    .replace(/[\s,;:–—-]+$/, "")
+    .replace(/\s+(and|or|to|the|a|an|of|for|with|that|which|but|on|in|at|by|as|via)$/i, "")
+    .trim();
+}
+
 // --- VP / RSD hierarchy ---
 // `manager_name` in the raw book is unreliable: Shekhar Varma is the President
 // sitting above the territory VPs (161 deals), and some deals carry a blank

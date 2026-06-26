@@ -6,6 +6,22 @@
 
 ---
 
+## 2026-06-27 — Play card highlights wrap up cleanly within 30 words
+
+**What.** The deal drawer's "The Play" card (`DealDrawerView.tsx` → `PlayGate`) now shows
+each play line as a finished thought capped at 30 words instead of a 12-word clip. The
+collapsed line renders via the new `clipWordsClean(full, 30)` (in `lib/engine/helpers.ts`):
+capped at 30 words, but never cut mid-sentence and never ending in "…" — if the source runs
+longer it trims back to the last sentence (`. ! ?`) or clause (`, ; — –`) boundary inside the
+cap, and as a last resort drops a dangling connector word. Source text of ≤30 words shows
+whole. The "more/less" toggle is kept but now only appears when the play genuinely exceeds
+30 words (was 12), and "more" still reveals the full action + expected effect, so nothing is
+lost. No CSS clamp on `.gate-t`, so the line wraps and displays in full.
+
+**Why.** The 12-word clip lopped plays mid-thought (e.g. "Lock the technical win and…"),
+which read as broken. Highlights should wrap up cleanly. Only the play/action lines changed;
+the verdict headline (26w), champion summary (28w), and SPOF (16w) keep `clipWords`.
+
 ## 2026-06-26 — Prospect requirements show a due date + overdue status
 
 **What.** A prospect requirement now renders a timeliness-preserving due chip in

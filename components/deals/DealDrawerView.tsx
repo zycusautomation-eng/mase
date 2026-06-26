@@ -5,7 +5,7 @@
 // keeps the original DealDetailView, so this is drawer-only and reversible.
 // All CSS is scoped under .ddw so it can never collide with the app's global styles.
 import { useMemo, useState } from "react";
-import { fmtAmount, daysSince, healthLabel, verdictTone, clipWords, type Rec } from "@/lib/engine/helpers";
+import { fmtAmount, daysSince, healthLabel, verdictTone, clipWords, clipWordsClean, type Rec } from "@/lib/engine/helpers";
 import { useDealAi } from "@/components/deals/DealAiProvider";
 import { Monogram } from "@/components/ui/Monogram";
 import { useBackendTodos } from "@/lib/engine/useBackendTodos";
@@ -219,12 +219,12 @@ const fmtDate = (s: any) => { if (!s) return ""; const d = new Date(s); return i
 function PlayGate({ m, i }: { m: any; i: number }) {
   const [open, setOpen] = useState(false);
   const full = String(m.action || "");
-  const truncated = full.trim().split(/\s+/).length > 12;
+  const truncated = full.trim().split(/\s+/).filter(Boolean).length > 30;
   return (
     <div className="gate">
       <div className="gate-head"><span className={`gate-num ${i > 1 ? "soft" : ""}`}>{i + 1}</span><span className="gate-tag">{m.act_by ? `by ${fmtDate(m.act_by)}` : "next"}</span></div>
       <div className="gate-t">
-        {open || !truncated ? full : clipWords(full, 12)}
+        {open || !truncated ? full : clipWordsClean(full, 30)}
         {truncated ? <button type="button" className="gate-more" onClick={() => setOpen((o) => !o)}>{open ? "less" : "more"}</button> : null}
       </div>
       {open && m.expected_effect ? <div className="gate-d">{m.expected_effect}</div> : null}
