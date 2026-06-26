@@ -207,6 +207,28 @@ function parseChoices(text: string): { text: string; choices: Choice[] } {
   return { text: src.replace(new RegExp(CHOICE_RE.source, "gi"), "").trim(), choices };
 }
 
+// Inline markdown for the MCQ card's question + option labels (same renderer as the
+// chat, but stripped to inline: no <p> block margins, so it sits cleanly inside a
+// span/button). Without this the card showed raw markdown (e.g. **bold**, `code`).
+function InlineMd({ children }: { children: string }) {
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      components={{
+        p: (props) => <>{props.children}</>,
+        a: (props) => <a {...props} target="_blank" rel="noreferrer" className="text-indigo-600 underline" />,
+        code: (props) => <code className="rounded bg-[var(--accent-soft)] px-1 text-[12px]" {...props} />,
+        strong: (props) => <strong className="font-semibold" {...props} />,
+        ul: (props) => <ul className="my-0 list-disc pl-4" {...props} />,
+        ol: (props) => <ol className="my-0 list-decimal pl-4" {...props} />,
+        li: (props) => <li className="my-0" {...props} />,
+      }}
+    >
+      {children}
+    </ReactMarkdown>
+  );
+}
+
 // One self-contained MCQ card: header (optional muted title + bold question +
 // collapse chevron), radio/checkbox option rows, and a Skip / Send response footer.
 // Light + compact, themed off the dashboard CSS vars (--accent/--surface/--line)
@@ -231,7 +253,7 @@ function ChoiceCard({ choice, onAnswer, disabled }: {
         <div className="text-[13.5px] leading-snug">
           {choice.title ? <span className="font-medium text-[var(--muted)]">{choice.title} : </span> : null}
           <span className="font-semibold text-[var(--ink)]">
-            {choice.question || (choice.multi ? "Select all that apply" : "Pick one")}
+            <InlineMd>{choice.question || (choice.multi ? "Select all that apply" : "Pick one")}</InlineMd>
           </span>
         </div>
         <button type="button" onClick={() => setCollapsed((c) => !c)} aria-label={collapsed ? "Expand" : "Collapse"}
@@ -257,7 +279,7 @@ function ChoiceCard({ choice, onAnswer, disabled }: {
                       style={{ borderColor: active ? "var(--accent)" : "#c3cbd9" }}>
                       {active ? <span className={choice.multi ? "h-2 w-2 rounded-[1px]" : "h-2 w-2 rounded-full"} style={{ background: "var(--accent)" }} /> : null}
                     </span>
-                    <span className="text-[13px] text-[var(--ink2)]">{o}</span>
+                    <span className="text-[13px] text-[var(--ink2)]"><InlineMd>{o}</InlineMd></span>
                   </button>
                 );
               })}
