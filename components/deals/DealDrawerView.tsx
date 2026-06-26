@@ -91,6 +91,7 @@ const CSS = `
 .ddw .gate-tag{font-size:11.5px;font-weight:700;letter-spacing:.1px;color:#b9b6f5;line-height:1.35}
 .ddw .gate-t{font-size:13.5px;font-weight:700;margin-top:9px;line-height:1.4}
 .ddw .gate-d{font-size:11.5px;color:#c4c2ea;margin-top:6px;line-height:1.5}
+.ddw .gate-more{margin-left:6px;border:none;background:none;color:#cbc7ff;font-size:11.5px;font-weight:700;cursor:pointer;padding:0;text-decoration:underline;white-space:nowrap}
 .ddw .spof{margin-top:16px;background:rgba(210,59,84,.16);border:1px solid rgba(210,59,84,.45);border-radius:12px;padding:12px 14px;display:flex;gap:11px;align-items:flex-start;font-size:12px;color:#ffe3e8;line-height:1.55}
 .ddw .spof b{color:#fff}
 .ddw .nav{display:flex;border-bottom:1px solid #e7e7f0;margin-bottom:18px;position:sticky;top:128px;z-index:10;background:var(--bg-drawer)}
@@ -213,6 +214,23 @@ const sentClass = (s: any) => { const t = String(s || "").toLowerCase(); return 
 // short label (the long prose, if any, drops into the read column instead).
 const sentLabel = (s: any) => { const t = String(s || "").toLowerCase(); return /pos/.test(t) ? "Positive" : /neg|risk|concern|unk/.test(t) ? "At risk" : t ? "Neutral" : "Unknown"; };
 const fmtDate = (s: any) => { if (!s) return ""; const d = new Date(s); return isNaN(d.getTime()) ? String(s) : d.toLocaleDateString(undefined, { day: "numeric", month: "short" }); };
+// One play gate. The action is truncated to 12 words by default (the user wants the
+// short read); a "more" toggle reveals the full move + its expected effect on click.
+function PlayGate({ m, i }: { m: any; i: number }) {
+  const [open, setOpen] = useState(false);
+  const full = String(m.action || "");
+  const truncated = full.trim().split(/\s+/).length > 12;
+  return (
+    <div className="gate">
+      <div className="gate-head"><span className={`gate-num ${i > 1 ? "soft" : ""}`}>{i + 1}</span><span className="gate-tag">{m.act_by ? `by ${fmtDate(m.act_by)}` : "next"}</span></div>
+      <div className="gate-t">
+        {open || !truncated ? full : clipWords(full, 12)}
+        {truncated ? <button type="button" className="gate-more" onClick={() => setOpen((o) => !o)}>{open ? "less" : "more"}</button> : null}
+      </div>
+      {open && m.expected_effect ? <div className="gate-d">{m.expected_effect}</div> : null}
+    </div>
+  );
+}
 // A short one-liner that says WHAT the move is — the leading clause of the action,
 // cut at the first natural boundary (the buyer/date/connective), capped. Used as the
 // gate header in place of the owner ("Deal team") label.
@@ -406,10 +424,7 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
             </div>
             <div className="gates">
               {gates.map((m: any, i: number) => (
-                <div className="gate" key={i}>
-                  <div className="gate-head"><span className={`gate-num ${i > 1 ? "soft" : ""}`}>{i + 1}</span><span className="gate-tag">{m.act_by ? `by ${fmtDate(m.act_by)}` : "next"}</span></div>
-                  <div className="gate-t">{clipWords(m.action, 12)}</div>
-                </div>
+                <PlayGate m={m} i={i} key={i} />
               ))}
             </div>
             {spof ? <div className="spof"><span>⚠</span><div><b>Single point of failure.</b> {clipWords(spof, 16)}</div></div> : null}
