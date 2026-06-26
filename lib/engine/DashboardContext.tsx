@@ -1,18 +1,20 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
-import { aiLabel, applyStageFix, fyq, inScope, keepRecord, resolveAccess, sizeBand, type Rec } from "./helpers";
+import { aiLabel, applyStageFix, fyq, healthLabel, inScope, keepRecord, resolveAccess, sizeBand, type Rec } from "./helpers";
 import { createClient } from "@/lib/supabase/client";
 
 // Each filter is a multi-select: an empty array means "all".
 export interface DealFilters {
   forecast: string[];
+  stage: string[];
   country: string[];
   size: string[];
   ai: string[];
+  verdict: string[];
   close: string[];
 }
-const EMPTY_FILTERS: DealFilters = { forecast: [], country: [], size: [], ai: [], close: [] };
+const EMPTY_FILTERS: DealFilters = { forecast: [], stage: [], country: [], size: [], ai: [], verdict: [], close: [] };
 
 interface DashboardState {
   records: Rec[];
@@ -187,9 +189,11 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     return scoped.filter((r) => {
       const h = r.hard || {};
       if (filters.forecast.length && !filters.forecast.includes(h.forecast_category)) return false;
+      if (filters.stage.length && !filters.stage.includes(h.stage)) return false;
       if (filters.country.length && !filters.country.includes(h.billing_country)) return false;
       if (filters.size.length && !filters.size.includes(sizeBand(h.amount))) return false;
       if (filters.ai.length && !filters.ai.includes(aiLabel(h, (r.ai || {}).ai_fit_signal))) return false;
+      if (filters.verdict.length && !filters.verdict.includes(healthLabel(((r.ai || {}).north_star_verdict || {}).verdict))) return false;
       if (filters.close.length && !filters.close.includes(fyq(h.close_date).label)) return false;
       if (q && ![h.account_name, h.opp_name, h.owner_name, h.manager_name, h.stage].join(" ").toLowerCase().includes(q)) return false;
       return true;

@@ -6,6 +6,21 @@
 
 ---
 
+## 2026-06-27 — Two more deal filters: Stage + Verdict
+
+**What.** The deals filter bar (`ScopeFilterBar`, `#dealfilters`) gains two multi-select
+facets: **"All Stage"** (distinct `hard.stage` values present, ordered by `STAGE_ORDER`, not
+alphabetically) and **"All Verdict"** (the momentum verdict via `healthLabel` —
+On track / Slowing / Close-date risk / Off track, plus "No verdict" for deals without one).
+`DealFilters` grows `stage` and `verdict` arrays (`DashboardContext`), with matching
+predicates in the `filtered` memo (`h.stage` exact match; `healthLabel(north_star_verdict)`
+match). Empty array = "all", same as the other facets; Clear resets them too. Verdict reads
+from the slim list record (`ai.north_star_verdict`), which is already loaded — no extra fetch.
+These show wherever the bar shows (deals, espresso, matcha).
+
+**Why.** Requested — lets a VP slice the book by pipeline stage and by deal health before
+drilling into a drawer.
+
 ## 2026-06-27 — Play card highlights wrap up cleanly within 30 words
 
 **What.** The deal drawer's "The Play" card (`DealDrawerView.tsx` → `PlayGate`) now shows

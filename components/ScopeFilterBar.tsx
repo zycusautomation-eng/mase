@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useDashboard, type DealFilters } from "@/lib/engine/DashboardContext";
-import { vpsList, teamOwners, uniqSorted, fyq, type Rec } from "@/lib/engine/helpers";
+import { vpsList, teamOwners, uniqSorted, fyq, healthLabel, STAGE_ORDER, type Rec } from "@/lib/engine/helpers";
 import MultiSelect, { type Opt } from "@/components/MultiSelect";
 
 const SIZE_OPTS: Opt[] = [
@@ -10,6 +10,9 @@ const SIZE_OPTS: Opt[] = [
   { value: "gt1m", label: "> $1M" },
 ];
 const AI_OPTS: Opt[] = ["AI Hungry", "AI Curious", "AI Resistant"].map((v) => ({ value: v, label: v }));
+// Canonical ordering for the Verdict facet (healthLabel outputs); "—" = no verdict.
+const VERDICT_RANK: Record<string, number> = { "On track": 0, "Slowing": 1, "Close-date risk": 2, "Off track": 3, "—": 9 };
+const stageRank = (s: string) => { const i = STAGE_ORDER.indexOf(s); return i < 0 ? 999 : i; };
 
 export default function ScopeFilterBar() {
   const { records, vps, rsds, setVps, setRsds, scoped, filters, setFilter, clearFilters, filtered, locked, blocked, scopeName } = useDashboard();
@@ -31,6 +34,13 @@ export default function ScopeFilterBar() {
   const co: Opt[] = uniqSorted(hard.map((h) => h.billing_country)).map((v) => ({ value: v as string, label: v as string }));
   const cq: Opt[] = [...new Map(hard.map((h) => { const q = fyq(h.close_date); return [q.key, q.label]; })).entries()]
     .sort((a, b) => (a[0] as number) - (b[0] as number)).map((e) => ({ value: e[1] as string, label: e[1] as string }));
+  // Stage facet — distinct stages present, ordered by the pipeline sequence (not alphabetical).
+  const st: Opt[] = Array.from(new Set(hard.map((h) => h.stage).filter(Boolean) as string[]))
+    .sort((a, b) => stageRank(a) - stageRank(b)).map((v) => ({ value: v, label: v }));
+  // Verdict facet — distinct momentum verdicts present (via healthLabel), in canonical order.
+  const vd: Opt[] = Array.from(new Set(scoped.map((r: Rec) => healthLabel(((r.ai || {}).north_star_verdict || {}).verdict))))
+    .sort((a, b) => (VERDICT_RANK[a] ?? 5) - (VERDICT_RANK[b] ?? 5))
+    .map((v) => ({ value: v, label: v === "—" ? "No verdict" : v }));
 
   const dirty = Object.values(filters).some((v) => v.length > 0);
   const f = (k: keyof DealFilters) => (v: string[]) => setFilter(k, v);
@@ -65,9 +75,11 @@ export default function ScopeFilterBar() {
 
       {/* refinement filters */}
       <MultiSelect allLabel="All forecast" options={fc} selected={filters.forecast} onChange={f("forecast")} />
+      <MultiSelect allLabel="All Stage" options={st} selected={filters.stage} onChange={f("stage")} />
       <MultiSelect allLabel="All countries" options={co} selected={filters.country} onChange={f("country")} />
       <MultiSelect allLabel="All deal sizes" options={SIZE_OPTS} selected={filters.size} onChange={f("size")} />
       <MultiSelect allLabel="All AI excitement" options={AI_OPTS} selected={filters.ai} onChange={f("ai")} />
+      <MultiSelect allLabel="All Verdict" options={vd} selected={filters.verdict} onChange={f("verdict")} />
       <MultiSelect allLabel="All close quarters" options={cq} selected={filters.close} onChange={f("close")} />
 
       {dirty ? <button className="fclear" onClick={clearFilters}>Clear</button> : null}
