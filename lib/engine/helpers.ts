@@ -150,6 +150,33 @@ export function healthLabel(v: any): string {
     : t === "v-off" ? "Off track" : "—";
 }
 
+// --- Deal-score bands (shared by the score columns, their colours, and the filters) ---
+// Returns the human band LABEL for a headline score. Momentum centres on 50; Risk is
+// "higher = worse"; Win/Commitment/FC use the standard High/Mid/Low.
+export function scoreBand(key: string, v: any): string {
+  const n = Number(v);
+  if (v == null || Number.isNaN(n)) return "";
+  if (key === "deal_momentum") return n > 55 ? "Forward" : n >= 45 ? "Flat" : "Slipping";
+  if (key === "deal_risk") return n >= 60 ? "High" : n >= 40 ? "Medium" : "Low";
+  return n >= 60 ? "High" : n >= 40 ? "Mid" : "Low"; // win_position, customer_commitment, forecast_confidence
+}
+// Colour bucket for a score: g(good)/a(amber)/r(red)/n(neutral). Risk inverts; Momentum centres.
+export function scoreColorBand(key: string, v: any): "g" | "a" | "r" | "n" {
+  const n = Number(v);
+  if (v == null || Number.isNaN(n)) return "n";
+  if (key === "deal_risk") return n >= 60 ? "r" : n >= 40 ? "a" : "g";
+  if (key === "deal_momentum") return n > 55 ? "g" : n >= 45 ? "n" : "r";
+  return n >= 60 ? "g" : n >= 40 ? "a" : "r";
+}
+// Band options offered in the filter bar, per score key.
+export const SCORE_BANDS: Record<string, string[]> = {
+  win_position: ["High", "Mid", "Low"],
+  deal_momentum: ["Forward", "Flat", "Slipping"],
+  customer_commitment: ["High", "Mid", "Low"],
+  deal_risk: ["High", "Medium", "Low"],
+  forecast_confidence: ["High", "Mid", "Low"],
+};
+
 // Trim a long string to its first `n` words + "…", for compact display. The full
 // text is preserved in the data (this only shortens what's rendered).
 export function clipWords(s: any, n: number): string {

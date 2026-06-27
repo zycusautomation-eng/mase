@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
-import { aiLabel, applyStageFix, fyq, healthLabel, inScope, keepRecord, resolveAccess, sizeBand, type Rec } from "./helpers";
+import { aiLabel, applyStageFix, fyq, healthLabel, inScope, keepRecord, resolveAccess, scoreBand, sizeBand, type Rec } from "./helpers";
 import { createClient } from "@/lib/supabase/client";
 
 // Each filter is a multi-select: an empty array means "all".
@@ -13,8 +13,16 @@ export interface DealFilters {
   ai: string[];
   verdict: string[];
   close: string[];
+  win: string[];
+  momentum: string[];
+  commitment: string[];
+  risk: string[];
+  fc: string[];
 }
-const EMPTY_FILTERS: DealFilters = { forecast: [], stage: [], country: [], size: [], ai: [], verdict: [], close: [] };
+const EMPTY_FILTERS: DealFilters = {
+  forecast: [], stage: [], country: [], size: [], ai: [], verdict: [], close: [],
+  win: [], momentum: [], commitment: [], risk: [], fc: [],
+};
 
 interface DashboardState {
   records: Rec[];
@@ -194,6 +202,13 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       if (filters.size.length && !filters.size.includes(sizeBand(h.amount))) return false;
       if (filters.ai.length && !filters.ai.includes(aiLabel(h, (r.ai || {}).ai_fit_signal))) return false;
       if (filters.verdict.length && !filters.verdict.includes(healthLabel(((r.ai || {}).north_star_verdict || {}).verdict))) return false;
+      // Deal-score band filters (read from ai.deal_scores.headline)
+      const ds = ((r.ai || {}).deal_scores || {}).headline || {};
+      if (filters.win.length && !filters.win.includes(scoreBand("win_position", ds.win_position))) return false;
+      if (filters.momentum.length && !filters.momentum.includes(scoreBand("deal_momentum", ds.deal_momentum))) return false;
+      if (filters.commitment.length && !filters.commitment.includes(scoreBand("customer_commitment", ds.customer_commitment))) return false;
+      if (filters.risk.length && !filters.risk.includes(scoreBand("deal_risk", ds.deal_risk))) return false;
+      if (filters.fc.length && !filters.fc.includes(scoreBand("forecast_confidence", ds.forecast_confidence))) return false;
       if (filters.close.length && !filters.close.includes(fyq(h.close_date).label)) return false;
       if (q && ![h.account_name, h.opp_name, h.owner_name, h.manager_name, h.stage].join(" ").toLowerCase().includes(q)) return false;
       return true;

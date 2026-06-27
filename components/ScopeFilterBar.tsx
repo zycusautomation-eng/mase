@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useDashboard, type DealFilters } from "@/lib/engine/DashboardContext";
-import { vpsList, teamOwners, uniqSorted, fyq, healthLabel, STAGE_ORDER, type Rec } from "@/lib/engine/helpers";
+import { vpsList, teamOwners, uniqSorted, fyq, healthLabel, STAGE_ORDER, SCORE_BANDS, type Rec } from "@/lib/engine/helpers";
 import MultiSelect, { type Opt } from "@/components/MultiSelect";
 
 const SIZE_OPTS: Opt[] = [
@@ -41,6 +41,13 @@ export default function ScopeFilterBar() {
   const vd: Opt[] = Array.from(new Set(scoped.map((r: Rec) => healthLabel(((r.ai || {}).north_star_verdict || {}).verdict))))
     .sort((a, b) => (VERDICT_RANK[a] ?? 5) - (VERDICT_RANK[b] ?? 5))
     .map((v) => ({ value: v, label: v === "—" ? "No verdict" : v }));
+  // Deal-score band facets — fixed buckets so a VP/CRO can pull deals by Win, Momentum, etc.
+  const toOpt = (a: string[]): Opt[] => a.map((v) => ({ value: v, label: v }));
+  const winOpts = toOpt(SCORE_BANDS.win_position);
+  const momOpts = toOpt(SCORE_BANDS.deal_momentum);
+  const cmtOpts = toOpt(SCORE_BANDS.customer_commitment);
+  const riskOpts = toOpt(SCORE_BANDS.deal_risk);
+  const fcScoreOpts = toOpt(SCORE_BANDS.forecast_confidence);
 
   const dirty = Object.values(filters).some((v) => v.length > 0);
   const f = (k: keyof DealFilters) => (v: string[]) => setFilter(k, v);
@@ -81,6 +88,15 @@ export default function ScopeFilterBar() {
       <MultiSelect allLabel="All AI excitement" options={AI_OPTS} selected={filters.ai} onChange={f("ai")} />
       <MultiSelect allLabel="All Verdict" options={vd} selected={filters.verdict} onChange={f("verdict")} />
       <MultiSelect allLabel="All close quarters" options={cq} selected={filters.close} onChange={f("close")} />
+
+      <span className="fdivider" />
+
+      {/* deal-score band filters */}
+      <MultiSelect allLabel="All Win" options={winOpts} selected={filters.win} onChange={f("win")} />
+      <MultiSelect allLabel="All Momentum" options={momOpts} selected={filters.momentum} onChange={f("momentum")} />
+      <MultiSelect allLabel="All Commitment" options={cmtOpts} selected={filters.commitment} onChange={f("commitment")} />
+      <MultiSelect allLabel="All Risk" options={riskOpts} selected={filters.risk} onChange={f("risk")} />
+      <MultiSelect allLabel="All FC" options={fcScoreOpts} selected={filters.fc} onChange={f("fc")} />
 
       {dirty ? <button className="fclear" onClick={clearFilters}>Clear</button> : null}
       <span className="fcount" id="f-count">{filtered.length} of {scoped.length} deal{scoped.length === 1 ? "" : "s"}</span>

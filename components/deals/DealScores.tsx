@@ -5,22 +5,24 @@
 // Two surfaces: a compact strip for the deals table and a full panel for the drawer.
 // Graceful absence: if a deal has no deal_scores (not yet scored), both render null.
 import { useState } from "react";
+import { scoreColorBand } from "@/lib/engine/helpers";
 
-// --- colour bands (per spec) -------------------------------------------------
-// Default (Win/Commitment/FC): ≥60 green, 40–59 amber, <40 red.
-function band(v: number): string { return v >= 60 ? "g" : v >= 40 ? "a" : "r"; }
-// Risk inverts — high is bad.
-function riskBand(v: number): string { return v >= 60 ? "r" : v >= 40 ? "a" : "g"; }
-// Momentum centres on 50 (flat).
-function momBand(v: number): string { return v > 55 ? "g" : v >= 45 ? "n" : "r"; }
+// Colour band for the FC roll-up (same standard High/Mid/Low ramp).
+const band = (v: number) => scoreColorBand("forecast_confidence", v);
 // Read label: Full=green, Solid=blue, Partial=amber, Early=grey.
 function readBand(label: any): string {
   const k = String(label || "").toLowerCase();
   return k.includes("full") ? "g" : k.includes("solid") ? "b" : k.includes("partial") ? "a" : "n";
 }
 const r0 = (v: any) => (v == null || isNaN(Number(v)) ? "—" : Math.round(Number(v)));
-const bandOf = (key: string, v: number) =>
-  key === "deal_risk" ? riskBand(v) : key === "deal_momentum" ? momBand(v) : band(v);
+const bandOf = scoreColorBand;
+
+// One coloured score number for a deals-table column.
+export function ScoreCell({ ds, k }: { ds: any; k: string }) {
+  const v = ds && ds.headline ? ds.headline[k] : null;
+  if (v == null || isNaN(Number(v))) return <span className="ds-cellnum none">—</span>;
+  return <span className={`ds-cellnum ds-${scoreColorBand(k, v)}`}>{Math.round(Number(v))}</span>;
+}
 
 const ROWS: [string, string, string][] = [
   ["Win position", "win_position", "can we win it"],

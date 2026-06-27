@@ -6,6 +6,20 @@
 
 ---
 
+## 2026-06-27 — Deal Scores: separate sortable columns + band filters
+
+**What.** Split the single "Scores" strip into **five separate, sortable columns** — Win, Mom,
+Cmt, Risk, FC (`SCORE_COLS` in `deals/page.tsx`; sort reads `ai.deal_scores.headline.<key>`),
+each a colour-banded number (`ScoreCell`). Added **band-bucket filters** for all five in the
+filter bar so a VP/CRO can pull deals by score: Win/Commitment/FC = High/Mid/Low, Momentum =
+Forward/Flat/Slipping, Risk = High/Med/Low. Band logic centralised in `helpers.ts`
+(`scoreBand` for labels/filtering, `scoreColorBand` for colour, `SCORE_BANDS` for options);
+`DealFilters` grows win/momentum/commitment/risk/fc with matching predicates in `DashboardContext`.
+No Read column or filter (per request); the drawer panel is unchanged.
+
+**Why.** Requested — separate columns + filterability so leadership can slice the book by
+individual scores ("high-Win, slipping-Momentum deals"). Additive; graceful absence retained.
+
 ## 2026-06-27 — Deal Scores UI (table strip + drawer panel)
 
 **What.** New `components/deals/DealScores.tsx` surfaces the backend's `ai.deal_scores`
