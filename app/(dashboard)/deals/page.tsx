@@ -88,7 +88,6 @@ export default function DealsPage() {
               {REST_COLS.map(([k, label]) => (
                 <th key={k} onClick={() => sortBy(k)}>{label}{arrow(k)}</th>
               ))}
-              <th>Conf.</th>
             </tr>
           </thead>
           <tbody>
@@ -117,7 +116,6 @@ export default function DealsPage() {
                     <td key={k} className="num"><ScoreCell ds={ai.deal_scores} k={k} /></td>
                   ))}
                   {REST_COLS.map(cell)}
-                  <td className={`conf-${r.analysis_confidence}`}>{r.analysis_confidence || "—"}</td>
                 </tr>
               );
             })}
