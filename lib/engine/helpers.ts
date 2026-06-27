@@ -216,6 +216,40 @@ export const OWNER_VP: Record<string, string> = {
   "Justin Ajmo": "Michael McCarthy", "Steve Ovadje": "Michael McCarthy",
 };
 
+// --- Economic-buyer overrides (read-time, no re-sweep) ---
+// The sweep marks the economic buyer as a "gap" on deals where the EB never landed
+// in a Salesforce contact role or on a swept call — but for these deals the EB *is*
+// recorded in the MEDDPICC custom object (MEDDPICC__c.Who_is_the_economic_buyer__c),
+// so the "EB unmapped" red alert is a visibility false-positive. We hold the confirmed
+// EB names here, keyed by 15-char opp_id, to (a) DISPLAY the buyer and (b) clear the
+// EB-missing SPOF/blocker. The deal's engagement verdict (north_star_verdict) is left
+// untouched — if the deal is at risk it stays at risk, on engagement grounds, not EB
+// visibility. Source: SF MEDDPICC scan of the 440 book, 2026-06-27 (17 confirmed).
+const EB_OVERRIDES: Record<string, string> = {
+  "006P700000VSLhB": "Gavin Greer",
+  "006P700000RFGL6": "Arnd Christochowitz",
+  "006P700000J71MD": "Barbara Potisk-Eibensteiner (CFO)",
+  "006P700000PlMpu": "Simon Vogelmann",
+  "006P700000Xl06R": "Florence Tinsley Roi",
+  "006P7000009O2Ri": "CPO + Jacques De Villiers",
+  "006P700000KlsBE": "Philippe Pourquéry (Group CFO)",
+  "006P7000001j0JR": "Benoit Thibaudon + M. Grootenbeer (CPO)",
+  "006P700000PtQGP": "Mazin (Head of Procurement)",
+  "006P700000LtIUv": "Bilal; Abraham Mathew",
+  "006P700000MB1SN": "Jason Tranter (VP)",
+  "006P700000FF6Np": "Ahmed Rafat (CPO)",
+  "006P700000Z98IL": "Sameh Bartok (SVP Contracts & Procurement)",
+  "006P700000Y1Ont": "Tarek Ibrahim Youssef (Proc Dir)",
+  "006P700000T0trq": "Kerelos (Head of Procurement)",
+  "006P700000CWvfN": "Dan Lahey (EVP & CFO)",
+  "006P7000009T3v1": "George Andrus (ED, Head of Procurement)",
+};
+// The confirmed economic buyer for an opp, or null. Matches on the 15-char id so it
+// works whether the record carries a 15- or 18-char opp_id.
+export function getEbOverride(oppId: unknown): string | null {
+  return EB_OVERRIDES[String(oppId || "").slice(0, 15)] || null;
+}
+
 // --- Manager-name correction for "Executive connect" to-dos ---
 // The backend sweep does not reliably resolve the deal owner's manager: it either
 // leaves the literal template token `manager_name` (e.g. Pacific Seafood) or

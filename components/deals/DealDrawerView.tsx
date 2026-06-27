@@ -5,7 +5,7 @@
 // keeps the original DealDetailView, so this is drawer-only and reversible.
 // All CSS is scoped under .ddw so it can never collide with the app's global styles.
 import { useMemo, useState } from "react";
-import { fmtAmount, daysSince, healthLabel, verdictTone, clipWords, clipWordsClean, type Rec } from "@/lib/engine/helpers";
+import { fmtAmount, daysSince, healthLabel, verdictTone, clipWords, clipWordsClean, getEbOverride, type Rec } from "@/lib/engine/helpers";
 import { useDealAi } from "@/components/deals/DealAiProvider";
 import { Monogram } from "@/components/ui/Monogram";
 import { useBackendTodos } from "@/lib/engine/useBackendTodos";
@@ -94,6 +94,9 @@ const CSS = `
 .ddw .gate-more{margin-left:6px;border:none;background:none;color:#cbc7ff;font-size:11.5px;font-weight:700;cursor:pointer;padding:0;text-decoration:underline;white-space:nowrap}
 .ddw .spof{margin-top:16px;background:rgba(210,59,84,.16);border:1px solid rgba(210,59,84,.45);border-radius:12px;padding:12px 14px;display:flex;gap:11px;align-items:flex-start;font-size:12px;color:#ffe3e8;line-height:1.55}
 .ddw .spof b{color:#fff}
+.ddw .ebok{margin-top:16px;background:rgba(31,157,87,.16);border:1px solid rgba(31,157,87,.45);border-radius:12px;padding:12px 14px;display:flex;gap:11px;align-items:flex-start;font-size:12px;color:#d6f3e2;line-height:1.55}
+.ddw .ebok b{color:#fff}
+.ddw .ebok .ebsrc{color:#9fd9bb}
 .ddw .nav{display:flex;border-bottom:1px solid #e7e7f0;margin-bottom:18px;position:sticky;top:128px;z-index:10;background:var(--bg-drawer)}
 .ddw .nav-item{padding:12px 4px;margin-right:18px;font-size:13.5px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px;color:var(--ink-faint);border-bottom:2px solid transparent}
 .ddw .nav-item.active{color:var(--indigo);border-bottom-color:var(--indigo)}
@@ -261,7 +264,10 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
     .sort((a: any, b: any) => (a.rank || 99) - (b.rank || 99));
   const gates = moves.slice(0, 3);
   const medd = ai.meddpicc || {};
-  const ebGap = (medd.economic_buyer || {}).status === "gap";
+  // EB visibility override: if the buyer is recorded in MEDDPICC (held in helpers), the
+  // sweep's "economic buyer gap" is a false visibility alert — clear it and show the name.
+  const ebName = getEbOverride(rec.opp_id);
+  const ebGap = ebName ? false : (medd.economic_buyer || {}).status === "gap";
   const champ = ai.champion_strength || {};
   const spof = ebGap
     ? `Economic Buyer unmapped. ${(medd.economic_buyer || {}).status === "gap" ? "Never confirmed in Salesforce contact roles or on a call." : ""} Every critical item routes through getting them engaged.`
@@ -269,9 +275,9 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
       ? `Champion ${champ.champion || ""} is single-threaded / developing — no confirmed executive multi-thread.`
       : "";
 
-  // ---- Main blocker ----
+  // ---- Main blocker ---- (skip the economic-buyer gap when the EB is known)
   const blockerKey = ["economic_buyer", "paper_process", "metrics", "champion", "decision_process"]
-    .find((k) => ((medd as any)[k] || {}).status === "gap");
+    .find((k) => !(k === "economic_buyer" && ebName) && ((medd as any)[k] || {}).status === "gap");
   const blockerLabel = blockerKey
     ? ({ economic_buyer: "Economic Buyer", paper_process: "Paper / Legal", metrics: "Metrics", champion: "Champion", decision_process: "Decision Process" } as any)[blockerKey]
     : ((ai.vulnerabilities || {}).items || [])[0]?.category ? cap(((ai.vulnerabilities || {}).items || [])[0].category) : "—";
@@ -335,7 +341,12 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
     ["Metrics", "metrics"], ["Econ. Buyer", "economic_buyer"], ["Decision Criteria", "decision_criteria"],
     ["Decision Process", "decision_process"], ["Pain", "identify_pain"], ["Champion", "champion"], ["Competition", "competition"], ["Paper", "paper_process"],
   ];
-  const vulns = (ai.vulnerabilities || {}).items || [];
+  // Open risks: for a known-EB deal, drop any risk that's about the EB being *unknown*
+  // (a visibility false-positive) — but KEEP engagement risks ("not engaged", "single-
+  // threaded"), since whether the buyer is engaged is a real, separate question.
+  const EB_VISIBILITY_RE = /(economic buyer|decision[\s-]?maker)[^.]*\b(not identified|unidentified|unmapped|un-?mapped|unconfirmed|not confirmed|unknown|missing|tbd)\b|no access to (the )?(economic buyer|power)/i;
+  const vulns = (((ai.vulnerabilities || {}).items || []) as any[])
+    .filter((v) => !(ebName && EB_VISIBILITY_RE.test(`${v.category || ""} ${v.detail || ""}`)));
 
   const dealForAi = { oid: rec.opp_id, accountName: h.account_name || rec.opp_id, oppName: h.opp_name, ownerName: h.owner_name };
 
@@ -427,7 +438,8 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
                 <PlayGate m={m} i={i} key={i} />
               ))}
             </div>
-            {spof ? <div className="spof"><span>⚠</span><div><b>Single point of failure.</b> {clipWords(spof, 16)}</div></div> : null}
+            {spof ? <div className="spof"><span>⚠</span><div><b>Single point of failure.</b> {clipWords(spof, 16)}</div></div>
+              : ebName ? <div className="ebok"><span>✓</span><div><b>Economic buyer:</b> {ebName} <span className="ebsrc">· confirmed in MEDDPICC</span></div></div> : null}
           </div>
         ) : null}
 
@@ -549,10 +561,11 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
           <div className="card card-pad mb14">
             <div className="ic-title" style={{ marginBottom: 13 }}>MEDDPICC scorecard</div>
             <div className="medd">
-              {meddDims.filter(([, k]) => (medd as any)[k]).map(([label, k]) => {
-                const st = String(((medd as any)[k] || {}).status || "").toLowerCase();
+              {meddDims.filter(([, k]) => (medd as any)[k] || (k === "economic_buyer" && ebName)).map(([label, k]) => {
+                const ebRow = k === "economic_buyer" && !!ebName;
+                const st = ebRow ? "confirmed" : String(((medd as any)[k] || {}).status || "").toLowerCase();
                 const ok = st === "confirmed";
-                return <div className={`med ${ok ? "ok" : "weak"}`} key={k}><div className="l">{label}</div><div className="s">{st ? cap(st) : "—"}</div></div>;
+                return <div className={`med ${ok ? "ok" : "weak"}`} key={k} title={ebRow ? `Economic buyer: ${ebName}` : undefined}><div className="l">{label}</div><div className="s">{st ? cap(st) : "—"}</div></div>;
               })}
             </div>
           </div>

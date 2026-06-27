@@ -6,6 +6,24 @@
 
 ---
 
+## 2026-06-27 — Show the known economic buyer + clear the false "EB missing" alert
+
+**What.** The sweep marks the economic buyer as a `gap` on deals where it never landed in a
+SF contact role / swept call — but for 17 deals across the 440 book the EB **is** recorded in
+the MEDDPICC custom object, so that gap is a *visibility* false-positive. New `getEbOverride`
+(`helpers.ts`) holds those 17 confirmed EB names keyed by 15-char opp_id. In `DealDrawerView`:
+when an override exists, (1) `ebGap` is forced false so the red **"Economic Buyer unmapped"
+SPOF** and the **"Main blocker: Economic Buyer"** no longer fire; (2) a green **"Economic buyer:
+<name> · confirmed in MEDDPICC"** line renders where the SPOF was; (3) the MEDDPICC scorecard
+"Econ. Buyer" row shows green/Confirmed (name on hover); (4) Open-risks drops any *visibility*
+EB risk ("not identified / unmapped / no access to power") — but **keeps engagement risks**
+("not engaged / single-threaded"). The deal's **engagement verdict (`north_star_verdict`) is
+untouched** — at-risk deals stay at-risk on engagement grounds, not EB visibility.
+
+**Why.** Requested. EB visibility isn't the problem on these deals (the buyer is known); whether
+the buyer is *engaged* is the real question, and that's already read from the stored sweep. Only
+the 17 firmly-named (Confirmed) deals are injected; the partial/role-only ones are left as-is.
+
 ## 2026-06-27 — Weighted "all deals" drawer (VP / RSD filter + sort)
 
 **What.** The Weighted Forecast (and Weighted Pipeline) modal now has a **"See all N deals →"**
