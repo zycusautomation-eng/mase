@@ -393,7 +393,6 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
             <div className="pcell">
               <div className="pk">Health</div>
               <div className="pflex"><span className="dot" style={{ background: vRisk ? "var(--crit)" : "var(--pos)" }} /><span className="lbl">{verdict}</span></div>
-              <div className="pmeta">AI confidence · {rec.analysis_confidence || "—"}</div>
             </div>
             <div className="pcell">
               <div className="pk">Deal value</div>
