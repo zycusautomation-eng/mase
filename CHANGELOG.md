@@ -6,6 +6,14 @@
 
 ---
 
+## 2026-06-27 — Weighted Forecast: Pipeline category weight 0.25 → 0.10
+
+**What.** In `fcBucket` (`DealsStats.tsx`), the **Pipeline** forecast-category weight dropped
+from 0.25 to **0.10**. Other weights unchanged (Commit 0.90, Upside Key Deal 0.85, Best Case
+0.75, other/blank 0.15). Lowers the headline Weighted Forecast and the Pipeline row in its modal.
+
+**Why.** Requested — Pipeline-category deals should be discounted harder.
+
 ## 2026-06-27 — Weighted Forecast now open-pipeline only (matches Weighted Pipeline)
 
 **What.** Weighted Forecast (`DealsStats.tsx`) now excludes the same closed/dead stages as

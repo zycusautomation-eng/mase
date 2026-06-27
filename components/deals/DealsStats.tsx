@@ -30,7 +30,7 @@ function fcBucket(fc: any): { key: string; label: string; weight: number; order:
   if (k === "commit") return { key: "commit", label: "Commit", weight: 0.9, order: 1 };
   if (k.includes("upside")) return { key: "upside", label: "Upside Key Deal", weight: 0.85, order: 2 };
   if (k.includes("best")) return { key: "best", label: "Best Case", weight: 0.75, order: 3 };
-  if (k === "pipeline") return { key: "pipeline", label: "Pipeline", weight: 0.25, order: 4 };
+  if (k === "pipeline") return { key: "pipeline", label: "Pipeline", weight: 0.1, order: 4 };
   return { key: "other", label: "Other / blank", weight: 0.15, order: 5 };
 }
 
