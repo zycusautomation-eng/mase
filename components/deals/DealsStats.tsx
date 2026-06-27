@@ -14,7 +14,8 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useDashboard } from "@/lib/engine/DashboardContext";
-import { verdictTone } from "@/lib/engine/helpers";
+import { verdictTone, vpOf, vpsList, teamOwners, inScope } from "@/lib/engine/helpers";
+import MultiSelect, { type Opt } from "@/components/MultiSelect";
 
 function fmtM(n: number): string {
   if (n >= 1e6) return "$" + (n / 1e6).toFixed(1).replace(/\.0$/, "") + "M";
@@ -65,10 +66,10 @@ type Row = { label: string; count: number; raw: number; weight: number; wtd: num
 type TopDeal = { id: string; account: string; label: string; weight: number; raw: number; wtd: number };
 
 // Shared breakdown modal for the two weighted cards.
-function WeightedModal({ label, big, sub, catCol, rows, totalLabel, totalCount, totalRaw, totalWtd, totalWeightCell, top, onClose, onDeal }: {
+function WeightedModal({ label, big, sub, catCol, rows, totalLabel, totalCount, totalRaw, totalWtd, totalWeightCell, top, onClose, onDeal, onSeeAll, seeAllCount }: {
   label: string; big: string; sub: string; catCol: string;
   rows: Row[]; totalLabel: string; totalCount: number; totalRaw: number; totalWtd: number; totalWeightCell: string;
-  top: TopDeal[]; onClose: () => void; onDeal: (id: string) => void;
+  top: TopDeal[]; onClose: () => void; onDeal: (id: string) => void; onSeeAll?: () => void; seeAllCount?: number;
 }) {
   return (
     <>
@@ -129,7 +130,113 @@ function WeightedModal({ label, big, sub, catCol, rows, totalLabel, totalCount, 
             </tbody>
           </table>
         </div>
+
+        {onSeeAll ? (
+          <div className="wf-foot">
+            <button className="wf-seeall" onClick={onSeeAll}>See all {seeAllCount} deals →</button>
+          </div>
+        ) : null}
       </div>
+    </>
+  );
+}
+
+// Full right-side drawer: every deal behind a weighted number, filterable by VP / RSD
+// and sortable. `base` is the open-deal set (already global-scoped); `weightOf`/`basisOf`
+// describe the weighting (forecast category OR stage), so one drawer serves both cards.
+function WeightedDrawer({ title, basisCol, base, weightOf, basisOf, onClose, onDeal }: {
+  title: string; basisCol: string; base: any[];
+  weightOf: (r: any) => number; basisOf: (r: any) => string;
+  onClose: () => void; onDeal: (id: string) => void;
+}) {
+  const [dVps, setDVps] = useState<string[]>([]);
+  const [dRsds, setDRsds] = useState<string[]>([]);
+  const [sortKey, setSortKey] = useState<"wtd" | "raw" | "weight" | "account" | "owner">("wtd");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const amt = (r: any) => Number(r.hard?.amount) || 0;
+  const vpOpts: Opt[] = vpsList(base).map((v) => ({ value: v, label: v }));
+  const rsdOpts: Opt[] = teamOwners(base, dVps).map((o) => ({ value: o, label: o }));
+
+  const rows = base
+    .filter((r) => inScope(r, dVps, dRsds))
+    .map((r) => {
+      const raw = amt(r); const weight = weightOf(r);
+      return { id: r.opp_id, account: r.hard?.account_name || r.hard?.opp_name || "—", owner: r.hard?.owner_name || "—", vp: vpOf(r) || "—", basis: basisOf(r), raw, weight, wtd: raw * weight };
+    });
+  const sumRaw = rows.reduce((n, d) => n + d.raw, 0);
+  const sumWtd = rows.reduce((n, d) => n + d.wtd, 0);
+  const pct = sumRaw ? Math.round((sumWtd / sumRaw) * 100) : 0;
+
+  const sorted = [...rows].sort((a, b) => {
+    const av = (a as any)[sortKey], bv = (b as any)[sortKey];
+    const cmp = typeof av === "number" && typeof bv === "number" ? av - bv : String(av).localeCompare(String(bv));
+    return sortDir === "asc" ? cmp : -cmp;
+  });
+  const setSort = (k: typeof sortKey) => {
+    if (k === sortKey) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortKey(k); setSortDir(k === "account" || k === "owner" ? "asc" : "desc"); }
+  };
+  const arrow = (k: typeof sortKey) => (sortKey === k ? (sortDir === "asc" ? " ↑" : " ↓") : "");
+  const dirty = dVps.length > 0 || dRsds.length > 0;
+
+  return (
+    <>
+      <div className="wfd-back" onClick={onClose} />
+      <aside className="wfd" role="dialog" aria-modal="true" aria-label={`${title} — all deals`}>
+        <div className="wfd-h">
+          <div className="wf-h" style={{ padding: 0, border: "none" }}>
+            <div>
+              <div className="wf-title">{title} · all deals</div>
+              <div className="wf-big">{fmtM(sumWtd)}</div>
+              <div className="wf-sub">{pct}% of {fmtM(sumRaw)} open pipeline · {rows.length} deals weighted by {basisCol.toLowerCase()}</div>
+            </div>
+            <button className="wf-x" onClick={onClose} aria-label="Close">×</button>
+          </div>
+        </div>
+
+        <div className="filterbar" style={{ padding: "12px 22px", margin: 0, borderBottom: "1px solid var(--line)" }}>
+          <MultiSelect allLabel="All VPs" options={vpOpts} selected={dVps} onChange={(v) => { setDVps(v); setDRsds([]); }} />
+          <MultiSelect allLabel={dVps.length ? "All in selected teams" : "All RSDs"} options={rsdOpts} selected={dRsds} onChange={setDRsds} />
+          {dirty ? <button className="fclear" onClick={() => { setDVps([]); setDRsds([]); }}>Clear</button> : null}
+          <span className="fcount">{rows.length} deal{rows.length === 1 ? "" : "s"}</span>
+        </div>
+
+        <div className="wfd-body">
+          <table className="wf-table">
+            <thead>
+              <tr>
+                <th className="sortable" onClick={() => setSort("account")}>Deal{arrow("account")}</th>
+                <th className="sortable lft" onClick={() => setSort("owner")}>Owner{arrow("owner")}</th>
+                <th className="lft">VP</th>
+                <th className="lft">{basisCol}</th>
+                <th className="sortable" onClick={() => setSort("raw")}>Raw{arrow("raw")}</th>
+                <th className="sortable" onClick={() => setSort("weight")}>Weight{arrow("weight")}</th>
+                <th className="sortable" onClick={() => setSort("wtd")}>Weighted{arrow("wtd")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map((d) => (
+                <tr key={d.id} className="wf-deal" onClick={() => onDeal(d.id)} title="Open deal">
+                  <td>{d.account}</td>
+                  <td className="lft">{d.owner}</td>
+                  <td className="lft">{d.vp}</td>
+                  <td className="lft">{d.basis}</td>
+                  <td>{fmtM(d.raw)}</td>
+                  <td><span className="wf-wt">×{d.weight.toFixed(2)}</span></td>
+                  <td>{fmtM(d.wtd)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </aside>
     </>
   );
 }
@@ -138,6 +245,7 @@ export default function DealsStats() {
   const { filtered } = useDashboard();
   const router = useRouter();
   const [open, setOpen] = useState<null | "forecast" | "pipeline">(null);
+  const [drawer, setDrawer] = useState<null | "forecast" | "pipeline">(null);
 
   useEffect(() => {
     if (!open) return;
@@ -197,7 +305,7 @@ export default function DealsStats() {
   const stTop = stTopSrc.filter((d) => d.raw > 0).sort((a, b) => b.wtd - a.wtd).slice(0, 8);
   const weightedPipePct = openBase ? Math.round((weightedPipe / openBase) * 100) : 0;
 
-  const goDeal = (id: string) => { if (!id) return; setOpen(null); router.push(`/deals/${id}`); };
+  const goDeal = (id: string) => { if (!id) return; setOpen(null); setDrawer(null); router.push(`/deals/${id}`); };
   const cardKeydown = (which: "forecast" | "pipeline") => (e: any) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen(which); } };
 
   return (
@@ -238,6 +346,7 @@ export default function DealsStats() {
           catCol="Forecast category" rows={fcRows}
           totalLabel="Open pipeline" totalCount={openCount} totalRaw={openBase} totalWtd={weighted} totalWeightCell={`${weightedPct}%`}
           top={fcTop} onClose={() => setOpen(null)} onDeal={goDeal}
+          onSeeAll={() => { setOpen(null); setDrawer("forecast"); }} seeAllCount={openCount}
         />
       ) : null}
 
@@ -248,6 +357,25 @@ export default function DealsStats() {
           catCol="Stage" rows={stRows}
           totalLabel="Open pipeline" totalCount={openCount} totalRaw={openBase} totalWtd={weightedPipe} totalWeightCell={`${weightedPipePct}%`}
           top={stTop} onClose={() => setOpen(null)} onDeal={goDeal}
+          onSeeAll={() => { setOpen(null); setDrawer("pipeline"); }} seeAllCount={openCount}
+        />
+      ) : null}
+
+      {drawer === "forecast" ? (
+        <WeightedDrawer
+          title="Weighted forecast" basisCol="Forecast category" base={openRecs}
+          weightOf={(r) => fcBucket(r.hard?.forecast_category).weight}
+          basisOf={(r) => fcBucket(r.hard?.forecast_category).label}
+          onClose={() => setDrawer(null)} onDeal={goDeal}
+        />
+      ) : null}
+
+      {drawer === "pipeline" ? (
+        <WeightedDrawer
+          title="Weighted pipeline" basisCol="Stage" base={openRecs}
+          weightOf={(r) => stageBucket(r.hard?.stage)?.weight ?? 0}
+          basisOf={(r) => stageBucket(r.hard?.stage)?.label ?? "—"}
+          onClose={() => setDrawer(null)} onDeal={goDeal}
         />
       ) : null}
     </div>

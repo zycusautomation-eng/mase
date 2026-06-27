@@ -6,6 +6,20 @@
 
 ---
 
+## 2026-06-27 — Weighted "all deals" drawer (VP / RSD filter + sort)
+
+**What.** The Weighted Forecast (and Weighted Pipeline) modal now has a **"See all N deals →"**
+footer that opens a full right-side **drawer** (`WeightedDrawer` in `DealsStats.tsx`, reusing the
+`.drawer`-style slide-in as `.wfd`). The drawer lists **every** open deal behind the number (not
+just the top 8), with columns account · owner · **VP** · category/stage · raw · weight · weighted,
+**sortable** by clicking the headers. Inside the drawer are **VP and RSD multi-select filters**
+(reusing `MultiSelect` + `vpsList`/`teamOwners`/`inScope`/`vpOf`); the header total + % recompute
+live as you filter. Each row links into `/deals/[id]`. One generic `WeightedDrawer` serves both
+cards via `weightOf`/`basisOf` props. The quick-glance modal is unchanged (kept as the summary).
+
+**Why.** Requested — a full, filterable view of what's inside the weighted number, sliceable by
+VP / RSD. (Geography intentionally not added.)
+
 ## 2026-06-27 — Weighted Forecast: Pipeline category weight 0.25 → 0.10
 
 **What.** In `fcBucket` (`DealsStats.tsx`), the **Pipeline** forecast-category weight dropped
