@@ -968,6 +968,39 @@
   .wfd{position:fixed;top:0;right:0;height:100%;width:min(900px,96vw);background:var(--surface);border-left:1px solid var(--line);overflow-y:auto;z-index:98;box-shadow:-20px 0 50px -20px rgba(16,30,54,.3);display:flex;flex-direction:column}
   .wfd-h{position:sticky;top:0;background:var(--surface);border-bottom:1px solid var(--line);padding:18px 22px;z-index:1}
   .wfd-body{padding:6px 22px 48px}
+  /* --- Deal Scores (table strip + drawer panel) --- */
+  .ds-strip{display:inline-flex;align-items:center;gap:4px;flex-wrap:nowrap;white-space:nowrap}
+  .ds-chip{display:inline-flex;align-items:center;font-size:10.5px;font-weight:800;padding:2px 5px;border-radius:6px;line-height:1;font-variant-numeric:tabular-nums;border:1px solid transparent}
+  .ds-read{font-size:9.5px;font-weight:800;letter-spacing:.3px;padding:2px 7px;border-radius:999px;text-transform:uppercase;white-space:nowrap}
+  .ds-read.big{font-size:11px;padding:5px 11px;letter-spacing:.5px}
+  .ds-g{background:#e7f6ec;color:#1f7a44;border-color:#cdeed8}
+  .ds-a{background:#fbf0db;color:#9a6700;border-color:#f3e0b8}
+  .ds-r{background:#fdeaea;color:#c0341d;border-color:#f6d4d0}
+  .ds-n{background:#eef0f6;color:#5a5f73;border-color:#e2e6f0}
+  .ds-b{background:#e6f1fb;color:#1f6fb0;border-color:#cde2f5}
+  .ds-panel{display:flex;flex-direction:column;gap:10px}
+  .ds-panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .ds-fc-big{display:flex;align-items:center;gap:11px}
+  .ds-num{display:inline-grid;place-items:center;min-width:40px;height:40px;border-radius:11px;font-size:18px;font-weight:800;font-variant-numeric:tabular-nums}
+  .ds-num.sm{min-width:30px;height:30px;font-size:14px;border-radius:8px}
+  .ds-fc-lbl{font-size:13px;font-weight:700;color:var(--ink)}
+  .ds-fc-sub{font-size:11px;color:var(--muted);margin-top:1px}
+  .ds-rows{display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--line);padding-top:11px}
+  .ds-row-top{display:flex;align-items:center;gap:10px}
+  .ds-row-lbl{font-size:12.5px;font-weight:700;color:var(--ink)}
+  .ds-hint{font-weight:500;color:var(--muted)}
+  .ds-why{margin-left:auto;border:1px solid var(--line);background:var(--surface2);color:var(--muted);border-radius:7px;font-size:11px;font-weight:700;padding:3px 9px;cursor:pointer}
+  .ds-why:hover{color:var(--ink);border-color:var(--accent)}
+  .ds-comm{font-size:11.5px;color:var(--ink2);line-height:1.55}
+  .ds-comm.sm{margin-left:40px;font-size:11px;color:var(--muted)}
+  .ds-comm.read{border-top:1px dashed var(--line);padding-top:9px;color:var(--muted);font-size:11px}
+  .ds-contribs{margin:7px 0 2px 40px;display:flex;flex-direction:column;gap:5px}
+  .ds-contrib{display:flex;align-items:baseline;gap:8px;font-size:11px;line-height:1.45}
+  .ds-pts{font-weight:800;font-variant-numeric:tabular-nums;min-width:34px;text-align:right}
+  .ds-pts.pos{color:var(--pos,#1f9d57)}
+  .ds-pts.neg{color:var(--crit,#c0341d)}
+  .ds-factor{font-weight:700;color:var(--ink2);text-transform:capitalize;white-space:nowrap}
+  .ds-evi{color:var(--muted)}
   .dl-insights{display:flex;align-items:center;gap:22px;flex-wrap:wrap;background:linear-gradient(120deg,#eef1ff,#f3f0ff 58%,#fdf0f7);border:1px solid #e6e6fb;border-radius:14px;padding:12px 18px}
   .dl-ins-title{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;color:var(--accent);flex:0 0 auto}
   .dl-insight{display:flex;align-items:center;gap:9px;min-width:0}

@@ -13,6 +13,7 @@ import { AddUpdateForm } from "@/components/deals/DealDetailView";
 import { useTodoDone } from "@/lib/engine/useTodoDone";
 import { useTodoSync } from "@/lib/engine/useTodoSync";
 import { DealTodoBuckets, bucketsForOpp } from "@/components/deals/DealTodos";
+import { DealScorePanel } from "@/components/deals/DealScores";
 
 const CSS = `
 .ddw{
@@ -557,6 +558,13 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
             ))}
             {!stake.length ? <div className="ic-body">No stakeholders mapped.</div> : null}
           </div>
+
+          {ai.deal_scores ? (
+            <div className="card card-pad mb14">
+              <div className="ic-title" style={{ marginBottom: 13 }}>Deal scores</div>
+              <DealScorePanel ds={ai.deal_scores} />
+            </div>
+          ) : null}
 
           <div className="card card-pad mb14">
             <div className="ic-title" style={{ marginBottom: 13 }}>MEDDPICC scorecard</div>

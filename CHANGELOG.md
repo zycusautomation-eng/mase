@@ -6,6 +6,23 @@
 
 ---
 
+## 2026-06-27 — Deal Scores UI (table strip + drawer panel)
+
+**What.** New `components/deals/DealScores.tsx` surfaces the backend's `ai.deal_scores`
+(Win / Momentum / Commitment / Risk + the **FC** roll-up + a **Read** confidence label):
+- **Deals table** — a compact `DealScoreStrip` in a new **"Scores"** column (W/M/C/R chips +
+  FC + Read), and the column header **sorts by FC** (`sortKey === "fc"` reads
+  `ai.deal_scores.headline.forecast_confidence`).
+- **Deal drawer** — a `DealScorePanel` card: the FC roll-up + Read prominent, then one row per
+  score (number · label · 2-sentence commentary) with a **"why"** expander showing the
+  contributing factors (factor · points · evidence).
+- **Colour bands** per spec: default ≥60 g / 40–59 a / <40 r; Risk inverted; Momentum centred on
+  50; Read Full=green/Solid=blue/Partial=amber/Early=grey. Global `.ds-*` CSS.
+
+**Why.** Render the deterministic deal scores the backend now attaches. Purely additive — no
+existing column/filter/verdict-chip changed; **graceful absence** (a deal with no `deal_scores`
+renders nothing, no zeros/broken chips) so it's safe before every deal is scored.
+
 ## 2026-06-27 — Show the known economic buyer + clear the false "EB missing" alert
 
 **What.** The sweep marks the economic buyer as a `gap` on deals where it never landed in a

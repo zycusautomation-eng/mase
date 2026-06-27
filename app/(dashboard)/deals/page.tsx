@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useDashboard } from "@/lib/engine/DashboardContext";
 import { aiLabel, fmtAmount, verdictTone, healthLabel, type Rec } from "@/lib/engine/helpers";
 import DealDrawer from "@/components/deals/DealDrawer";
+import { DealScoreStrip } from "@/components/deals/DealScores";
 import { Monogram } from "@/components/ui/Monogram";
 import { PageLoader } from "@/components/ui/page-loader";
 
@@ -31,8 +32,13 @@ export default function DealsPage() {
   const [page, setPage] = useState(1);
 
   const rows = useMemo(() => {
+    // `fc` sorts on the Deal Scores forecast-confidence roll-up; everything else
+    // sorts on the hard fact of the same key.
+    const getv = (r: any) => sortKey === "fc"
+      ? (((r.ai || {}).deal_scores || {}).headline || {}).forecast_confidence
+      : (r.hard || {})[sortKey];
     return [...filtered].sort((a, b) => {
-      const av = (a.hard || {})[sortKey], bv = (b.hard || {})[sortKey];
+      const av = getv(a), bv = getv(b);
       if (av == null) return 1;
       if (bv == null) return -1;
       return (av > bv ? 1 : av < bv ? -1 : 0) * sortDir;
@@ -70,6 +76,7 @@ export default function DealsPage() {
                 <th key={k} onClick={() => sortBy(k)}>{label}{arrow(k)}</th>
               ))}
               <th>Verdict</th><th>AIS</th>
+              <th onClick={() => sortBy("fc")} title="Deal Scores — sort by Forecast Confidence">Scores{arrow("fc")}</th>
               {REST_COLS.map(([k, label]) => (
                 <th key={k} onClick={() => sortBy(k)}>{label}{arrow(k)}</th>
               ))}
@@ -98,6 +105,7 @@ export default function DealsPage() {
                   {LEAD_COLS.map(cell)}
                   <td>{verdict ? <span className={`chip ${verdictTone(verdict)}`}>{healthLabel(verdict)}</span> : ""}</td>
                   <td>{aiLabel(h, ai.ai_fit_signal)}</td>
+                  <td><DealScoreStrip ds={ai.deal_scores} /></td>
                   {REST_COLS.map(cell)}
                   <td className={`conf-${r.analysis_confidence}`}>{r.analysis_confidence || "—"}</td>
                 </tr>
