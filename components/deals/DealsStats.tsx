@@ -4,9 +4,12 @@
 // currently-filtered book. Sparklines are illustrative (we don't track historical
 // pipeline yet) — shape only.
 //
-// The Weighted Forecast card is click-to-open: it explains HOW the blended number is
-// reached (it's not a plain sum) — a per-category weighting table that totals to the
-// headline figure, plus the biggest weighted contributors (each opens its deal page).
+// Two of the cards are click-to-open, because their numbers are blends, not plain
+// sums:
+//   • Weighted Forecast — each deal's amount × a weight by FORECAST CATEGORY.
+//   • Weighted Pipeline — OPEN deals only, each amount × a weight by STAGE.
+// Each opens a modal that shows the weighting table that totals to the headline
+// number, plus the biggest weighted contributors (each links into its deal page).
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useDashboard } from "@/lib/engine/DashboardContext";
@@ -18,18 +21,33 @@ function fmtM(n: number): string {
   return "$" + Math.round(n || 0);
 }
 
-// Forecast-category → weight. Matching is case-insensitive and tolerant of the real
-// Salesforce strings ("Upside Key Deal" sometimes arrives as just "Upside"). Keep the
-// headline number and the modal in lockstep by deriving both from this one place.
-function bucketOf(fc: any): { key: string; label: string; weight: number } {
+// Forecast-category → weight. Case-insensitive and tolerant of the real Salesforce
+// strings ("Upside Key Deal" sometimes arrives as just "Upside"). The headline number
+// and the modal both derive from this one place so they can never drift apart.
+function fcBucket(fc: any): { key: string; label: string; weight: number; order: number } {
   const k = String(fc || "").toLowerCase();
-  if (k === "commit") return { key: "commit", label: "Commit", weight: 0.9 };
-  if (k.includes("upside")) return { key: "upside", label: "Upside Key Deal", weight: 0.85 };
-  if (k.includes("best")) return { key: "best", label: "Best Case", weight: 0.75 };
-  if (k === "pipeline") return { key: "pipeline", label: "Pipeline", weight: 0.25 };
-  return { key: "other", label: "Other / blank", weight: 0.15 };
+  if (k === "commit") return { key: "commit", label: "Commit", weight: 0.9, order: 1 };
+  if (k.includes("upside")) return { key: "upside", label: "Upside Key Deal", weight: 0.85, order: 2 };
+  if (k.includes("best")) return { key: "best", label: "Best Case", weight: 0.75, order: 3 };
+  if (k === "pipeline") return { key: "pipeline", label: "Pipeline", weight: 0.25, order: 4 };
+  return { key: "other", label: "Other / blank", weight: 0.15, order: 5 };
 }
-const BUCKET_ORDER = ["commit", "upside", "best", "pipeline", "other"];
+
+// Stage → weight for Weighted PIPELINE. Returns null for closed/dead stages, which are
+// excluded entirely (open pipeline only). Order matters: check the more specific names
+// (Qualified Out, Contract Signed) before the general ones (Qualified, Contract).
+function stageBucket(stage: any): { key: string; label: string; weight: number; order: number } | null {
+  const k = String(stage || "").toLowerCase();
+  if (k.includes("closed") || k.includes("qualified out") || k.includes("no decision") || k.includes("omitted")) return null;
+  if (k.includes("contract signed") || k.includes("po received")) return { key: "signed", label: "Contract Signed / PO Received", weight: 1.0, order: 7 };
+  if (k.includes("contract")) return { key: "contracting", label: "Contracting", weight: 0.8, order: 6 };
+  if (k.includes("vendor select") || k === "selected") return { key: "selected", label: "Vendor Selected", weight: 0.75, order: 5 };
+  if (k.includes("shortlist")) return { key: "shortlist", label: "Shortlisted", weight: 0.5, order: 4 };
+  if (k.includes("evaluation") || k.includes("formal eval")) return { key: "eval", label: "Formal Evaluation", weight: 0.2, order: 3 };
+  if (k.includes("qualified")) return { key: "qualified", label: "Qualified", weight: 0.1, order: 2 };
+  if (k.includes("initial interest")) return { key: "initial", label: "Initial Interest", weight: 0, order: 1 };
+  return { key: "other", label: "Other (open)", weight: 0, order: 8 };
+}
 
 function Spark({ color, up }: { color: string; up: boolean }) {
   const pts = up ? [5, 8, 6, 10, 8, 12, 9, 14, 13] : [13, 10, 12, 8, 10, 6, 9, 5, 6];
@@ -42,18 +60,90 @@ function Spark({ color, up }: { color: string; up: boolean }) {
   );
 }
 
+type Row = { label: string; count: number; raw: number; weight: number; wtd: number };
+type TopDeal = { id: string; account: string; label: string; weight: number; raw: number; wtd: number };
+
+// Shared breakdown modal for the two weighted cards.
+function WeightedModal({ label, big, sub, catCol, rows, totalLabel, totalCount, totalRaw, totalWtd, totalWeightCell, top, onClose, onDeal }: {
+  label: string; big: string; sub: string; catCol: string;
+  rows: Row[]; totalLabel: string; totalCount: number; totalRaw: number; totalWtd: number; totalWeightCell: string;
+  top: TopDeal[]; onClose: () => void; onDeal: (id: string) => void;
+}) {
+  return (
+    <>
+      <div className="statmodal-back" onClick={onClose} />
+      <div className="statmodal" role="dialog" aria-modal="true" aria-label={`${label} breakdown`}>
+        <div className="wf-h">
+          <div>
+            <div className="wf-title">{label}</div>
+            <div className="wf-big">{big}</div>
+            <div className="wf-sub">{sub}</div>
+          </div>
+          <button className="wf-x" onClick={onClose} aria-label="Close">×</button>
+        </div>
+
+        <div className="wf-sec">
+          <h4>How the number is built</h4>
+          <table className="wf-table">
+            <thead>
+              <tr><th>{catCol}</th><th>Deals</th><th>Raw value</th><th>Weight</th><th>Weighted</th></tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.label}>
+                  <td>{r.label}</td>
+                  <td>{r.count}</td>
+                  <td>{fmtM(r.raw)}</td>
+                  <td><span className="wf-wt">×{r.weight.toFixed(2)}</span></td>
+                  <td>{fmtM(r.wtd)}</td>
+                </tr>
+              ))}
+              <tr className="total">
+                <td>{totalLabel}</td>
+                <td>{totalCount}</td>
+                <td>{fmtM(totalRaw)}</td>
+                <td><span className="wf-wt">{totalWeightCell}</span></td>
+                <td>{fmtM(totalWtd)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div className="wf-sec">
+          <h4>Top weighted contributors</h4>
+          <table className="wf-table">
+            <thead>
+              <tr><th>Deal</th><th>{catCol}</th><th>Raw</th><th>Weight</th><th>Weighted</th></tr>
+            </thead>
+            <tbody>
+              {top.map((d) => (
+                <tr key={d.id} className="wf-deal" onClick={() => onDeal(d.id)} title="Open deal">
+                  <td>{d.account}</td>
+                  <td>{d.label}</td>
+                  <td>{fmtM(d.raw)}</td>
+                  <td><span className="wf-wt">×{d.weight.toFixed(2)}</span></td>
+                  <td>{fmtM(d.wtd)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
+  );
+}
+
 export default function DealsStats() {
   const { filtered } = useDashboard();
   const router = useRouter();
-  const [wfOpen, setWfOpen] = useState(false);
+  const [open, setOpen] = useState<null | "forecast" | "pipeline">(null);
 
-  // Close the modal on Escape.
   useEffect(() => {
-    if (!wfOpen) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setWfOpen(false); };
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(null); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [wfOpen]);
+  }, [open]);
 
   const recs = filtered;
   const amt = (r: any) => Number(r.hard?.amount) || 0;
@@ -67,30 +157,42 @@ export default function DealsStats() {
   const aiScore = recs.length ? Math.round(recs.reduce((n, r) => n + score(r), 0) / recs.length) : 0;
   const aiLabel = aiScore >= 75 ? "Very Good" : aiScore >= 55 ? "Good" : "Fair";
   const aiColor = aiScore >= 75 ? "#1f9d57" : aiScore >= 55 ? "#d99a00" : "#d6453b";
-  const weighted = recs.reduce((n, r) => n + amt(r) * bucketOf(r.hard?.forecast_category).weight, 0);
-  const weightedPct = pipeline ? Math.round((weighted / pipeline) * 100) : 0;
 
-  // Per-bucket roll-up for the modal: count, raw $, weight, weighted $.
-  const grouped: Record<string, { label: string; weight: number; count: number; raw: number }> = {};
+  // --- Weighted FORECAST (by forecast category, all filtered deals) ---
+  const weighted = recs.reduce((n, r) => n + amt(r) * fcBucket(r.hard?.forecast_category).weight, 0);
+  const weightedPct = pipeline ? Math.round((weighted / pipeline) * 100) : 0;
+  const fcGrouped: Record<string, Row> = {};
   for (const r of recs) {
-    const b = bucketOf(r.hard?.forecast_category);
-    const g = grouped[b.key] || (grouped[b.key] = { label: b.label, weight: b.weight, count: 0, raw: 0 });
+    const b = fcBucket(r.hard?.forecast_category);
+    const g = fcGrouped[b.key] || (fcGrouped[b.key] = { label: b.label, weight: b.weight, count: 0, raw: 0, wtd: 0 });
     g.count += 1; g.raw += amt(r);
   }
-  const wfRows = BUCKET_ORDER.map((k) => grouped[k]).filter(Boolean).map((g) => ({ ...g, wtd: g.raw * g.weight }));
+  const fcRows = Object.values(fcGrouped).map((g) => ({ ...g, wtd: g.raw * g.weight }))
+    .sort((a, b) => b.weight - a.weight);
+  const fcTop: TopDeal[] = recs
+    .map((r: any) => { const b = fcBucket(r.hard?.forecast_category); const raw = amt(r); return { id: r.opp_id, account: r.hard?.account_name || r.hard?.opp_name || "—", label: b.label, weight: b.weight, raw, wtd: raw * b.weight }; })
+    .filter((d) => d.raw > 0).sort((a, b) => b.wtd - a.wtd).slice(0, 8);
 
-  // Biggest weighted contributors — each row links into its deal page.
-  const wfTop = recs
-    .map((r: any) => {
-      const b = bucketOf(r.hard?.forecast_category);
-      const raw = amt(r);
-      return { id: r.opp_id, account: r.hard?.account_name || r.hard?.opp_name || "—", opp: r.hard?.opp_name, label: b.label, weight: b.weight, raw, wtd: raw * b.weight };
-    })
-    .filter((d) => d.raw > 0)
-    .sort((a, b) => b.wtd - a.wtd)
-    .slice(0, 8);
+  // --- Weighted PIPELINE (by stage, OPEN deals only) ---
+  const stGrouped: Record<string, Row & { order: number }> = {};
+  let openBase = 0, weightedPipe = 0, openCount = 0;
+  const stTopSrc: TopDeal[] = [];
+  for (const r of recs) {
+    const b = stageBucket(r.hard?.stage);
+    if (!b) continue; // closed / dead — excluded
+    const raw = amt(r);
+    openBase += raw; openCount += 1; weightedPipe += raw * b.weight;
+    const g = stGrouped[b.key] || (stGrouped[b.key] = { label: b.label, weight: b.weight, count: 0, raw: 0, wtd: 0, order: b.order });
+    g.count += 1; g.raw += raw;
+    stTopSrc.push({ id: r.opp_id, account: r.hard?.account_name || r.hard?.opp_name || "—", label: b.label, weight: b.weight, raw, wtd: raw * b.weight });
+  }
+  const stRows = Object.values(stGrouped).map((g) => ({ ...g, wtd: g.raw * g.weight })).sort((a, b) => a.order - b.order);
+  const stTop = stTopSrc.filter((d) => d.raw > 0).sort((a, b) => b.wtd - a.wtd).slice(0, 8);
+  const weightedPipePct = openBase ? Math.round((weightedPipe / openBase) * 100) : 0;
+  const excluded = recs.length - openCount;
 
-  const goDeal = (id: string) => { if (!id) return; setWfOpen(false); router.push(`/deals/${id}`); };
+  const goDeal = (id: string) => { if (!id) return; setOpen(null); router.push(`/deals/${id}`); };
+  const cardKeydown = (which: "forecast" | "pipeline") => (e: any) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen(which); } };
 
   return (
     <div className="dl-head">
@@ -113,80 +215,34 @@ export default function DealsStats() {
             <div className="dl-donut" style={{ ["--p" as any]: aiScore, ["--c" as any]: aiColor }}><span /></div>
           </div>
         </div>
-        <div
-          className="dl-card clickable"
-          role="button"
-          tabIndex={0}
-          aria-haspopup="dialog"
-          onClick={() => setWfOpen(true)}
-          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setWfOpen(true); } }}
-        >
+        <div className="dl-card clickable" role="button" tabIndex={0} aria-haspopup="dialog" onClick={() => setOpen("forecast")} onKeyDown={cardKeydown("forecast")}>
           <div className="dl-top">Weighted Forecast <span className="dl-hint">view ↗</span></div>
           <div className="dl-row"><div><div className="dl-big">{fmtM(weighted)}</div><div className="dl-sub">{weightedPct}% of pipeline</div></div><div className="dl-spark"><Spark color="#7c4dff" up /></div></div>
         </div>
+        <div className="dl-card clickable" role="button" tabIndex={0} aria-haspopup="dialog" onClick={() => setOpen("pipeline")} onKeyDown={cardKeydown("pipeline")}>
+          <div className="dl-top">Weighted Pipeline <span className="dl-hint">view ↗</span></div>
+          <div className="dl-row"><div><div className="dl-big">{fmtM(weightedPipe)}</div><div className="dl-sub">{weightedPipePct}% of open pipeline</div></div><div className="dl-spark"><Spark color="#0ea5a3" up /></div></div>
+        </div>
       </div>
 
-      {wfOpen ? (
-        <>
-          <div className="statmodal-back" onClick={() => setWfOpen(false)} />
-          <div className="statmodal" role="dialog" aria-modal="true" aria-label="Weighted forecast breakdown">
-            <div className="wf-h">
-              <div>
-                <div className="wf-title">Weighted forecast</div>
-                <div className="wf-big">{fmtM(weighted)}</div>
-                <div className="wf-sub">{weightedPct}% of {fmtM(pipeline)} pipeline · {recs.length} deals · each deal weighted by forecast category</div>
-              </div>
-              <button className="wf-x" onClick={() => setWfOpen(false)} aria-label="Close">×</button>
-            </div>
+      {open === "forecast" ? (
+        <WeightedModal
+          label="Weighted forecast" big={fmtM(weighted)}
+          sub={`${weightedPct}% of ${fmtM(pipeline)} pipeline · ${recs.length} deals · each deal weighted by forecast category`}
+          catCol="Forecast category" rows={fcRows}
+          totalLabel="Total" totalCount={recs.length} totalRaw={pipeline} totalWtd={weighted} totalWeightCell={`${weightedPct}%`}
+          top={fcTop} onClose={() => setOpen(null)} onDeal={goDeal}
+        />
+      ) : null}
 
-            <div className="wf-sec">
-              <h4>How the number is built</h4>
-              <table className="wf-table">
-                <thead>
-                  <tr><th>Forecast category</th><th>Deals</th><th>Raw value</th><th>Weight</th><th>Weighted</th></tr>
-                </thead>
-                <tbody>
-                  {wfRows.map((r) => (
-                    <tr key={r.label}>
-                      <td>{r.label}</td>
-                      <td>{r.count}</td>
-                      <td>{fmtM(r.raw)}</td>
-                      <td><span className="wf-wt">×{r.weight.toFixed(2)}</span></td>
-                      <td>{fmtM(r.wtd)}</td>
-                    </tr>
-                  ))}
-                  <tr className="total">
-                    <td>Total</td>
-                    <td>{recs.length}</td>
-                    <td>{fmtM(pipeline)}</td>
-                    <td><span className="wf-wt">{weightedPct}%</span></td>
-                    <td>{fmtM(weighted)}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <div className="wf-sec">
-              <h4>Top weighted contributors</h4>
-              <table className="wf-table">
-                <thead>
-                  <tr><th>Deal</th><th>Category</th><th>Raw</th><th>Weight</th><th>Weighted</th></tr>
-                </thead>
-                <tbody>
-                  {wfTop.map((d) => (
-                    <tr key={d.id} className="wf-deal" onClick={() => goDeal(d.id)} title="Open deal">
-                      <td>{d.account}</td>
-                      <td>{d.label}</td>
-                      <td>{fmtM(d.raw)}</td>
-                      <td><span className="wf-wt">×{d.weight.toFixed(2)}</span></td>
-                      <td>{fmtM(d.wtd)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </>
+      {open === "pipeline" ? (
+        <WeightedModal
+          label="Weighted pipeline" big={fmtM(weightedPipe)}
+          sub={`${weightedPipePct}% of ${fmtM(openBase)} open pipeline · ${openCount} open deals weighted by stage${excluded > 0 ? ` · ${excluded} closed/excluded` : ""}`}
+          catCol="Stage" rows={stRows}
+          totalLabel="Open pipeline" totalCount={openCount} totalRaw={openBase} totalWtd={weightedPipe} totalWeightCell={`${weightedPipePct}%`}
+          top={stTop} onClose={() => setOpen(null)} onDeal={goDeal}
+        />
       ) : null}
     </div>
   );

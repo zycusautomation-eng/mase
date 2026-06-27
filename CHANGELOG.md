@@ -6,6 +6,22 @@
 
 ---
 
+## 2026-06-27 — New "Weighted Pipeline" card (stage-weighted, open only)
+
+**What.** A 6th stat card, **Weighted Pipeline** (`DealsStats.tsx`), sits next to Weighted
+Forecast. It weights each **open** deal's amount by its **stage** (via `stageBucket`):
+Qualified 0.10 · Formal Evaluation 0.20 · Shortlisted 0.50 · Vendor Selected 0.75 ·
+Contracting (Contract In Progress/Negotiation) 0.80 · Contract Signed & PO Received 1.00 ·
+Initial Interest 0. **Open pipeline only** — Closed Won/Lost, Qualified Out, No Decision,
+Omitted are excluded from both the weighted sum and the base; the card shows `% of open
+pipeline`. Like Weighted Forecast it's click-to-open: the shared `WeightedModal` shows the
+per-stage table that totals to the headline figure plus the top weighted contributors (each
+links into `/deals/[id]`). The modal markup was factored into one reusable `WeightedModal`
+used by both cards. Stats grid widened to 6 columns (responsive: 6 → 3 ≤1320px → 2 ≤760px).
+
+**Why.** Requested — a probability-by-stage view of open pipeline alongside the
+forecast-category-weighted view.
+
 ## 2026-06-27 — Weighted Forecast card opens a breakdown modal + reweighted
 
 **What.** The Weighted Forecast stat card (`DealsStats.tsx`) is now click-to-open (role=button,
