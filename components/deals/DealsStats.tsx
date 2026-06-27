@@ -6,8 +6,9 @@
 //
 // Two of the cards are click-to-open, because their numbers are blends, not plain
 // sums:
-//   • Weighted Forecast — each deal's amount × a weight by FORECAST CATEGORY.
+//   • Weighted Forecast — OPEN deals only, each amount × a weight by FORECAST CATEGORY.
 //   • Weighted Pipeline — OPEN deals only, each amount × a weight by STAGE.
+// "Open" excludes Closed Won/Lost, Qualified Out, No Decision, Omitted (see stageBucket).
 // Each opens a modal that shows the weighting table that totals to the headline
 // number, plus the biggest weighted contributors (each links into its deal page).
 import { useState, useEffect } from "react";
@@ -158,30 +159,36 @@ export default function DealsStats() {
   const aiLabel = aiScore >= 75 ? "Very Good" : aiScore >= 55 ? "Good" : "Fair";
   const aiColor = aiScore >= 75 ? "#1f9d57" : aiScore >= 55 ? "#d99a00" : "#d6453b";
 
-  // --- Weighted FORECAST (by forecast category, all filtered deals) ---
-  const weighted = recs.reduce((n, r) => n + amt(r) * fcBucket(r.hard?.forecast_category).weight, 0);
-  const weightedPct = pipeline ? Math.round((weighted / pipeline) * 100) : 0;
+  // Both weighted views run over OPEN deals only — closed/dead stages (Closed Won/Lost,
+  // Qualified Out, No Decision, Omitted) are excluded from the weighted sums AND the base.
+  const openRecs = recs.filter((r: any) => stageBucket(r.hard?.stage) !== null);
+  const openBase = openRecs.reduce((n, r) => n + amt(r), 0);
+  const openCount = openRecs.length;
+  const excluded = recs.length - openCount;
+
+  // --- Weighted FORECAST (by forecast category, open deals only) ---
+  const weighted = openRecs.reduce((n, r) => n + amt(r) * fcBucket(r.hard?.forecast_category).weight, 0);
+  const weightedPct = openBase ? Math.round((weighted / openBase) * 100) : 0;
   const fcGrouped: Record<string, Row> = {};
-  for (const r of recs) {
+  for (const r of openRecs) {
     const b = fcBucket(r.hard?.forecast_category);
     const g = fcGrouped[b.key] || (fcGrouped[b.key] = { label: b.label, weight: b.weight, count: 0, raw: 0, wtd: 0 });
     g.count += 1; g.raw += amt(r);
   }
   const fcRows = Object.values(fcGrouped).map((g) => ({ ...g, wtd: g.raw * g.weight }))
     .sort((a, b) => b.weight - a.weight);
-  const fcTop: TopDeal[] = recs
+  const fcTop: TopDeal[] = openRecs
     .map((r: any) => { const b = fcBucket(r.hard?.forecast_category); const raw = amt(r); return { id: r.opp_id, account: r.hard?.account_name || r.hard?.opp_name || "—", label: b.label, weight: b.weight, raw, wtd: raw * b.weight }; })
     .filter((d) => d.raw > 0).sort((a, b) => b.wtd - a.wtd).slice(0, 8);
 
-  // --- Weighted PIPELINE (by stage, OPEN deals only) ---
+  // --- Weighted PIPELINE (by stage, open deals only) ---
   const stGrouped: Record<string, Row & { order: number }> = {};
-  let openBase = 0, weightedPipe = 0, openCount = 0;
+  let weightedPipe = 0;
   const stTopSrc: TopDeal[] = [];
-  for (const r of recs) {
-    const b = stageBucket(r.hard?.stage);
-    if (!b) continue; // closed / dead — excluded
+  for (const r of openRecs) {
+    const b = stageBucket(r.hard?.stage)!; // non-null: openRecs excludes closed/dead
     const raw = amt(r);
-    openBase += raw; openCount += 1; weightedPipe += raw * b.weight;
+    weightedPipe += raw * b.weight;
     const g = stGrouped[b.key] || (stGrouped[b.key] = { label: b.label, weight: b.weight, count: 0, raw: 0, wtd: 0, order: b.order });
     g.count += 1; g.raw += raw;
     stTopSrc.push({ id: r.opp_id, account: r.hard?.account_name || r.hard?.opp_name || "—", label: b.label, weight: b.weight, raw, wtd: raw * b.weight });
@@ -189,7 +196,6 @@ export default function DealsStats() {
   const stRows = Object.values(stGrouped).map((g) => ({ ...g, wtd: g.raw * g.weight })).sort((a, b) => a.order - b.order);
   const stTop = stTopSrc.filter((d) => d.raw > 0).sort((a, b) => b.wtd - a.wtd).slice(0, 8);
   const weightedPipePct = openBase ? Math.round((weightedPipe / openBase) * 100) : 0;
-  const excluded = recs.length - openCount;
 
   const goDeal = (id: string) => { if (!id) return; setOpen(null); router.push(`/deals/${id}`); };
   const cardKeydown = (which: "forecast" | "pipeline") => (e: any) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen(which); } };
@@ -217,7 +223,7 @@ export default function DealsStats() {
         </div>
         <div className="dl-card clickable" role="button" tabIndex={0} aria-haspopup="dialog" onClick={() => setOpen("forecast")} onKeyDown={cardKeydown("forecast")}>
           <div className="dl-top">Weighted Forecast <span className="dl-hint">view ↗</span></div>
-          <div className="dl-row"><div><div className="dl-big">{fmtM(weighted)}</div><div className="dl-sub">{weightedPct}% of pipeline</div></div><div className="dl-spark"><Spark color="#7c4dff" up /></div></div>
+          <div className="dl-row"><div><div className="dl-big">{fmtM(weighted)}</div><div className="dl-sub">{weightedPct}% of open pipeline</div></div><div className="dl-spark"><Spark color="#7c4dff" up /></div></div>
         </div>
         <div className="dl-card clickable" role="button" tabIndex={0} aria-haspopup="dialog" onClick={() => setOpen("pipeline")} onKeyDown={cardKeydown("pipeline")}>
           <div className="dl-top">Weighted Pipeline <span className="dl-hint">view ↗</span></div>
@@ -228,9 +234,9 @@ export default function DealsStats() {
       {open === "forecast" ? (
         <WeightedModal
           label="Weighted forecast" big={fmtM(weighted)}
-          sub={`${weightedPct}% of ${fmtM(pipeline)} pipeline · ${recs.length} deals · each deal weighted by forecast category`}
+          sub={`${weightedPct}% of ${fmtM(openBase)} open pipeline · ${openCount} open deals weighted by forecast category${excluded > 0 ? ` · ${excluded} closed/excluded` : ""}`}
           catCol="Forecast category" rows={fcRows}
-          totalLabel="Total" totalCount={recs.length} totalRaw={pipeline} totalWtd={weighted} totalWeightCell={`${weightedPct}%`}
+          totalLabel="Open pipeline" totalCount={openCount} totalRaw={openBase} totalWtd={weighted} totalWeightCell={`${weightedPct}%`}
           top={fcTop} onClose={() => setOpen(null)} onDeal={goDeal}
         />
       ) : null}

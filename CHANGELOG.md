@@ -6,6 +6,17 @@
 
 ---
 
+## 2026-06-27 — Weighted Forecast now open-pipeline only (matches Weighted Pipeline)
+
+**What.** Weighted Forecast (`DealsStats.tsx`) now excludes the same closed/dead stages as
+Weighted Pipeline — Closed Won, Closed Lost, Qualified Out, No Decision, Omitted — from both
+the weighted sum and the base. Both cards now compute over one shared `openRecs` set, so they
+share the same open-pipeline base. The card reads `% of open pipeline` (was `% of pipeline`)
+and the modal's total row is "Open pipeline" with the open base + count and a
+`N closed/excluded` note. Total Pipeline / Commit / At Risk cards are unchanged.
+
+**Why.** Requested — closed/won/lost/omitted deals shouldn't inflate the weighted forecast.
+
 ## 2026-06-27 — New "Weighted Pipeline" card (stage-weighted, open only)
 
 **What.** A 6th stat card, **Weighted Pipeline** (`DealsStats.tsx`), sits next to Weighted
