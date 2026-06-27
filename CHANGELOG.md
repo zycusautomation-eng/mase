@@ -6,6 +6,24 @@
 
 ---
 
+## 2026-06-27 — Weighted Forecast card opens a breakdown modal + reweighted
+
+**What.** The Weighted Forecast stat card (`DealsStats.tsx`) is now click-to-open (role=button,
+keyboard + Escape support, `view ↗` hint on hover). Clicking opens a centered modal that shows
+**how the blended number is reached**: a per-forecast-category table (deals · raw $ · weight ·
+weighted $) that totals to the headline figure and % of pipeline, plus the **top weighted
+contributors**, each row linking into `/deals/[id]`. The other four cards are unchanged/static.
+
+The category weights were also reset (single source: `bucketOf`): **Commit 0.90, Upside Key Deal
+0.85, Best Case 0.75, Pipeline 0.25, other/blank 0.15.** Matching is now case-insensitive and
+tolerant — previously the code matched the literal `"Upside"`, so the real `"Upside Key Deal"`
+deals silently fell to 0.15; they now correctly weight 0.85. **This changes the headline Weighted
+Forecast value** (Best Case + Upside both weight higher now).
+
+**Why.** Requested. The weighted number is the only KPI that isn't a plain sum/filter, so a
+click-through that explains the weighting math (and routes to the deals behind it) is the useful
+one to make interactive.
+
 ## 2026-06-27 — Two more deal filters: Stage + Verdict
 
 **What.** The deals filter bar (`ScopeFilterBar`, `#dealfilters`) gains two multi-select
