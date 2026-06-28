@@ -413,9 +413,10 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
             <span className="ai-mark">✦</span>
             <span className="ai-title">AI Summary</span>
             {verdict !== "—" ? <span className={`pill ${vRisk ? "risk" : "live"}`}><span className="dot" />{verdict}</span> : null}
+            {nsv.risk_tag && String(nsv.risk_tag).toLowerCase() !== "none" ? <span className="pill risk"><span className="dot" />{nsv.risk_tag}</span> : null}
             {pulse.state ? <span className="pill live">{cap(pulse.state)}{lastAct != null ? ` · updated ${lastAct}d ago` : ""}</span> : null}
           </div>
-          {nsv.headline ? <div className="ai-lede">{clipWords(nsv.headline, 26)}</div> : null}
+          {nsv.headline ? <div className="ai-lede">{clipWordsClean(nsv.headline, 40)}</div> : null}
           {(champ.summary || (ai.confidence_signals || {}).summary) ? (
             <div className="ai-body">
               {clipWords(champ.summary || (ai.confidence_signals || {}).summary, 28)}
