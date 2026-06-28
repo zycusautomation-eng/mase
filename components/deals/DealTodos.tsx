@@ -185,12 +185,32 @@ function clubSig(text: string): Set<string> {
     .replace(/[^a-z\s]/g, " ");
   return new Set(t.split(/\s+/).filter((w) => w.length > 2 && !CLUB_STOP.has(w)));
 }
+// Normalised full-text key + "same ask" test — a second, stricter matcher layered
+// on top of the token-overlap one, so an exact or contained restatement ("Provide
+// ROI form" vs "Provide ROI form to Kristopher") is caught even if token overlap is
+// borderline. Containment is length-guarded so short generic phrases don't collapse.
+function normText(t: unknown): string {
+  return String(t || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
+}
+function sameAsk(a: string, b: string): boolean {
+  if (!a || !b) return false;
+  if (a === b) return true;
+  const short = a.length <= b.length ? a : b;
+  const long = a.length <= b.length ? b : a;
+  return short.length > 12 && long.includes(short);
+}
 function clubItems(items: BackendTodoItem[]): BackendTodoItem[] {
   const clusters: { sig: Set<string>; rep: BackendTodoItem }[] = [];
   for (const it of items) {
     const sig = clubSig(it.text);
     let placed = false;
     for (const c of clusters) {
+      // strict text match first (exact / contained), then token-overlap.
+      if (sameAsk(normText(it.text), normText(c.rep.text))) {
+        if (String(it.text || "").length > String(c.rep.text || "").length) c.rep = it;
+        placed = true;
+        break;
+      }
       let inter = 0;
       for (const x of sig) if (c.sig.has(x)) inter++;
       const need = Math.min(2, sig.size, c.sig.size);
@@ -213,6 +233,7 @@ function clubItems(items: BackendTodoItem[]): BackendTodoItem[] {
 // ai.recommended_moves directly and are unaffected (the one allowed overlap).
 function dedupeAcrossBuckets(grouped: Record<DisplayBucketKey, BackendTodoItem[]>): void {
   const seen: Set<string>[] = [];
+  const seenNorm: string[] = [];
   const isDup = (sig: Set<string>): boolean => {
     if (!sig.size) return false;
     return seen.some((s) => {
@@ -225,8 +246,12 @@ function dedupeAcrossBuckets(grouped: Record<DisplayBucketKey, BackendTodoItem[]
   for (const k of ACTION_ORDER) {
     grouped[k] = grouped[k].filter((it) => {
       const sig = clubSig(it.text);
-      if (isDup(sig)) return false;
+      const nt = normText(it.text);
+      // dup if EITHER the token-overlap matcher OR the strict exact/contained
+      // matcher fires against anything already kept in a higher-precedence bucket.
+      if (isDup(sig) || seenNorm.some((s) => sameAsk(nt, s))) return false;
       if (sig.size) seen.push(sig);
+      if (nt) seenNorm.push(nt);
       return true;
     });
   }

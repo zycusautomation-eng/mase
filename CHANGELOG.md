@@ -137,6 +137,21 @@ These show wherever the bar shows (deals, espresso, matcha).
 **Why.** Requested — lets a VP slice the book by pipeline stage and by deal health before
 drilling into a drawer.
 
+## 2026-06-28 — Stronger cross-bucket MECE de-dup in the to-do display
+
+**What.** `clubItems` (within-bucket) and `dedupeAcrossBuckets` (across the 4 display buckets:
+prospect → commitments → buyerOwed → bestPractice) now layer a strict exact/contained
+normalized-text matcher (`normText`/`sameAsk`) on top of the existing token-overlap matcher, so
+a reworded or contained restatement of an ask is caught even when token overlap is borderline.
+Priority unchanged: an ask shown in a higher-precedence bucket is removed from lower ones.
+
+**Why.** C-level MECE requirement — no item repeats anywhere across the whole to-do trail. The
+QI's "85% repetition" was on the RAW backend categories (pre-display-dedup); the display already
+collapses them, and this hardens it. Caveat (documented): deterministic matching catches literal/
+near-literal repeats; purely SEMANTIC dupes (same idea, different words — "secure demo" vs
+"schedule the demonstration") are prevented at the source by the sweep-prompt writing discipline
+(one ask, one place), which applies to deals as they're re-swept.
+
 ## 2026-06-28 — Long to-do rows are capped (more/less) for scannability
 
 **What.** `TodoRow` (`DealTodos.tsx`) renders item text via a new `TodoText` that caps long
