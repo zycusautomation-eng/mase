@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from "react";
-import { ownerKind, fmtDue, diffDays } from "@/lib/engine/helpers";
+import { ownerKind, fmtDue, diffDays, clipWordsClean } from "@/lib/engine/helpers";
 import { useTodoSync, type SyncStatus } from "@/lib/engine/useTodoSync";
 import {
   useBackendTodos,
@@ -241,6 +241,25 @@ const TD_ICONBTN: React.CSSProperties = {
 // actions. Edit/Delete persist to the backend overrides layer (sticky across
 // re-sweeps); editing opens an inline editor (text + optional due date). A to-do
 // already logged to Salesforce (pushed) is locked from edit/delete.
+// Keep a to-do row scannable: long items (wordy Moves / Best-practice essays) are
+// capped at ~30 words ending on a clean clause, with a more/less toggle. Short
+// items (the crisp majority) render untouched.
+function TodoText({ text }: { text: string }) {
+  const [open, setOpen] = useState(false);
+  const long = String(text || "").trim().split(/\s+/).filter(Boolean).length > 30;
+  if (!long) return <>{text}</>;
+  return (
+    <>
+      {open ? text : clipWordsClean(text, 30)}
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
+        style={{ marginLeft: 6, border: "none", background: "none", color: "var(--accent,#5b5bf0)", cursor: "pointer", fontSize: 12, padding: 0, textDecoration: "underline" }}
+      >{open ? "less" : "more"}</button>
+    </>
+  );
+}
+
 function TodoRow({
   it, idx, ownerName, done, toggle, sync, backend,
 }: {
@@ -299,7 +318,7 @@ function TodoRow({
       <span className={`td-ic ${k.prio}`} aria-hidden><TypeIcon kind={k.icon} /></span>
       <div className="td-body">
         <div className="td-txt">
-          {it.text}
+          <TodoText text={it.text} />
           {it.edited ? <span className="ownerchip" style={{ marginLeft: 6 }}>edited</span> : null}
         </div>
         <ContextMeta it={it} />

@@ -137,6 +137,15 @@ These show wherever the bar shows (deals, espresso, matcha).
 **Why.** Requested — lets a VP slice the book by pipeline stage and by deal health before
 drilling into a drawer.
 
+## 2026-06-28 — Long to-do rows are capped (more/less) for scannability
+
+**What.** `TodoRow` (`DealTodos.tsx`) renders item text via a new `TodoText` that caps long
+items (>30 words — the wordy Moves / Best-practice essays the QI flagged) at ~30 words ending
+on a clean clause (`clipWordsClean`), with a **more/less** toggle. Short items render untouched.
+
+**Why.** QI feedback: Best-practice to-dos ran a 60-word median (up to 300); Moves had a long
+tail. The action was buried. This keeps the row scannable while the full text stays one click away.
+
 ## 2026-06-27 — Play card highlights wrap up cleanly within 30 words
 
 **What.** The deal drawer's "The Play" card (`DealDrawerView.tsx` → `PlayGate`) now shows
