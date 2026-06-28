@@ -366,6 +366,24 @@ function TodoRow({
 // collapsed to one), then each bucket capped to the top few (rest behind "Show
 // all"). Items keep their backend category, so Edit / Delete / Salesforce push
 // are unchanged.
+// Rank items so a per-bucket cap keeps the MOST IMPORTANT few: priority first
+// (urgency → category, via rowKind), then overdue before upcoming, then soonest due,
+// then dated before undated. Stable, so equal items keep their emitted order.
+function sortByPriority(items: BackendTodoItem[]): BackendTodoItem[] {
+  const today = todayISO();
+  const rank = (it: BackendTodoItem) => { const p = rowKind(it).prio; return p === "high" ? 0 : p === "med" ? 1 : 2; };
+  return [...items].sort((a, b) => {
+    const pr = rank(a) - rank(b);
+    if (pr) return pr;
+    const da = String(a.act_by || a.due || ""), db = String(b.act_by || b.due || "");
+    const oa = da && da < today ? 0 : 1, ob = db && db < today ? 0 : 1; // overdue first
+    if (oa !== ob) return oa - ob;
+    if (da && db && da !== db) return da < db ? -1 : 1;                  // soonest due first
+    if (!!da !== !!db) return da ? -1 : 1;                               // dated before undated
+    return 0;
+  });
+}
+
 export function DealTodoBuckets({
   buckets, ownerName, done, toggle, sync, backend,
 }: {
@@ -401,7 +419,9 @@ export function DealTodoBuckets({
   }
   for (const k of ACTION_ORDER) grouped[k] = clubItems(grouped[k]); // collapse homogeneous within each bucket
   dedupeAcrossBuckets(grouped); // cross-bucket MECE: a theme never repeats across heads
-  grouped.bestPractice = grouped.bestPractice.slice(0, 7); // hard cap: never more than 7 best-practice items
+  // Cap EVERY bucket at its 5 highest-priority items so no head becomes a tiring,
+  // exhaustive list — the dropped ones are the lowest-priority, never the urgent few.
+  for (const k of ACTION_ORDER) grouped[k] = sortByPriority(grouped[k]).slice(0, 5);
   return (
     <>
       {ACTION_ORDER.map((key) =>
