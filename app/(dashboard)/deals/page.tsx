@@ -10,11 +10,11 @@ import { Monogram } from "@/components/ui/Monogram";
 // Separate, sortable Deal-Score columns (read from ai.deal_scores.headline).
 // [key, header label, hover tooltip].
 const SCORE_COLS: [string, string, string][] = [
-  ["win_position", "Zycus win position", "Zycus Win Position Score — how likely we are to win it (stage-anchored, adjusted by the rubric factors)"],
-  ["deal_momentum", "Deal momentum", "Deal Momentum Score — is the deal moving forward over the last 30–60 days? 50 = flat, >50 forward, <50 stalling"],
-  ["customer_commitment", "Cmt", "Customer Commitment Score — how much the customer is investing (action items, internal process, exec access, reviews)"],
-  ["deal_risk", "Risk", "Deal Risk Score — open risks that could break the deal; higher = worse"],
-  ["forecast_confidence", "FC", "Forecast Confidence Score — overall confidence this closes in the forecast window (anchored on win, adjusted by commitment/momentum, less risk)"],
+  ["win_position", "Zycus win position", "Zycus Win Position Score"],
+  ["deal_momentum", "Deal momentum", "Deal Momentum Score"],
+  ["customer_commitment", "Cmt", "Customer Commitment Score"],
+  ["deal_risk", "Risk", "Deal Risk Score"],
+  ["forecast_confidence", "FC", "Forecast Confidence Score"],
 ];
 const SCORE_KEYS = new Set(SCORE_COLS.map(([k]) => k));
 import { PageLoader } from "@/components/ui/page-loader";
@@ -87,7 +87,12 @@ export default function DealsPage() {
               ))}
               <th>Verdict</th><th>AIS</th>
               {canSeeScores && SCORE_COLS.map(([k, label, tip]) => (
-                <th key={k} className="num scorehd" onClick={() => sortBy(k)} title={tip}>{label}{arrow(k)}</th>
+                <th key={k} className="num scorehd" onClick={() => sortBy(k)} title={tip}>
+                  <span className="scorehd-stack">
+                    {label.split(" ").map((w, i) => <span key={i}>{w}</span>)}
+                  </span>
+                  {arrow(k)}
+                </th>
               ))}
               {REST_COLS.map(([k, label]) => (
                 <th key={k} onClick={() => sortBy(k)}>{label}{arrow(k)}</th>
