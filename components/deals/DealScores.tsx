@@ -31,10 +31,17 @@ const ROWS: [string, string, string][] = [
   ["Deal risk", "deal_risk", "higher = worse"],
 ];
 
+// A dead deal (Lost / Qualified Out / Omitted) carries no live scores — show its terminal
+// state, never misleading numbers.
+const deadLabel = (h: any): string | null =>
+  h && h.dead ? String(h.dead_label || h.read || "Closed") : null;
+
 // Compact strip for one deals-table row.
 export function DealScoreStrip({ ds }: { ds: any }) {
   const h = ds && ds.headline;
   if (!h) return null;
+  const dl = deadLabel(h);
+  if (dl) return <span className="ds-strip"><span className="ds-chip" style={{ background: "var(--line-soft, #e5e5e5)", color: "var(--ink-soft, #666)" }} title="Closed — not a live opportunity">{dl}</span></span>;
   const chips: [string, string, string][] = [
     ["W", "win_position", "Win position"],
     ["M", "deal_momentum", "Deal momentum (50 = flat)"],
@@ -63,6 +70,15 @@ export function DealScorePanel({ ds }: { ds: any }) {
   const [open, setOpen] = useState<string | null>(null);
   const h = ds && ds.headline;
   if (!h) return null;
+  const dl = deadLabel(h);
+  if (dl) return (
+    <div className="ds-panel">
+      <div className="ds-panel-head">
+        <span className="ds-read big" style={{ background: "var(--line-soft, #e5e5e5)", color: "var(--ink-soft, #666)" }}>{dl}</span>
+        <div className="ds-fc-sub">Closed — not a live opportunity, so scores no longer apply.</div>
+      </div>
+    </div>
+  );
   const comm = ds.commentary || {};
   return (
     <div className="ds-panel">

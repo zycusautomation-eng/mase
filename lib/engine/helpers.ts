@@ -127,9 +127,11 @@ export function aiLabel(h: Hard, fit?: any): string { const t = aiTier(h, fit); 
 //   v-cdr  = Close Date Risk -> light green (healthy deal, date will slip)
 //   v-slow = Slowing         -> amber (losing momentum / stalled)
 //   v-off  = Off Track       -> red (cold)
-export function verdictTone(v: any): "v-on" | "v-cdr" | "v-slow" | "v-off" | "" {
+//   v-dead = Lost / Qualified Out / Omitted -> grey (closed, not a live opportunity)
+export function verdictTone(v: any): "v-on" | "v-cdr" | "v-slow" | "v-off" | "v-dead" | "" {
   const k = String(v || "").toLowerCase();
   if (!k) return "";
+  if (k.includes("lost") || k.includes("omitted") || k.includes("qualified out")) return "v-dead";
   if (k.includes("off")) return "v-off";
   if (k.includes("close")) return "v-cdr";   // "close date risk"
   if (k.includes("slow")) return "v-slow";   // "slowing"
@@ -138,12 +140,14 @@ export function verdictTone(v: any): "v-on" | "v-cdr" | "v-slow" | "v-off" | "" 
   return ""; // unknown/odd wording -> neutral, NEVER silently green
 }
 
-// The ONE place the four deal-health statuses are named. Every surface reads
-// from here so the label never drifts. On Track -> "On track", Close Date Risk
-// -> "Close-date risk", Slowing -> "Slowing", Off Track -> "Off track";
-// anything unrecognised -> "—".
+// The ONE place the deal-health statuses are named. Every surface reads from here
+// so the label never drifts. A dead deal reads its terminal status verbatim.
 export function healthLabel(v: any): string {
   const t = verdictTone(v);
+  if (t === "v-dead") {
+    const k = String(v || "").toLowerCase();
+    return k.includes("omitted") ? "Omitted" : k.includes("qualified") ? "Qualified out" : "Lost";
+  }
   return t === "v-on" ? "On track"
     : t === "v-cdr" ? "Close-date risk"
     : t === "v-slow" ? "Slowing"

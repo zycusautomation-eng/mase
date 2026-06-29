@@ -254,7 +254,15 @@ export default function DealsStats() {
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
-  const recs = filtered;
+  // A dead deal (Lost / Qualified Out / Omitted — by stage OR forecast category) is not a
+  // live opportunity: exclude it from EVERY rollup and total below. Mirrors the backend's
+  // deal_engine_scoring.is_dead_deal.
+  const isDead = (r: any): boolean => {
+    const s = String(r?.hard?.stage || "").toLowerCase();
+    const fc = String(r?.hard?.forecast_category || "").toLowerCase();
+    return s.includes("closed lost") || s.includes("qualified out") || s.trim() === "lost" || fc === "omitted";
+  };
+  const recs = filtered.filter((r: any) => !isDead(r));
   const amt = (r: any) => Number(r.hard?.amount) || 0;
   const isAtRisk = (r: any) => { const v = verdictTone(r.ai?.north_star_verdict?.verdict); return v === "v-slow" || v === "v-off"; };
   const pipeline = recs.reduce((n, r) => n + amt(r), 0);
