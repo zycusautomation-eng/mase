@@ -2,12 +2,12 @@
 
 import { useMemo } from "react";
 import { useDashboard } from "@/lib/engine/DashboardContext";
-import { EMAIL_TO_OWNER, resolveAccess } from "@/lib/engine/helpers";
+import { EMAIL_TO_OWNER, REGION_ADMINS, resolveAccess } from "@/lib/engine/helpers";
 
 // A synthetic email used to preview the "blocked / non-member" view.
 const BLOCKED_PREVIEW = "preview.nonmember@example.com";
 
-type Opt = { email: string; name: string; role: "VP" | "Rep" };
+type Opt = { email: string; name: string; role: "Region" | "VP" | "Rep" };
 
 // Admin-only control: impersonate any allow-listed user (or a non-member) to see
 // exactly what they'd see. Renders nothing for non-admins.
@@ -15,13 +15,16 @@ export default function SimulateBar() {
     const { realIsAdmin, simEmail, simulateAs, scopeName, blocked } = useDashboard();
 
     const opts = useMemo<Opt[]>(() => {
-        return Object.entries(EMAIL_TO_OWNER)
+        const region: Opt[] = Object.entries(REGION_ADMINS).map(
+            ([email, def]) => ({ email, name: def.name, role: "Region" as const }));
+        const owners: Opt[] = Object.entries(EMAIL_TO_OWNER)
             .map(([email, name]) => {
                 const a = resolveAccess(email) as any;
                 const role: "VP" | "Rep" = a.kind === "scoped" && a.vps.length ? "VP" : "Rep";
-                return { email, name, role };
+                return { email, name, role } as Opt;
             })
             .sort((a, b) => (a.role === b.role ? a.name.localeCompare(b.name) : a.role === "VP" ? -1 : 1));
+        return [...region, ...owners];
     }, []);
 
     if (!realIsAdmin) return null;
@@ -39,7 +42,11 @@ export default function SimulateBar() {
         ? null
         : blocked
             ? "a non-member — no access"
-            : `${scopeName ?? simEmail}${selectValue && opts.find((o) => o.email === simEmail)?.role === "VP" ? " — whole team" : " — own deals"}`;
+            : (() => {
+                const role = opts.find((o) => o.email === simEmail)?.role;
+                const suffix = role === "VP" ? " — whole team" : role === "Region" ? " — region (all its teams)" : " — own deals";
+                return `${scopeName ?? simEmail}${selectValue ? suffix : ""}`;
+            })();
 
     return (
         <div
@@ -59,6 +66,13 @@ export default function SimulateBar() {
                 className="bg-background border rounded px-2 py-1 text-xs max-w-[280px]"
             >
                 <option value="">Your view (admin · whole book)</option>
+                {opts.some((o) => o.role === "Region") && (
+                    <optgroup label="Region admins">
+                        {opts.filter((o) => o.role === "Region").map((o) => (
+                            <option key={o.email} value={o.email}>{o.name}</option>
+                        ))}
+                    </optgroup>
+                )}
                 <optgroup label="VPs">
                     {opts.filter((o) => o.role === "VP").map((o) => (
                         <option key={o.email} value={o.email}>{o.name} — VP</option>

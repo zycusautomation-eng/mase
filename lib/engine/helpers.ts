@@ -478,7 +478,7 @@ export const ADMIN_EMAILS = new Set<string>([
 // filter. US = the four US VP books (West, East, US Strategic, US Mid-Markets); EMEA/
 // APAC VPs (Anthony Gray, John Woodcock, Carl Kimball) are excluded.
 export const US_VPS = ["Alexa Bradley", "VP East Open", "Arthur Raguette", "Michael McCarthy"];
-const REGION_ADMINS: Record<string, { name: string; vps: string[] }> = {
+export const REGION_ADMINS: Record<string, { name: string; vps: string[] }> = {
   "kasturi.talukdar@zycus.com": { name: "US Admin", vps: US_VPS },
 };
 
