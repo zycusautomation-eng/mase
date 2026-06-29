@@ -15,7 +15,7 @@ const VERDICT_RANK: Record<string, number> = { "On track": 0, "Slowing": 1, "Clo
 const stageRank = (s: string) => { const i = STAGE_ORDER.indexOf(s); return i < 0 ? 999 : i; };
 
 export default function ScopeFilterBar() {
-  const { records, vps, rsds, setVps, setRsds, scoped, filters, setFilter, clearFilters, filtered, locked, blocked, scopeName } = useDashboard();
+  const { records, vps, rsds, setVps, setRsds, scoped, filters, setFilter, clearFilters, filtered, locked, blocked, scopeName, canSeeScores } = useDashboard();
 
   // Blocked users (not a known rep/VP/admin) get no deals and no filters.
   if (blocked) {
@@ -89,14 +89,17 @@ export default function ScopeFilterBar() {
       <MultiSelect allLabel="All Verdict" options={vd} selected={filters.verdict} onChange={f("verdict")} />
       <MultiSelect allLabel="All close quarters" options={cq} selected={filters.close} onChange={f("close")} />
 
-      <span className="fdivider" />
-
-      {/* deal-score band filters */}
-      <MultiSelect allLabel="All Win" options={winOpts} selected={filters.win} onChange={f("win")} />
-      <MultiSelect allLabel="All Momentum" options={momOpts} selected={filters.momentum} onChange={f("momentum")} />
-      <MultiSelect allLabel="All Commitment" options={cmtOpts} selected={filters.commitment} onChange={f("commitment")} />
-      <MultiSelect allLabel="All Risk" options={riskOpts} selected={filters.risk} onChange={f("risk")} />
-      <MultiSelect allLabel="All FC" options={fcScoreOpts} selected={filters.fc} onChange={f("fc")} />
+      {/* deal-score band filters — admins + VPs only */}
+      {canSeeScores ? (
+        <>
+          <span className="fdivider" />
+          <MultiSelect allLabel="All Win" options={winOpts} selected={filters.win} onChange={f("win")} />
+          <MultiSelect allLabel="All Momentum" options={momOpts} selected={filters.momentum} onChange={f("momentum")} />
+          <MultiSelect allLabel="All Commitment" options={cmtOpts} selected={filters.commitment} onChange={f("commitment")} />
+          <MultiSelect allLabel="All Risk" options={riskOpts} selected={filters.risk} onChange={f("risk")} />
+          <MultiSelect allLabel="All FC" options={fcScoreOpts} selected={filters.fc} onChange={f("fc")} />
+        </>
+      ) : null}
 
       {dirty ? <button className="fclear" onClick={clearFilters}>Clear</button> : null}
       <span className="fcount" id="f-count">{filtered.length} of {scoped.length} deal{scoped.length === 1 ? "" : "s"}</span>

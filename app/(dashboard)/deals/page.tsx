@@ -32,7 +32,7 @@ const PAGE_SIZE = 20;
 // AI excitement is a computed tier (status OR score OR fit signal) the DB can't filter
 // without a dedicated column. The full per-deal record is fetched on drawer open.
 export default function DealsPage() {
-  const { filtered, records, playbook, loading } = useDashboard();
+  const { filtered, records, playbook, loading, canSeeScores } = useDashboard();
   const [sortKey, setSortKey] = useState("days_to_close");
   const [sortDir, setSortDir] = useState(1);
   const [selected, setSelected] = useState<Rec | null>(null);
@@ -82,7 +82,7 @@ export default function DealsPage() {
                 <th key={k} onClick={() => sortBy(k)}>{label}{arrow(k)}</th>
               ))}
               <th>Verdict</th><th>AIS</th>
-              {SCORE_COLS.map(([k, label]) => (
+              {canSeeScores && SCORE_COLS.map(([k, label]) => (
                 <th key={k} className="num scorehd" onClick={() => sortBy(k)} title={`Deal score — ${label}`}>{label}{arrow(k)}</th>
               ))}
               {REST_COLS.map(([k, label]) => (
@@ -112,7 +112,7 @@ export default function DealsPage() {
                   {LEAD_COLS.map(cell)}
                   <td>{verdict ? <span className={`chip ${verdictTone(verdict)}`}>{healthLabel(verdict)}</span> : ""}</td>
                   <td>{aiLabel(h, ai.ai_fit_signal)}</td>
-                  {SCORE_COLS.map(([k]) => (
+                  {canSeeScores && SCORE_COLS.map(([k]) => (
                     <td key={k} className="num"><ScoreCell ds={ai.deal_scores} k={k} /></td>
                   ))}
                   {REST_COLS.map(cell)}

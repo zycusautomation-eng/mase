@@ -14,6 +14,7 @@ import { useTodoDone } from "@/lib/engine/useTodoDone";
 import { useTodoSync } from "@/lib/engine/useTodoSync";
 import { DealTodoBuckets, bucketsForOpp } from "@/components/deals/DealTodos";
 import { DealScorePanel } from "@/components/deals/DealScores";
+import { useDashboard } from "@/lib/engine/DashboardContext";
 
 const CSS = `
 .ddw{
@@ -90,6 +91,7 @@ const CSS = `
 .ddw .gate-num{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:800;background:var(--indigo)}
 .ddw .gate-num.soft{background:rgba(255,255,255,.14)}
 .ddw .gate-tag{font-size:11.5px;font-weight:700;letter-spacing:.1px;color:#b9b6f5;line-height:1.35}
+.ddw .gate-tag.overdue{color:#ff9fb0;font-weight:800}
 .ddw .gate-t{font-size:13.5px;font-weight:700;margin-top:9px;line-height:1.4}
 .ddw .gate-d{font-size:11.5px;color:#c4c2ea;margin-top:6px;line-height:1.5}
 .ddw .gate-more{margin-left:6px;border:none;background:none;color:#cbc7ff;font-size:11.5px;font-weight:700;cursor:pointer;padding:0;text-decoration:underline;white-space:nowrap}
@@ -218,15 +220,19 @@ const sentClass = (s: any) => { const t = String(s || "").toLowerCase(); return 
 // short label (the long prose, if any, drops into the read column instead).
 const sentLabel = (s: any) => { const t = String(s || "").toLowerCase(); return /pos/.test(t) ? "Positive" : /neg|risk|concern|unk/.test(t) ? "At risk" : t ? "Neutral" : "Unknown"; };
 const fmtDate = (s: any) => { if (!s) return ""; const d = new Date(s); return isNaN(d.getTime()) ? String(s) : d.toLocaleDateString(undefined, { day: "numeric", month: "short" }); };
+// A "by date" is past due once its calendar day is strictly before today (a date that
+// falls on today is still on time). Compared on local date parts to ignore time-of-day.
+const isPastDue = (s: any) => { if (!s) return false; const d = new Date(s); if (isNaN(d.getTime())) return false; const now = new Date(); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() < new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime(); };
 // One play gate. The action is truncated to 12 words by default (the user wants the
 // short read); a "more" toggle reveals the full move + its expected effect on click.
 function PlayGate({ m, i }: { m: any; i: number }) {
   const [open, setOpen] = useState(false);
   const full = String(m.action || "");
   const truncated = full.trim().split(/\s+/).filter(Boolean).length > 30;
+  const overdue = isPastDue(m.act_by);
   return (
     <div className="gate">
-      <div className="gate-head"><span className={`gate-num ${i > 1 ? "soft" : ""}`}>{i + 1}</span><span className="gate-tag">{m.act_by ? `by ${fmtDate(m.act_by)}` : "next"}</span></div>
+      <div className="gate-head"><span className={`gate-num ${i > 1 ? "soft" : ""}`}>{i + 1}</span><span className={`gate-tag${overdue ? " overdue" : ""}`}>{m.act_by ? (overdue ? `Past due · ${fmtDate(m.act_by)}` : `by ${fmtDate(m.act_by)}`) : "next"}</span></div>
       <div className="gate-t">
         {open || !truncated ? full : clipWordsClean(full, 30)}
         {truncated ? <button type="button" className="gate-more" onClick={() => setOpen((o) => !o)}>{open ? "less" : "more"}</button> : null}
@@ -241,6 +247,7 @@ function PlayGate({ m, i }: { m: any; i: number }) {
 
 export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: () => void }) {
   const { openNewDeal } = useDealAi();
+  const { canSeeScores } = useDashboard();
   const backend = useBackendTodos();
   const { done: doneSet, toggle } = useTodoDone();
   const sync = useTodoSync();
@@ -559,7 +566,7 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
             {!stake.length ? <div className="ic-body">No stakeholders mapped.</div> : null}
           </div>
 
-          {ai.deal_scores ? (
+          {canSeeScores && ai.deal_scores ? (
             <div className="card card-pad mb14">
               <div className="ic-title" style={{ marginBottom: 13 }}>Deal scores</div>
               <DealScorePanel ds={ai.deal_scores} />

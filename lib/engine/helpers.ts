@@ -322,7 +322,18 @@ export function vpOf(r: Rec): string | null {
   if (!o || DROP_OWNERS.has(o)) return null;
   return OWNER_VP[o] || null;
 }
-export function keepRecord(r: Rec): boolean { return vpOf(r) != null; }
+// Stages whose opps are dead/closed — won, lost, disqualified, or dropped. They are
+// hidden from every deal list in the UI (the engine still tracks them; we just don't
+// surface them). Matched as a case-insensitive substring so numbered SF stage names
+// (e.g. "8. Closed Lost") are caught too.
+const DEAD_STAGES = ["qualified out", "closed lost", "closed won", "omitted"];
+export function isDeadStage(stage: any): boolean {
+  const k = String(stage || "").trim().toLowerCase();
+  return DEAD_STAGES.some((d) => k.includes(d));
+}
+export function keepRecord(r: Rec): boolean {
+  return vpOf(r) != null && !isDeadStage((r.hard || {}).stage);
+}
 
 export function teamsMap(records: Rec[]): Record<string, string[]> {
   const m: Record<string, Set<string>> = {};

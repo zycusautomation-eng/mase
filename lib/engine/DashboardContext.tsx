@@ -56,6 +56,11 @@ interface DashboardState {
   // an admin AND is NOT simulating a non-admin view, so a simulated rep/VP view
   // hides them exactly as that user would see.
   isAdminView: boolean;
+  // gates the deal-scores UI (Win/Momentum/Commitment/Risk/FC columns, drawer panel,
+  // and the score band filters): visible ONLY to admins and VPs. RSDs / reps / unknown
+  // users never see it. Reflects the EFFECTIVE view, so an admin simulating an RSD also
+  // loses it.
+  canSeeScores: boolean;
   // admins: re-scope the whole UI as if `email` were logged in. null resets.
   simulateAs: (email: string | null) => void;
 }
@@ -83,6 +88,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [scopeName, setScopeName] = useState<string | null>(null);
   const [realIsAdmin, setRealIsAdmin] = useState(false);
   const [simEmail, setSimEmail] = useState<string | null>(null);
+  const [canSeeScores, setCanSeeScores] = useState(false);
 
   // Admin-only: re-scope the entire dashboard as if `email` were the logged-in
   // user (impersonation preview). null = back to the admin's own whole-book view.
@@ -97,17 +103,24 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     } catch { /* sessionStorage unavailable */ }
     setFilters(EMPTY_FILTERS);
     if (!email) {
+      // back to the admin's own whole-book view
       setVpsRaw([]); setRsds([]); setScopeName(null); setLocked(false); setBlocked(false);
+      setCanSeeScores(true);
       return;
     }
     const a = resolveAccess(email);
     if (a.kind === "scoped") {
       setVpsRaw(a.vps); setRsds(a.rsds); setScopeName(a.name); setLocked(true); setBlocked(false);
+      // a VP is scoped to their own team (vps set); an RSD is scoped to their deals
+      // (rsds set). Only the VP may see scores.
+      setCanSeeScores(a.vps.length > 0);
     } else if (a.kind === "blocked") {
       setVpsRaw([]); setRsds([]); setScopeName(email); setLocked(true); setBlocked(true);
+      setCanSeeScores(false);
     } else {
       // simulating another admin = whole book
       setVpsRaw([]); setRsds([]); setScopeName(null); setLocked(false); setBlocked(false);
+      setCanSeeScores(true);
     }
   }, []);
 
@@ -164,12 +177,16 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
           setRsds(access.rsds);
           setScopeName(access.name);
           setLocked(true);
+          // VP (team scope) sees scores; an RSD (own-deals scope) does not.
+          setCanSeeScores(access.vps.length > 0);
         } else if (access.kind === "blocked") {
           setBlocked(true);
           setLocked(true);
+          setCanSeeScores(false);
         } else {
           // admin: leave the book open, and restore any saved simulation.
           setRealIsAdmin(true);
+          setCanSeeScores(true);
           try {
             const saved = sessionStorage.getItem("mase_sim_as");
             if (saved) simulateAs(saved);
@@ -221,7 +238,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     setVps, setRsds, setFilter, clearFilters, setQuery,
     scoped, filtered,
     locked, blocked, scopeName,
-    realIsAdmin, simEmail, isAdminView: realIsAdmin && !simEmail, simulateAs,
+    realIsAdmin, simEmail, isAdminView: realIsAdmin && !simEmail, canSeeScores, simulateAs,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
