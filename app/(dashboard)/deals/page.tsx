@@ -117,7 +117,7 @@ export default function DealsPage() {
                   <td>{verdict ? <span className={`chip ${verdictTone(verdict)}`}>{healthLabel(verdict)}</span> : ""}</td>
                   <td>{aiLabel(h, ai.ai_fit_signal)}</td>
                   {canSeeScores && SCORE_COLS.map(([k]) => (
-                    <td key={k} className="num"><ScoreCell ds={ai.deal_scores} k={k} /></td>
+                    <td key={k} className="num scorecell"><ScoreCell ds={ai.deal_scores} k={k} /></td>
                   ))}
                   {REST_COLS.map(cell)}
                 </tr>
