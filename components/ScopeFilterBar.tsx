@@ -61,8 +61,8 @@ export default function ScopeFilterBar() {
       {locked ? (
         vps.length > 0 ? (
           <>
-            <span className="scopelock" title="Your view is scoped to your team">
-              Viewing: <b>{scopeName}</b>&apos;s team
+            <span className="scopelock" title="Your view is scoped to your team/region">
+              Viewing: <b>{scopeName}</b>{vps.length === 1 ? "’s team" : ""}
             </span>
             <MultiSelect allLabel="All reps" options={ownerOpts} selected={rsds} onChange={setRsds} />
           </>

@@ -472,6 +472,16 @@ export const ADMIN_EMAILS = new Set<string>([
   "rishabh.tickoo@zycus.com",
 ]);
 
+// Region admins: see ALL deals in a region (every VP team in it), LOCKED — but NOT the
+// whole book and NOT the admin agent-control surfaces. They resolve to a multi-VP
+// `scoped` role (not `admin`), so region-wide visibility falls out of the normal scope
+// filter. US = the four US VP books (West, East, US Strategic, US Mid-Markets); EMEA/
+// APAC VPs (Anthony Gray, John Woodcock, Carl Kimball) are excluded.
+export const US_VPS = ["Alexa Bradley", "VP East Open", "Arthur Raguette", "Michael McCarthy"];
+const REGION_ADMINS: Record<string, { name: string; vps: string[] }> = {
+  "kasturi.talukdar@zycus.com": { name: "US Admin", vps: US_VPS },
+};
+
 // Resolve the logged-in email into an access decision:
 //   admin   -> sees everything, filters unlocked
 //   scoped  -> locked to their VP team / own deals
@@ -484,6 +494,10 @@ export type Access =
 export function resolveAccess(email: string | null | undefined): Access {
   const e = (email || "").toLowerCase();
   if (ADMIN_EMAILS.has(e)) return { kind: "admin" };
+  // Region admin (e.g. US Admin) — sees every VP team in their region, locked. A
+  // multi-VP `scoped` role: region-wide visibility, no whole-book / no admin panel.
+  const region = REGION_ADMINS[e];
+  if (region) return { kind: "scoped", vps: region.vps, rsds: [], name: region.name };
   // Strict allow-list (fail-CLOSED): only emails explicitly in EMAIL_TO_OWNER
   // get in. We deliberately do NOT guess a name from the email local-part — an
   // unlisted @zycus.com account (including VIBE's team, who share this Supabase
