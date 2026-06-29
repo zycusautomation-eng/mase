@@ -88,7 +88,7 @@ export default function DealsPage() {
               ))}
               <th>Verdict</th><th>AIS</th>
               {canSeeScores && SCORE_COLS.map(([k, label, tip]) => (
-                <Tooltip key={k} delayDuration={200}>
+                <Tooltip key={k} delayDuration={0}>
                   <TooltipTrigger asChild>
                     <th className="num scorehd" onClick={() => sortBy(k)}>
                       <span className="scorehd-stack">
@@ -97,7 +97,7 @@ export default function DealsPage() {
                       {arrow(k)}
                     </th>
                   </TooltipTrigger>
-                  <TooltipContent className="max-w-xs">{tip}</TooltipContent>
+                  <TooltipContent className="max-w-xs duration-100">{tip}</TooltipContent>
                 </Tooltip>
               ))}
               {REST_COLS.map(([k, label]) => (
