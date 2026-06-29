@@ -326,13 +326,24 @@ export function vpOf(r: Rec): string | null {
 // hidden from every deal list in the UI (the engine still tracks them; we just don't
 // surface them). Matched as a case-insensitive substring so numbered SF stage names
 // (e.g. "8. Closed Lost") are caught too.
-const DEAD_STAGES = ["qualified out", "closed lost", "closed won", "omitted"];
+// Stages whose opps are terminal — won, lost, disqualified, or dropped. Substring
+// match so numbered SF stage names ("8. Closed Lost") and a bare "Lost" are caught;
+// "lost" subsumes "closed lost".
+const DEAD_STAGES = ["qualified out", "closed won", "omitted", "lost"];
 export function isDeadStage(stage: any): boolean {
   const k = String(stage || "").trim().toLowerCase();
   return DEAD_STAGES.some((d) => k.includes(d));
 }
+// Canonical "dead deal" test — terminal by STAGE or by forecast category (Omitted).
+// THE single source of truth: keepRecord hides these from every list and DealsStats
+// excludes them from every rollup, so the two can never drift. Mirrors the backend's
+// deal_engine_scoring.is_dead_deal.
+export function isDeadDeal(r: any): boolean {
+  const h = (r && r.hard) || {};
+  return isDeadStage(h.stage) || String(h.forecast_category || "").trim().toLowerCase() === "omitted";
+}
 export function keepRecord(r: Rec): boolean {
-  return vpOf(r) != null && !isDeadStage((r.hard || {}).stage);
+  return vpOf(r) != null && !isDeadDeal(r);
 }
 
 export function teamsMap(records: Rec[]): Record<string, string[]> {
