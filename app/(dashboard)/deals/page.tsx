@@ -6,6 +6,7 @@ import { aiLabel, fmtAmount, verdictTone, healthLabel, type Rec } from "@/lib/en
 import DealDrawer from "@/components/deals/DealDrawer";
 import { ScoreCell } from "@/components/deals/DealScores";
 import { Monogram } from "@/components/ui/Monogram";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
 // Separate, sortable Deal-Score columns (read from ai.deal_scores.headline).
 // [key, header label, hover tooltip].
@@ -87,12 +88,17 @@ export default function DealsPage() {
               ))}
               <th>Verdict</th><th>AIS</th>
               {canSeeScores && SCORE_COLS.map(([k, label, tip]) => (
-                <th key={k} className="num scorehd" onClick={() => sortBy(k)} title={tip}>
-                  <span className="scorehd-stack">
-                    {label.split(" ").map((w, i) => <span key={i}>{w}</span>)}
-                  </span>
-                  {arrow(k)}
-                </th>
+                <Tooltip key={k} delayDuration={200}>
+                  <TooltipTrigger asChild>
+                    <th className="num scorehd" onClick={() => sortBy(k)}>
+                      <span className="scorehd-stack">
+                        {label.split(" ").map((w, i) => <span key={i}>{w}</span>)}
+                      </span>
+                      {arrow(k)}
+                    </th>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">{tip}</TooltipContent>
+                </Tooltip>
               ))}
               {REST_COLS.map(([k, label]) => (
                 <th key={k} onClick={() => sortBy(k)}>{label}{arrow(k)}</th>
