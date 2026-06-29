@@ -995,6 +995,7 @@
   .ds-comm.sm{margin-left:40px;font-size:11px;color:var(--muted)}
   .ds-comm.read{border-top:1px dashed var(--line);padding-top:9px;color:var(--muted);font-size:11px}
   .ds-contribs{margin:7px 0 2px 40px;display:flex;flex-direction:column;gap:5px}
+  .ds-contribs-h{font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin-bottom:1px}
   .ds-contrib{display:flex;align-items:baseline;gap:8px;font-size:11px;line-height:1.45}
   .ds-pts{font-weight:800;font-variant-numeric:tabular-nums;min-width:34px;text-align:right}
   .ds-pts.pos{color:var(--pos,#1f9d57)}

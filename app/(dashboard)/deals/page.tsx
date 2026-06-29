@@ -13,9 +13,6 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 const SCORE_COLS: [string, string, string][] = [
   ["win_position", "Zycus win position", "Zycus Win Position Score"],
   ["deal_momentum", "Deal momentum", "Deal Momentum Score"],
-  ["customer_commitment", "Cmt", "Customer Commitment Score"],
-  ["deal_risk", "Risk", "Deal Risk Score"],
-  ["forecast_confidence", "FC", "Forecast Confidence Score"],
 ];
 const SCORE_KEYS = new Set(SCORE_COLS.map(([k]) => k));
 import { PageLoader } from "@/components/ui/page-loader";
