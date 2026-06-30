@@ -15,7 +15,7 @@ const VERDICT_RANK: Record<string, number> = { "On track": 0, "Slowing": 1, "Clo
 const stageRank = (s: string) => { const i = STAGE_ORDER.indexOf(s); return i < 0 ? 999 : i; };
 
 export default function ScopeFilterBar() {
-  const { records, vps, rsds, setVps, setRsds, scoped, filters, setFilter, clearFilters, filtered, locked, blocked, scopeName, canSeeScores } = useDashboard();
+  const { records, vps, rsds, setVps, setRsds, scoped, filters, setFilter, clearFilters, filtered, locked, blocked, scopeName, canSeeScores, favsOnly, setFavsOnly, favs } = useDashboard();
 
   // Blocked users (not a known rep/VP/admin) get no deals and no filters.
   if (blocked) {
@@ -49,7 +49,7 @@ export default function ScopeFilterBar() {
   const riskOpts = toOpt(SCORE_BANDS.deal_risk);
   const fcScoreOpts = toOpt(SCORE_BANDS.forecast_confidence);
 
-  const dirty = Object.values(filters).some((v) => v.length > 0);
+  const dirty = Object.values(filters).some((v) => v.length > 0) || favsOnly;
   const f = (k: keyof DealFilters) => (v: string[]) => setFilter(k, v);
 
   return (
@@ -79,6 +79,24 @@ export default function ScopeFilterBar() {
       )}
 
       <span className="fdivider" />
+
+      {/* favourites — personal starred deals (localStorage). Toggles the book to favs only. */}
+      <button
+        type="button"
+        onClick={() => setFavsOnly(!favsOnly)}
+        title={favsOnly ? "Showing only your favourites — click to show all" : "Show only your favourite deals"}
+        style={{
+          display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 11px",
+          borderRadius: 8, border: "1px solid", cursor: "pointer", fontWeight: 600, fontSize: 12,
+          whiteSpace: "nowrap",
+          borderColor: favsOnly ? "#f0b400" : "var(--line, #e2e2ea)",
+          background: favsOnly ? "#fff7e0" : "transparent",
+          color: favsOnly ? "#8a6100" : "inherit",
+        }}
+      >
+        <span style={{ color: "#f0b400", fontSize: 14, lineHeight: 1 }}>{favsOnly ? "★" : "☆"}</span>
+        Favourites{favs.size ? ` (${favs.size})` : ""}
+      </button>
 
       {/* refinement filters */}
       <MultiSelect allLabel="All forecast" options={fc} selected={filters.forecast} onChange={f("forecast")} />

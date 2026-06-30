@@ -63,6 +63,13 @@ interface DashboardState {
   canSeeScores: boolean;
   // admins: re-scope the whole UI as if `email` were logged in. null resets.
   simulateAs: (email: string | null) => void;
+  // Personal favourites — starred deals, persisted per real user in localStorage.
+  // `favsOnly` filters the book to just the starred deals (composes with the others).
+  favs: Set<string>;
+  isFav: (oppId: string) => boolean;
+  toggleFav: (oppId: string) => void;
+  favsOnly: boolean;
+  setFavsOnly: (b: boolean) => void;
 }
 
 const Ctx = createContext<DashboardState | null>(null);
@@ -89,6 +96,12 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [realIsAdmin, setRealIsAdmin] = useState(false);
   const [simEmail, setSimEmail] = useState<string | null>(null);
   const [canSeeScores, setCanSeeScores] = useState(false);
+  // Favourites: starred opp_ids, persisted in localStorage keyed by the REAL logged-in
+  // user (not the simulated one — favourites are personal bookmarks).
+  const [favs, setFavs] = useState<Set<string>>(new Set());
+  const [favsOnly, setFavsOnly] = useState(false);
+  const [realEmail, setRealEmail] = useState<string | null>(null);
+  const favKey = `mase_favs:${realEmail || "default"}`;
 
   // Admin-only: re-scope the entire dashboard as if `email` were the logged-in
   // user (impersonation preview). null = back to the admin's own whole-book view.
@@ -170,6 +183,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     (async () => {
       try {
         const { data } = await createClient().auth.getUser();
+        setRealEmail(data.user?.email || null);
         const access = resolveAccess(data.user?.email);
         if (off) return;
         if (access.kind === "scoped") {
@@ -202,7 +216,26 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   // Changing the VP selection resets the RSD picker (its owner list changes).
   const setVps = useCallback((v: string[]) => { setVpsRaw(v); setRsds([]); }, []);
   const setFilter = useCallback((k: keyof DealFilters, v: string[]) => setFilters((f) => ({ ...f, [k]: v })), []);
-  const clearFilters = useCallback(() => setFilters(EMPTY_FILTERS), []);
+  const clearFilters = useCallback(() => { setFilters(EMPTY_FILTERS); setFavsOnly(false); }, []);
+
+  // Load this user's favourites once their identity resolves (admins: keyed "default").
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(favKey);
+      setFavs(new Set<string>(raw ? JSON.parse(raw) : []));
+    } catch { setFavs(new Set()); }
+  }, [favKey]);
+
+  const toggleFav = useCallback((oppId: string) => {
+    if (!oppId) return;
+    setFavs((prev) => {
+      const next = new Set(prev);
+      if (next.has(oppId)) next.delete(oppId); else next.add(oppId);
+      try { localStorage.setItem(favKey, JSON.stringify([...next])); } catch { /* localStorage unavailable */ }
+      return next;
+    });
+  }, [favKey]);
+  const isFav = useCallback((oppId: string) => favs.has(oppId), [favs]);
 
   const scoped = useMemo(
     () => (blocked ? [] : records.filter((r) => inScope(r, vps, rsds))),
@@ -212,6 +245,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
     return scoped.filter((r) => {
+      if (favsOnly && !favs.has(r.opp_id)) return false;
       const h = r.hard || {};
       if (filters.forecast.length && !filters.forecast.includes(h.forecast_category)) return false;
       if (filters.stage.length && !filters.stage.includes(h.stage)) return false;
@@ -230,7 +264,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       if (q && ![h.account_name, h.opp_name, h.owner_name, h.manager_name, h.stage].join(" ").toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [scoped, filters, query]);
+  }, [scoped, filters, query, favsOnly, favs]);
 
   const value: DashboardState = {
     records, playbook, loading, error,
@@ -239,6 +273,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     scoped, filtered,
     locked, blocked, scopeName,
     realIsAdmin, simEmail, isAdminView: realIsAdmin && !simEmail, canSeeScores, simulateAs,
+    favs, isFav, toggleFav, favsOnly, setFavsOnly,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

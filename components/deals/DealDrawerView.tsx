@@ -13,7 +13,7 @@ import { AddUpdateForm } from "@/components/deals/DealDetailView";
 import { useTodoDone } from "@/lib/engine/useTodoDone";
 import { useTodoSync } from "@/lib/engine/useTodoSync";
 import { DealTodoBuckets, bucketsForOpp } from "@/components/deals/DealTodos";
-import { DealScorePanel } from "@/components/deals/DealScores";
+import { DealReasonsPanel } from "@/components/deals/DealScores";
 import { useDashboard } from "@/lib/engine/DashboardContext";
 
 const CSS = `
@@ -251,7 +251,7 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
   const backend = useBackendTodos();
   const { done: doneSet, toggle } = useTodoDone();
   const sync = useTodoSync();
-  const [tab, setTab] = useState<"action" | "intel" | "people">("action");
+  const [tab, setTab] = useState<"action" | "intel" | "people" | "reasons">("action");
 
   const h = rec.hard || {}, ai = rec.ai || {}, pulse = rec.pulse || {};
   const nsv = ai.north_star_verdict || {};
@@ -456,6 +456,9 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
           <div className={`nav-item ${tab === "action" ? "active" : ""}`} onClick={() => setTab("action")}>Action Plan <span className="nav-cnt">{done}/{total}</span></div>
           <div className={`nav-item ${tab === "intel" ? "active" : ""}`} onClick={() => setTab("intel")}>Deal Intelligence</div>
           <div className={`nav-item ${tab === "people" ? "active" : ""}`} onClick={() => setTab("people")}>Stakeholders &amp; Risk {liveCount < stake.length ? <span className="nav-dot" /> : null}</div>
+          {canSeeScores && ai.deal_scores ? (
+            <div className={`nav-item ${tab === "reasons" ? "active" : ""}`} onClick={() => setTab("reasons")}>Scores &amp; Reasons</div>
+          ) : null}
         </div>
 
         {/* ===== ACTION ===== */}
@@ -566,13 +569,6 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
             {!stake.length ? <div className="ic-body">No stakeholders mapped.</div> : null}
           </div>
 
-          {canSeeScores && ai.deal_scores ? (
-            <div className="card card-pad mb14">
-              <div className="ic-title" style={{ marginBottom: 13 }}>Deal scores</div>
-              <DealScorePanel ds={ai.deal_scores} />
-            </div>
-          ) : null}
-
           <div className="card card-pad mb14">
             <div className="ic-title" style={{ marginBottom: 13 }}>MEDDPICC scorecard</div>
             <div className="medd">
@@ -593,6 +589,17 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
             {!vulns.length ? <div className="ic-body">No open risks recorded.</div> : null}
           </div>
         </div>
+
+        {/* ===== SCORES & REASONS ===== */}
+        {canSeeScores && ai.deal_scores ? (
+          <div className={`tab ${tab === "reasons" ? "active" : ""}`}>
+            <div className="card card-pad mb14">
+              <div className="ic-title" style={{ marginBottom: 6 }}>Scores &amp; reasons</div>
+              <div className="ic-body" style={{ color: "var(--ink-faint)", marginBottom: 10 }}>The five deterministic scores, each with its one-line read and the exact factors behind it.</div>
+              <DealReasonsPanel ds={ai.deal_scores} />
+            </div>
+          </div>
+        ) : null}
 
       </div>
     </div>

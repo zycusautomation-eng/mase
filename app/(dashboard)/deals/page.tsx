@@ -34,7 +34,7 @@ const PAGE_SIZE = 20;
 // AI excitement is a computed tier (status OR score OR fit signal) the DB can't filter
 // without a dedicated column. The full per-deal record is fetched on drawer open.
 export default function DealsPage() {
-  const { filtered, records, playbook, loading, canSeeScores } = useDashboard();
+  const { filtered, records, playbook, loading, canSeeScores, isFav, toggleFav } = useDashboard();
   const [sortKey, setSortKey] = useState("days_to_close");
   const [sortDir, setSortDir] = useState(1);
   const [selected, setSelected] = useState<Rec | null>(null);
@@ -80,6 +80,7 @@ export default function DealsPage() {
         <table>
           <thead>
             <tr>
+              <th aria-label="Favourite" style={{ width: 30, textAlign: "center" }} />
               {LEAD_COLS.map(([k, label]) => (
                 <th key={k} onClick={() => sortBy(k)}>{label}{arrow(k)}</th>
               ))}
@@ -119,8 +120,23 @@ export default function DealsPage() {
                 );
                 return <td key={k} className={numeric ? "num" : undefined}>{v == null ? "—" : v}</td>;
               };
+              const fav = isFav(r.opp_id);
               return (
                 <tr key={r.opp_id} onClick={() => setSelected(r)}>
+                  <td className="favcell" style={{ textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      title={fav ? "Remove from favourites" : "Add to favourites"}
+                      aria-pressed={fav}
+                      onClick={(e) => { e.stopPropagation(); toggleFav(r.opp_id); }}
+                      style={{
+                        border: "none", background: "none", cursor: "pointer", padding: 2,
+                        fontSize: 16, lineHeight: 1, color: fav ? "#f0b400" : "var(--ink-faint, #c4c4cf)",
+                      }}
+                    >
+                      {fav ? "★" : "☆"}
+                    </button>
+                  </td>
                   {LEAD_COLS.map(cell)}
                   <td>{verdict ? <span className={`chip ${verdictTone(verdict)}`}>{healthLabel(verdict)}</span> : ""}</td>
                   <td>{aiLabel(h, ai.ai_fit_signal)}</td>
