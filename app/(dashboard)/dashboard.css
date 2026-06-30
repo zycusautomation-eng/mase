@@ -76,7 +76,12 @@
      filters are anchored to the left (position:sticky;left:0) so a horizontal scroll can never
      drag them off-screen. #grid stays overflow:visible so the header sticks to .wrap, not #grid.
      Scoped to /deals so every other page keeps normal window scroll. */
-  .wrap.deals-scroll{display:block;height:calc(100dvh - var(--nav-h,62px) - var(--sim-h,0px));overflow:auto;padding:0 28px 28px}
+  /* The shell is a fixed-height flex column [navbar][content], so the content area fills
+     EXACTLY the space below the navbar with NO measured height/magic numbers — guaranteeing
+     the table area starts right under the search bar. */
+  .mase-shell.deals-shell{display:flex;flex-direction:column;height:100dvh}
+  .mase-shell.deals-shell>.wrap.deals-scroll{flex:1 1 auto;min-height:0}
+  .wrap.deals-scroll{display:block;overflow:auto;padding:0 28px 28px}
   .wrap.deals-scroll #grid{overflow:visible}
   .wrap.deals-scroll>.dl-head{margin-top:18px}
   .wrap.deals-scroll>.dl-head,
@@ -84,7 +89,8 @@
   /* Short viewports (mobile landscape / tiny windows): the stat cards + filters would squeeze
      the table to nothing, so fall back to normal full-page scroll (header just isn't pinned). */
   @media (max-height:620px){
-    .wrap.deals-scroll{display:block;height:auto;overflow:visible;padding:0 28px 60px}
+    .mase-shell.deals-shell{display:block;height:auto}
+    .wrap.deals-scroll{overflow:visible;padding:0 28px 60px}
     .wrap.deals-scroll>.dl-head,
     .wrap.deals-scroll>.filterbar{position:static;width:auto}
     .wrap.deals-scroll #grid{overflow-x:auto}

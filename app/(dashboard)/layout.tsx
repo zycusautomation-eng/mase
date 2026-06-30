@@ -71,7 +71,7 @@ function Shell({ children }: { children: React.ReactNode }) {
   return (
     <DealAiProvider>
       <AppSidebar />
-      <div className={`mase-shell ${tabTheme}`}>
+      <div className={`mase-shell ${onDealsList ? "deals-shell" : ""} ${tabTheme}`}>
         {!onDealDetail && !blocked ? <TopNav /> : null}
         {onDealDetail ? (
           // The deal-detail page owns its own width/padding (.dp-wrap) — no .wrap
