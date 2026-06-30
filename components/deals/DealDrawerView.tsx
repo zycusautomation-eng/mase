@@ -595,7 +595,7 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
           <div className={`tab ${tab === "reasons" ? "active" : ""}`}>
             <div className="card card-pad mb14">
               <div className="ic-title" style={{ marginBottom: 6 }}>Scores &amp; reasons</div>
-              <div className="ic-body" style={{ color: "var(--ink-faint)", marginBottom: 10 }}>The five deterministic scores, each with its one-line read and the exact factors behind it.</div>
+              <div className="ic-body" style={{ color: "var(--ink-faint)", marginBottom: 10 }}>A plain-English read on each score, the honest downside, and what moves the deal — grounded in the latest Salesforce and call evidence.</div>
               <DealReasonsPanel ds={ai.deal_scores} />
             </div>
           </div>

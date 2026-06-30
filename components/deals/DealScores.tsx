@@ -124,12 +124,89 @@ const ALL_ROWS: [string, string, string][] = [
 
 const sgn = (n: any) => { const x = Math.round(Number(n) * 10) / 10; return (x > 0 ? "+" : "") + x; };
 
+// ── CRO-readable narrative ───────────────────────────────────────────────────
+// When the backend has attached a `cro_panel` (deal_engine_cro.build_cro_panel),
+// render the plain-English brief — one read per score, ✅/⚠️ bullets, an honest
+// "what could lose it" block, and the moves — instead of the maths breakdown.
+function CroBullets({ items }: { items: any[] }) {
+  if (!items || !items.length) return null;
+  return (
+    <ul className="cro-bullets">
+      {items.map((b: any, i: number) => (
+        <li key={i} className={`cro-b ${b.tone === "warn" ? "warn" : "good"}`}>
+          <span className="cro-ic">{b.tone === "warn" ? "⚠️" : "✅"}</span>
+          <span className="cro-bt">{b.text}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function CroReasons({ panel }: { panel: any }) {
+  const blocks = panel.blocks || [];
+  return (
+    <div className="cro-panel">
+      {panel.header ? <div className="cro-head">{panel.header}</div> : null}
+      {panel.intro ? <div className="cro-intro">{panel.intro}</div> : null}
+      {blocks.map((bl: any, i: number) => {
+        if (bl.kind === "score") {
+          return (
+            <div className="cro-block" key={i}>
+              <div className="cro-block-top">
+                <span className={`cro-score ds-${bandOf(bl.key || "win_position", bl.score)}`}>{r0(bl.score)}</span>
+                <span className="cro-title">{bl.title}{bl.sub ? <span className="cro-sub"> · {bl.sub}</span> : null}</span>
+              </div>
+              {bl.read ? <div className="cro-read">{bl.read}</div> : null}
+              {bl.bullets_head ? <div className="cro-bhead">{bl.bullets_head}</div> : null}
+              <CroBullets items={bl.bullets} />
+              {bl.how ? (
+                <div className="cro-how">
+                  <span className="cro-how-l">{bl.how_label || (typeof bl.how === "object" && bl.how.label) || "How it adds up"}</span> {typeof bl.how === "string" ? bl.how : bl.how.text}
+                </div>
+              ) : null}
+              {bl.footer ? <div className="cro-foot">{bl.footer}</div> : null}
+            </div>
+          );
+        }
+        if (bl.kind === "risk") {
+          return (
+            <div className="cro-block cro-risk" key={i}>
+              <div className="cro-block-top">
+                <span className="cro-risk-ic">⚠️</span>
+                <span className="cro-title">{bl.title}{bl.sub ? <span className="cro-sub"> · {bl.sub}</span> : null}</span>
+              </div>
+              {bl.read ? <div className="cro-read">{bl.read}</div> : null}
+              <CroBullets items={(bl.bullets || []).map((b: any) => (typeof b === "string" ? { tone: "warn", text: b } : { ...b, tone: "warn" }))} />
+              {bl.footer ? <div className="cro-foot">{bl.footer}</div> : null}
+            </div>
+          );
+        }
+        if (bl.kind === "moves") {
+          return (
+            <div className="cro-block cro-moves" key={i}>
+              <div className="cro-block-top"><span className="cro-move-ic">►</span><span className="cro-title">{bl.title || "What moves it forward"}</span></div>
+              <ol className="cro-movelist">
+                {(bl.items || []).map((m: any, j: number) => <li key={j}>{typeof m === "string" ? m : m.text}</li>)}
+              </ol>
+            </div>
+          );
+        }
+        return null;
+      })}
+    </div>
+  );
+}
+
 export function DealReasonsPanel({ ds }: { ds: any }) {
   const h = ds && ds.headline;
   if (!h) return <div className="ds-panel"><div className="ds-fc-sub">No scores computed for this deal yet.</div></div>;
   const comm = ds.commentary || {};
   // Lost/closed (SF-dead OR a loss detected in the latest call) → terminal state + reason.
   const lost = !!(h.dead || h.decision === "lost" || /^lost/i.test(String(h.read || "")));
+  // Prefer the CRO-readable narrative when present (and the deal isn't closed).
+  if (ds.cro_panel && (ds.cro_panel.blocks || []).length && !lost) {
+    return <div className="ds-panel"><CroReasons panel={ds.cro_panel} /></div>;
+  }
   if (lost) {
     const label = h.dead_label || (h.decision === "lost" ? "Lost" : h.read || "Closed");
     const reason = (comm as any).win_position || (comm as any).deal_momentum || (comm as any).deal_risk;
