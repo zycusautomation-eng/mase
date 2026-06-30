@@ -120,9 +120,6 @@ export function DealScorePanel({ ds }: { ds: any }) {
 const ALL_ROWS: [string, string, string][] = [
   ["Zycus win position", "win_position", "can we win it"],
   ["Deal momentum", "deal_momentum", "engagement · next steps · milestones"],
-  ["Customer commitment", "customer_commitment", "how much they've invested"],
-  ["Deal risk", "deal_risk", "observed break-risks · higher = worse"],
-  ["Forecast confidence", "forecast_confidence", "roll-up odds it closes in window"],
 ];
 
 const sgn = (n: any) => { const x = Math.round(Number(n) * 10) / 10; return (x > 0 ? "+" : "") + x; };

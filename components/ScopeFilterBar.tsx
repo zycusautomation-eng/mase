@@ -45,9 +45,6 @@ export default function ScopeFilterBar() {
   const toOpt = (a: string[]): Opt[] => a.map((v) => ({ value: v, label: v }));
   const winOpts = toOpt(SCORE_BANDS.win_position);
   const momOpts = toOpt(SCORE_BANDS.deal_momentum);
-  const cmtOpts = toOpt(SCORE_BANDS.customer_commitment);
-  const riskOpts = toOpt(SCORE_BANDS.deal_risk);
-  const fcScoreOpts = toOpt(SCORE_BANDS.forecast_confidence);
 
   const dirty = Object.values(filters).some((v) => v.length > 0) || favsOnly;
   const f = (k: keyof DealFilters) => (v: string[]) => setFilter(k, v);
@@ -113,9 +110,6 @@ export default function ScopeFilterBar() {
           <span className="fdivider" />
           <MultiSelect allLabel="All Win" options={winOpts} selected={filters.win} onChange={f("win")} />
           <MultiSelect allLabel="All Momentum" options={momOpts} selected={filters.momentum} onChange={f("momentum")} />
-          <MultiSelect allLabel="All Commitment" options={cmtOpts} selected={filters.commitment} onChange={f("commitment")} />
-          <MultiSelect allLabel="All Risk" options={riskOpts} selected={filters.risk} onChange={f("risk")} />
-          <MultiSelect allLabel="All FC" options={fcScoreOpts} selected={filters.fc} onChange={f("fc")} />
         </>
       ) : null}
 
