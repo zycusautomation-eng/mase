@@ -39,12 +39,18 @@ function Shell({ children }: { children: React.ReactNode }) {
       root.style.setProperty("--nav-h", (document.querySelector<HTMLElement>(".mase-nav")?.offsetHeight || 62) + "px");
       root.style.setProperty("--fb-h", (document.querySelector<HTMLElement>(".filterbar")?.offsetHeight || 0) + "px");
       root.style.setProperty("--sim-h", (document.querySelector<HTMLElement>(".simbar")?.offsetHeight || 0) + "px");
+      // visible inner width of the deals scroll area (clientWidth excludes the vertical
+      // scrollbar) − its 28px L/R padding — so the sticky-left stats/filters stay viewport-wide.
+      const dw = document.querySelector<HTMLElement>(".wrap.deals-scroll");
+      if (dw) root.style.setProperty("--dl-w", (dw.clientWidth - 56) + "px");
     };
     measure();
+    const raf = requestAnimationFrame(measure);   // re-measure once layout has settled
     window.addEventListener("resize", measure);
     const ro = new ResizeObserver(measure);
     const fb = document.querySelector(".filterbar"); if (fb) ro.observe(fb);
-    return () => { window.removeEventListener("resize", measure); ro.disconnect(); };
+    const dw = document.querySelector(".wrap.deals-scroll"); if (dw) ro.observe(dw);  // width changes
+    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", measure); ro.disconnect(); };
   }, [pathname, loading]);
 
   // Chat owns its own full-screen 3-column workspace (its sidebar lives there).

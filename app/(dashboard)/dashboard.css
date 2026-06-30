@@ -70,18 +70,24 @@
   th,td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--line2);white-space:nowrap}
   /* sticky column header — pins to the top of the scrolling table area */
   th{color:var(--muted);font-weight:600;cursor:pointer;user-select:none;position:sticky;top:0;z-index:3;background:var(--surface2);box-shadow:0 1px 0 var(--line);font-size:11.5px;text-transform:uppercase;letter-spacing:.4px}
-  /* Deals list: a fixed-height flex column [stats][filters][table fills + scrolls][pager].
-     ONLY #grid scrolls — both axes — so the wide table scrolls horizontally WITHOUT dragging
-     the stat cards / filters off-screen, and its header (sticky top:0) pins at the top of the
-     table area. Scoped to /deals so every other page keeps normal window scroll. */
-  .wrap.deals-scroll{display:flex;flex-direction:column;height:calc(100dvh - var(--nav-h,62px) - var(--sim-h,0px));overflow:hidden;padding-bottom:14px}
-  .wrap.deals-scroll>*{flex:0 0 auto}                                  /* stats / filters / pager keep their size */
-  .wrap.deals-scroll #grid{flex:1 1 auto;min-height:200px;overflow:auto;scrollbar-gutter:stable}
+  /* Deals list: the content AREA scrolls (height = viewport − nav), so the stat cards + filter
+     bar scroll AWAY on scroll-down and the table header (th, sticky top:0) pins right under the
+     search bar. The wide table scrolls horizontally inside the SAME area, but the stat cards +
+     filters are anchored to the left (position:sticky;left:0) so a horizontal scroll can never
+     drag them off-screen. #grid stays overflow:visible so the header sticks to .wrap, not #grid.
+     Scoped to /deals so every other page keeps normal window scroll. */
+  .wrap.deals-scroll{display:block;height:calc(100dvh - var(--nav-h,62px) - var(--sim-h,0px));overflow:auto;padding:0 28px 28px}
+  .wrap.deals-scroll #grid{overflow:visible}
+  .wrap.deals-scroll>.dl-head{margin-top:18px}
+  .wrap.deals-scroll>.dl-head,
+  .wrap.deals-scroll>.filterbar{position:sticky;left:0;z-index:2;width:var(--dl-w,calc(100vw - 300px));background:var(--bg)}
   /* Short viewports (mobile landscape / tiny windows): the stat cards + filters would squeeze
      the table to nothing, so fall back to normal full-page scroll (header just isn't pinned). */
   @media (max-height:620px){
-    .wrap.deals-scroll{display:block;height:auto;overflow:visible;padding-bottom:60px}
-    .wrap.deals-scroll #grid{flex:none;min-height:0;overflow-x:auto;overflow-y:visible}
+    .wrap.deals-scroll{display:block;height:auto;overflow:visible;padding:0 28px 60px}
+    .wrap.deals-scroll>.dl-head,
+    .wrap.deals-scroll>.filterbar{position:static;width:auto}
+    .wrap.deals-scroll #grid{overflow-x:auto}
   }
   th:hover{color:var(--ink)}
   tbody tr{cursor:pointer;transition:background .12s}
