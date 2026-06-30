@@ -36,6 +36,7 @@ function Shell({ children }: { children: React.ReactNode }) {
     const root = document.documentElement;
     const measure = () => {
       root.style.setProperty("--hdr-h", "0px");
+      root.style.setProperty("--nav-h", (document.querySelector<HTMLElement>(".mase-nav")?.offsetHeight || 62) + "px");
       root.style.setProperty("--fb-h", (document.querySelector<HTMLElement>(".filterbar")?.offsetHeight || 0) + "px");
       root.style.setProperty("--sim-h", (document.querySelector<HTMLElement>(".simbar")?.offsetHeight || 0) + "px");
     };
@@ -75,7 +76,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             children
           )
         ) : (
-          <div className={`wrap ${onEspresso ? "esp-sticky" : ""} ${tabTheme}`}>
+          <div className={`wrap ${onDealsList ? "deals-scroll" : ""} ${onEspresso ? "esp-sticky" : ""} ${tabTheme}`}>
             {error ? (
               <div className="empty">Couldn&apos;t load the book.<br /><br /><span className="err">{error}</span></div>
             ) : loading ? (

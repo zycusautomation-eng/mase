@@ -1,6 +1,6 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useDashboard } from "@/lib/engine/DashboardContext";
 import { aiLabel, fmtAmount, verdictTone, healthLabel, type Rec } from "@/lib/engine/helpers";
 import DealDrawer from "@/components/deals/DealDrawer";
@@ -39,26 +39,6 @@ export default function DealsPage() {
   const [sortDir, setSortDir] = useState(1);
   const [selected, setSelected] = useState<Rec | null>(null);
   const [page, setPage] = useState(1);
-  const gridRef = useRef<HTMLDivElement>(null);
-
-  // Make the table its own scroll viewport that fills the screen below the nav/filters, so
-  // the column header (sticky top:0) pins while the rows scroll under it. The max-height is
-  // measured from #grid's top so it adapts to the stats/filter bar height + viewport.
-  useEffect(() => {
-    const el = gridRef.current;
-    if (!el) return;
-    const fit = () => {
-      const top = el.getBoundingClientRect().top + (window.scrollY || 0);
-      el.style.maxHeight = `calc(100vh - ${Math.max(120, Math.round(top))}px - 14px)`;
-    };
-    fit();
-    const raf = requestAnimationFrame(fit);
-    window.addEventListener("resize", fit);
-    const fb = document.querySelector(".filterbar");
-    const ro = fb ? new ResizeObserver(fit) : null;
-    if (fb && ro) ro.observe(fb);
-    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", fit); ro?.disconnect(); };
-  }, [loading]);
 
   const rows = useMemo(() => {
     // Deal-score keys sort on ai.deal_scores.headline; everything else on the hard fact.
@@ -96,7 +76,7 @@ export default function DealsPage() {
 
   return (
     <>
-      <div id="grid" ref={gridRef}>
+      <div id="grid">
         <table>
           <thead>
             <tr>
