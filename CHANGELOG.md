@@ -6,6 +6,27 @@
 
 ---
 
+## 2026-06-30 — AI Excitement Score (AES) card: MASE-only, tier colours, CRO copy
+
+**What.** Reworked the AES card in `DealDrawerView.tsx` (Intel tab) and the parallel block in
+`DealDetailView.tsx`:
+- **Dropped the stale Salesforce AIS badges** — `h.ais_status` ("Moderate"/"Negative") and
+  `h.ais_score` ("Score N"). The card now shows **only the MASE-sweep read** (`ai.ai_fit_signal.tier`).
+- **Tier-correct colours** (pill + the 10-segment meter): AI Hungry = green (`#1aa06a`),
+  AI Curious = light green (`#7fd0a4`), AI Resistant = red (`#e34b63`). Previously every tier
+  rendered red, and the meter only recognised hungry/warm/latent/cold (so Curious/Resistant fell
+  through to a mid-red default).
+- **CRO-readable commentary.** A `cleanAes()` filter strips tactical scaffolding from
+  `ai_fit_signal.summary` — "No AIS field value… this sweep", "Treat as AI X based on call
+  evidence", and "per Avoma / Salesforce / Next-Step" references.
+
+**Why.** The card surfaced dated Salesforce field values and engine-internal phrasing; a CRO needs
+the buyer's AI appetite in plain language, coloured by tier.
+
+**Note.** `cleanAes()` is a display-layer strip. The durable fix is the **sweep prompt** that
+generates `ai_fit_signal.summary` — it should emit CRO-language AI-fit reads with no AIS-field /
+call-evidence scaffolding. Until then the frontend cleans it on render.
+
 ## 2026-06-27 — Deal Scores: separate sortable columns + band filters
 
 **What.** Split the single "Scores" strip into **five separate, sortable columns** — Win, Mom,

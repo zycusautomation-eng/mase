@@ -156,7 +156,13 @@ const CSS = `
 .ddw .twocol{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-bottom:14px}
 .ddw .meter{display:flex;gap:4px;margin:14px 0}
 .ddw .meter span{height:8px;flex:1;border-radius:3px;background:#eeeef6}
-.ddw .meter span.on{background:#e34b63}
+.ddw .meter span.on{background:#9aa0b5}
+.ddw .meter.aes-hungry span.on{background:#1aa06a}
+.ddw .meter.aes-curious span.on{background:#7fd0a4}
+.ddw .meter.aes-resist span.on{background:#e34b63}
+.ddw .pill.aes-hungry{background:#cdeede;color:#0f7a52;border-color:transparent}
+.ddw .pill.aes-curious{background:#eef9f2;color:#46916b;border-color:transparent}
+.ddw .pill.aes-resist{background:var(--red-bg);color:var(--red-ink);border-color:transparent}
 .ddw .comp{padding:12px 0;border-top:1px solid var(--line-soft);display:flex;gap:14px;align-items:flex-start}
 .ddw .comp .lead{width:120px;flex:none}
 .ddw .comp .nm{font-size:13px;font-weight:800;color:var(--ink)}
@@ -511,17 +517,31 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
         {/* ===== INTEL ===== */}
         <div className={`tab ${tab === "intel" ? "active" : ""}`}>
           <div className="card card-pad mb14">
-            <div className="ic-title">AI Excitement Score (AES)
-              {(ai.ai_fit_signal || {}).tier ? <span className="pill crit2" style={{ marginLeft: 8 }}>{(ai.ai_fit_signal || {}).tier}</span> : null}
-              {h.ais_status ? <span className="pill pos2" style={{ marginLeft: 6 }}>{h.ais_status}</span> : null}
-              {h.ais_score != null && h.ais_score !== "" ? <span className="pill pos2" style={{ marginLeft: 6 }}>Score {h.ais_score}</span> : null}
-            </div>
             {(() => {
-              const tier = String((ai.ai_fit_signal || {}).tier || "").toLowerCase();
-              const score = /hungry/.test(tier) ? 8 : /warm/.test(tier) ? 5 : /latent/.test(tier) ? 3 : /resist|cold/.test(tier) ? 1 : 5;
-              return <div className="meter">{Array.from({ length: 10 }).map((_, i) => <span key={i} className={i < score ? "on" : ""} />)}</div>;
+              // Only the MASE-sweep AI read — no stale Salesforce AIS status/score badges.
+              const tierRaw = String((ai.ai_fit_signal || {}).tier || "").trim();
+              const t = tierRaw.toLowerCase();
+              const key = /hungry/.test(t) ? "hungry"
+                : /curious|moderate|warm/.test(t) ? "curious"
+                : /resist|cold|low/.test(t) ? "resist"
+                : "curious";
+              const score = key === "hungry" ? 8 : key === "resist" ? 2 : 5;
+              // CRO-readable: strip tactical "no AIS field / per Avoma / based on call evidence" scaffolding.
+              const cleanAes = (s: string) => {
+                if (!s) return "";
+                const tactical = /(ais field|\bais\b|no ais|field value|this sweep|\bsweep\b|based on call evidence|call evidence|treat as ai|per avoma|\bavoma\b|salesforce|next[- ]step)/i;
+                const parts = String(s).match(/[^.!?]+[.!?]*/g) || [String(s)];
+                return parts.filter((x) => x.trim() && !tactical.test(x)).join(" ").replace(/\s+/g, " ").trim();
+              };
+              const body = cleanAes((ai.ai_fit_signal || {}).summary || "");
+              return (<>
+                <div className="ic-title">AI Excitement Score (AES)
+                  {tierRaw ? <span className={`pill aes-${key}`} style={{ marginLeft: 8 }}>{tierRaw}</span> : null}
+                </div>
+                <div className={`meter aes-${key}`}>{Array.from({ length: 10 }).map((_, i) => <span key={i} className={i < score ? "on" : ""} />)}</div>
+                <div className="ic-body">{body || "No clear AI-appetite signal from buyer conversations yet."}</div>
+              </>);
             })()}
-            <div className="ic-body">{(ai.ai_fit_signal || {}).summary || h.ais_why || "No AI-excitement signal yet."}</div>
           </div>
           <div className="card card-pad">
             <div className="ic-title">Competition</div>

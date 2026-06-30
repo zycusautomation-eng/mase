@@ -141,9 +141,21 @@ export default function DealDetailView({ rec, variant = "page", onClose }: { rec
   const manualCompleted = (backend.manualForOpp(rec.opp_id) || []).map((m: any) => ({ commitment: m.note, who: m.created_by || "Logged update", date: m.done_date, source: m.sf_task_id ? `Salesforce Task ${m.sf_task_id}` : "Logged in MASE" }));
   const completed = [...manualCompleted, ...sweptCompleted].sort((a: any, b: any) => String(b.date || b.due || "").localeCompare(String(a.date || a.due || "")));
 
-  const aiCategory = (h.ais_status && h.ais_status !== "—" ? h.ais_status : "") || fit.tier || "";
-  const aiScore = h.ais_score != null && h.ais_score !== "" ? `${h.ais_score}/10` : "";
-  const aiWhy = (h.ais_why && h.ais_why !== "—") ? h.ais_why : (fit.summary || "");
+  // MASE-sweep AI read only — drop stale Salesforce AIS status/score/why.
+  const aiCategory = String(fit.tier || "").trim();
+  const aiTierKey = /hungry/i.test(aiCategory) ? "hungry"
+    : /resist|cold|low/i.test(aiCategory) ? "resist"
+    : "curious";
+  const aiTierStyle = aiTierKey === "hungry" ? { background: "#cdeede", color: "#0f7a52", borderColor: "transparent" }
+    : aiTierKey === "resist" ? { background: "var(--red-bg)", color: "var(--red-ink)", borderColor: "transparent" }
+    : { background: "#eef9f2", color: "#46916b", borderColor: "transparent" };
+  const aiWhy = (() => {
+    const s = String(fit.summary || "");
+    if (!s) return "";
+    const tactical = /(ais field|\bais\b|no ais|field value|this sweep|\bsweep\b|based on call evidence|call evidence|treat as ai|per avoma|\bavoma\b|salesforce|next[- ]step)/i;
+    const parts = s.match(/[^.!?]+[.!?]*/g) || [s];
+    return parts.filter((x) => x.trim() && !tactical.test(x)).join(" ").replace(/\s+/g, " ").trim();
+  })();
 
   const SUGGESTIONS = [
     { t: "Summarize deal", s: "Get an AI summary", p: "Summarize this deal: current status, the single biggest risk, and the most important next move. Keep it tight." },
@@ -263,7 +275,7 @@ export default function DealDetailView({ rec, variant = "page", onClose }: { rec
           {/* AI Excitement */}
           {(aiCategory || aiWhy) ? (
             <div className="card"><h3>AI Excitement</h3>
-              <div style={{ marginBottom: 6 }}>{aiCategory ? <span className="chip v-on">{aiCategory}</span> : null}{aiScore ? <span className="ownerchip" style={{ marginLeft: 6 }}>{aiScore}</span> : null}</div>
+              <div style={{ marginBottom: 6 }}>{aiCategory ? <span className="chip" style={aiTierStyle}>{aiCategory}</span> : null}</div>
               {aiWhy ? <div className="body">{words(aiWhy, 120)}</div> : null}
               {(fit.baseline || fit.latest) ? (
                 <div className="td-meta" style={{ marginTop: 6 }}>{fit.baseline ? <span><b>Started:</b> {words(fit.baseline, 30)} </span> : null}{fit.latest ? <span><b>Now:</b> {words(fit.latest, 30)}</span> : null}</div>
