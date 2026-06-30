@@ -30,7 +30,7 @@ const NAV: { href: string; label: string; icon: LucideIcon; adminOnly?: boolean 
 
 export default function AppSidebar() {
   const pathname = usePathname();
-  const { isAdminView, realIsAdmin, simEmail, scopeName } = useDashboard();
+  const { isAdminView, realIsAdmin, simEmail, scopeName, chatAllowed } = useDashboard();
   const [userName, setUserName] = useState<string | null>(null);
 
   useEffect(() => {
@@ -42,7 +42,11 @@ export default function AppSidebar() {
 
   // Admin-only links are hidden for non-admins (and while an admin simulates a
   // rep/VP, isAdminView is false → they're hidden too, matching the old header).
-  const items = NAV.filter((n) => !n.adminOnly || isAdminView);
+  // EXCEPTION: Chat access is governed by the admin policy (admins / everyone /
+  // allowlist) — show it whenever this user is allowed, even if not an admin.
+  const items = NAV.filter((n) =>
+    n.href === "/chat" ? (isAdminView || chatAllowed) : (!n.adminOnly || isAdminView)
+  );
   const role = simEmail
     ? `Simulating · ${scopeName ?? ""}`.trim()
     : realIsAdmin ? "Admin" : (scopeName || "Member");

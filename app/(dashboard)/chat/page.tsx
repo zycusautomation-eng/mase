@@ -39,6 +39,7 @@ import {
 } from "@/lib/engine/helpers";
 import AuthButton from "@/components/AuthButton";
 import MultiSelect, { type Opt } from "@/components/MultiSelect";
+import { track } from "@/lib/tracking/client";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -81,15 +82,15 @@ const MODES: { key: ChatScopeMode; label: string }[] = [
 
 // Left-nav sections → the real dashboard tabs (same routes as the global header).
 // Chat is this surface (rendered active).
-const NAV: { key: string; label: string; icon: LucideIcon; href: string }[] = [
+const NAV: { key: string; label: string; icon: LucideIcon; href: string; adminOnly?: boolean }[] = [
   { key: "deals", label: "Deals", icon: Handshake, href: "/deals" },
   { key: "espresso", label: "Espresso", icon: Coffee, href: "/espresso" },
   { key: "matcha", label: "Matcha", icon: Leaf, href: "/matcha" },
   { key: "chat", label: "Chat", icon: MessageSquare, href: "/chat" },
-  { key: "sync", label: "Sync Quality", icon: RefreshCw, href: "/sync-quality" },
-  { key: "runs", label: "Runs", icon: ListChecks, href: "/runs" },
-  { key: "learning", label: "Learning", icon: GraduationCap, href: "/learnings" },
-  { key: "admin", label: "Admin", icon: Bot, href: "/admin" },
+  { key: "sync", label: "Sync Quality", icon: RefreshCw, href: "/sync-quality", adminOnly: true },
+  { key: "runs", label: "Runs", icon: ListChecks, href: "/runs", adminOnly: true },
+  { key: "learning", label: "Learning", icon: GraduationCap, href: "/learnings", adminOnly: true },
+  { key: "admin", label: "Admin", icon: Bot, href: "/admin", adminOnly: true },
 ];
 
 // ---- per-user DB persistence (Supabase, RLS-scoped to the signed-in user) ----
@@ -423,17 +424,18 @@ function AgentPromptPanel({ onClose }: { onClose: () => void }) {
   );
 }
 
-// The strategist chat is ADMIN-ONLY (the /api/deal-engine/chat* endpoints are
-// gated at the proxy). The nav link is hidden for non-admins; this page-level lock
-// is the backstop so a direct /chat URL can't reach a chat that would only 403.
+// The strategist chat is available to admins, and to all users when an admin has
+// flipped the "enable chat for users" toggle (admin panel → Access & Config). The
+// /api/deal-engine/chat* proxy enforces the same rule server-side; this page-level
+// lock is the backstop so a direct /chat URL can't reach a chat that would only 403.
 export default function ChatPage() {
-  const { isAdminView } = useDashboard();
-  if (!isAdminView) {
+  const { isAdminView, chatAllowed } = useDashboard();
+  if (!isAdminView && !chatAllowed) {
     return (
       <div className="flex h-full items-center justify-center p-10">
         <div className="rounded-xl border border-border bg-card p-8 text-center shadow-sm">
           <div className="text-lg font-semibold">🔒 Chat</div>
-          <div className="mt-1 text-sm text-muted-foreground">The strategist chat is restricted to admins.</div>
+          <div className="mt-1 text-sm text-muted-foreground">Chat isn&apos;t enabled for your account yet. Ask an admin to turn it on.</div>
         </div>
       </div>
     );
@@ -442,7 +444,7 @@ export default function ChatPage() {
 }
 
 function ChatPageInner() {
-  const { records: allRecords, scoped: scopedRecords, locked, blocked, scopeName } = useDashboard();
+  const { records: allRecords, scoped: scopedRecords, locked, blocked, scopeName, isAdminView } = useDashboard();
   // When the user is locked to their own scope, the strategist may only ever see
   // their deals — use the scoped set as the entire book for chat.
   const records = locked ? scopedRecords : allRecords;
@@ -672,6 +674,7 @@ function ChatPageInner() {
   async function send(text: string) {
     if (busy || !text.trim()) return;
     setError(null);
+    track("chat_message", { scope: scope.mode });
     // Optimistic UI: append the user message + an in-flight assistant placeholder.
     const userMsgs: Msg[] = [...messages, { role: "user", content: text, ts: Date.now() }];
     const withPlaceholder: Msg[] = [...userMsgs, { role: "assistant", content: "", thinkingSteps: [], isProcessing: true }];
@@ -850,9 +853,9 @@ function ChatPageInner() {
               </Button>
             </div>
 
-            {/* Nav list */}
+            {/* Nav list — admin-only tabs hidden for non-admin chat users */}
             <nav className="mt-3 space-y-0.5 px-2">
-              {NAV.map((n) => {
+              {NAV.filter((n) => !n.adminOnly || isAdminView).map((n) => {
                 const Icon = n.icon;
                 const active = n.key === "chat";
                 return (
@@ -990,7 +993,7 @@ function ChatPageInner() {
                   </>
                 )}
               </div>
-              {!showContext && (
+              {!showContext && isAdminView && (
                 <Button
                   variant="ghost"
                   size="sm"

@@ -1,6 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
+import { trackAppOpenOnce } from "@/lib/tracking/client";
 import { aiLabel, applyStageFix, fyq, healthLabel, inScope, keepRecord, resolveAccess, scoreBand, sizeBand, type Rec } from "./helpers";
 import { createClient } from "@/lib/supabase/client";
 
@@ -63,6 +64,11 @@ interface DashboardState {
   canSeeScores: boolean;
   // admins: re-scope the whole UI as if `email` were logged in. null resets.
   simulateAs: (email: string | null) => void;
+  // whether the CURRENT user may use the RevOps Chat, per the admin access policy
+  // (admins always; everyone, or a specific allowlist). Drives the chat nav link + the
+  // /chat page guard. Read from /api/admin/chat-access (open GET returns the caller's
+  // own `allowed`); the policy is set by admins in the admin panel.
+  chatAllowed: boolean;
   // Personal favourites — starred deals, persisted per real user in localStorage.
   // `favsOnly` filters the book to just the starred deals (composes with the others).
   favs: Set<string>;
@@ -104,6 +110,21 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [favs, setFavs] = useState<Set<string>>(new Set());
   const [favsOnly, setFavsOnly] = useState(false);
   const [realEmail, setRealEmail] = useState<string | null>(null);
+  const [chatAllowed, setChatAllowed] = useState(false);
+
+  // Whether THIS user may use chat, per the admin access policy. Open GET — any
+  // signed-in user reads their own `allowed` so the nav link + /chat guard can show
+  // chat without being admin.
+  useEffect(() => {
+    fetch("/api/admin/chat-access", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((j) => setChatAllowed(!!j.allowed))
+      .catch(() => { /* default off */ });
+  }, []);
+
+  // Usage tracking: record one app-open per loaded tab (the real active-session
+  // signal — persisted sessions never generate a fresh auth login event).
+  useEffect(() => { trackAppOpenOnce(); }, []);
   const favKey = `mase_favs:${realEmail || "default"}`;
 
   // Admin-only: re-scope the entire dashboard as if `email` were the logged-in
@@ -307,6 +328,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     scoped, filtered,
     locked, blocked, scopeName,
     realIsAdmin, simEmail, isAdminView: realIsAdmin && !simEmail, canSeeScores, simulateAs,
+    chatAllowed,
     favs, isFav, toggleFav, favsOnly, setFavsOnly,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

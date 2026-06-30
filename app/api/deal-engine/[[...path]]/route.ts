@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { ADMIN_EMAILS } from "@/lib/engine/helpers";
 import { freshAccessToken } from "@/lib/sfdc/server";
+import { chatAllowedForCaller } from "@/lib/config/server";
 
 // Server-side proxy. The browser calls same-origin /api/deal-engine/* and this
 // handler attaches the Bearer token (kept in a server-side env var) and forwards
@@ -160,8 +161,13 @@ export async function GET(req: NextRequest, ctx: Ctx) {
   // Admin-only reads: the team-wide chat/sweep system prompts (may encode strategy
   // / guardrails) and the todo-runner runs feed (shows what reps ran). The
   // todo-runner PROMPT GET stays open (reps' runs fetch it). Other GETs stay open.
-  if ((isPromptPath(path) || isTodoRunnerRunsPath(path) || isKnowledgePath(path) || isChatPath(path)) && !(await callerIsAdmin())) {
+  if ((isPromptPath(path) || isTodoRunnerRunsPath(path) || isKnowledgePath(path)) && !(await callerIsAdmin())) {
     return NextResponse.json({ error: "Admin only." }, { status: 403 });
+  }
+  // Chat conversational endpoints: admin OR the admin-set "enable chat for users"
+  // toggle. The chat/prompt EDITOR stays admin-only (caught by isPromptPath above).
+  if (isChatPath(path) && !isPromptPath(path) && !(await chatAllowedForCaller())) {
+    return NextResponse.json({ error: "Chat is not enabled for your account yet." }, { status: 403 });
   }
   return forward(req, path);
 }
@@ -180,9 +186,14 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   // Admin-only writes: the team-wide system prompts (chat/sweep + the todo-runner),
   // Learning Observatory mutations, and knowledge uploads. The backend trusts the
   // shared token, so this proxy is the real gate.
-  if ((isPromptPath(path) || isTodoRunnerPromptPath(path) || isLearningsWritePath(path) || isKnowledgePath(path) || isChatPath(path) || isSweepRerunPath(path))
+  if ((isPromptPath(path) || isTodoRunnerPromptPath(path) || isLearningsWritePath(path) || isKnowledgePath(path) || isSweepRerunPath(path))
       && !(await callerIsAdmin())) {
     return NextResponse.json({ error: "Admin only." }, { status: 403 });
+  }
+  // Chat conversational writes (/chat, /chat/async, /chat/stop): admin OR the
+  // "enable chat for users" toggle. The chat/prompt editor stays admin-only above.
+  if (isChatPath(path) && !isPromptPath(path) && !(await chatAllowedForCaller())) {
+    return NextResponse.json({ error: "Chat is not enabled for your account yet." }, { status: 403 });
   }
   // To-do push / manual update: inject the caller's Salesforce token so the write
   // (Task or Next_Step__c append) is authored as the rep. If they haven't connected,

@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { fixManagerName } from "./helpers";
+import { track } from "@/lib/tracking/client";
 
 // Fetches the WHOLE deal-engine to-do book once (GET /api/deal-engine/todo with
 // NO owner param -> owner:"all") and renders the Espresso tab DIRECTLY from the
@@ -203,6 +204,7 @@ export function useBackendTodos() {
   const markPushed = useCallback((todoKey: string, sfTaskId?: string) => {
     if (!todoKey) return;
     setPushedOverride((prev) => ({ ...prev, [todoKey]: { pushed: true, sf_task_id: sfTaskId } }));
+    track("todo_push", { todo_key: todoKey, sf_task_id: sfTaskId });
   }, []);
 
   // Helpers reading the effective pushed state (server `pushed` OR optimistic
@@ -259,6 +261,7 @@ export function useBackendTodos() {
     if (r.ok) {
       const row: ManualUpdate = (r.data?.update as ManualUpdate) || { opp_id: oppId, note, done_date: dueDate || doneDate, sf_task_id: r.data?.sf_task_id };
       setAddedUpdates((p) => [row, ...p]);
+      track("todo_update", { opp_id: oppId, destination });
     }
     return { ok: r.ok, sfTaskId: r.data?.sf_task_id, sfError: r.data?.sf_error, destination: r.data?.destination, nextStepUpdated: r.data?.next_step_updated };
   }, []);

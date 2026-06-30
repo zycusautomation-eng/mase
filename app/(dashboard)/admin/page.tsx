@@ -2,9 +2,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useDashboard } from "@/lib/engine/DashboardContext";
-import { ADMIN_EMAILS, uniqSorted, type Rec } from "@/lib/engine/helpers";
+import { ADMIN_EMAILS, EMAIL_TO_OWNER, uniqSorted, type Rec } from "@/lib/engine/helpers";
 import { DatalakeSyncCard } from "@/components/admin/DatalakeSyncCard";
 import RunSweepSection from "@/components/admin/RunSweepSection";
+import MultiSelect, { type Opt } from "@/components/MultiSelect";
 
 // Admin → Agent Control. The single place admins manage MASE's agents: KNOWLEDGE
 // (uploaded docs), the TODO RUNNER prompt, the DEAL SWEEP prompt, EXECUTION (runs +
@@ -51,7 +52,7 @@ export default function AdminPage() {
 }
 
 function AdminInner() {
-  const [tab, setTab] = useState<"docs" | "todorunner" | "sweep" | "runsweep" | "chat" | "execution" | "access">("docs");
+  const [tab, setTab] = useState<"docs" | "todorunner" | "sweep" | "runsweep" | "chat" | "calls" | "execution" | "access">("docs");
   const [dealCount, setDealCount] = useState<number | null>(null);
   useEffect(() => {
     let off = false;
@@ -73,7 +74,7 @@ function AdminInner() {
         </div>
       </div>
       <div className="admin-tabs">
-        {([["docs", "Knowledge"], ["todorunner", "Todo Runner"], ["sweep", "Deal Sweep"], ["runsweep", "Run Sweep"], ["chat", "Chat Agent"], ["execution", "Execution"], ["access", "Access & Config"]] as const).map(([k, label]) => (
+        {([["docs", "Knowledge"], ["todorunner", "Todo Runner"], ["sweep", "Deal Sweep"], ["runsweep", "Run Sweep"], ["chat", "Chat Agent"], ["calls", "Calls"], ["execution", "Execution"], ["access", "Access & Config"]] as const).map(([k, label]) => (
           <button key={k} className={`admin-tab ${tab === k ? "active" : ""}`} onClick={() => setTab(k)}>{label}</button>
         ))}
       </div>
@@ -83,6 +84,7 @@ function AdminInner() {
         {tab === "sweep" && <SweepPromptSection />}
         {tab === "runsweep" && <RunSweepSection />}
         {tab === "chat" && <ChatAgentSection />}
+        {tab === "calls" && <CallsSection />}
         {tab === "execution" && <ExecutionSection />}
         {tab === "access" && <AccessSection />}
       </div>
@@ -695,10 +697,277 @@ function ExecutionSection() {
   );
 }
 
+// ── 3b. Calls — datalake (Avoma) meeting explorer ───────────────────────────
+// Filter the Avoma datalake by date range + opportunity. Admin-gated route reads the
+// datalake directly (DATALAKE_URL / DATALAKE_SERVICE_KEY on the server).
+type DLCall = {
+  uuid: string; subject: string | null; start_at: string | null; is_internal: boolean | null;
+  is_call: boolean | null; state: string | null; transcript_ready: boolean | null;
+  duration: number | null; crm_opportunity_id: string | null; crm_account_id: string | null;
+  attendee_domains: string[] | null;
+};
+function isoDay(d: Date) { return d.toISOString().slice(0, 10); }
+function CallsSection() {
+  const { records } = useDashboard();
+  const [from, setFrom] = useState(() => isoDay(new Date(Date.now() - 30 * 86400000)));
+  const [to, setTo] = useState(() => isoDay(new Date()));
+  const [oppId, setOppId] = useState("");
+  const [subject, setSubject] = useState("");
+  const [internal, setInternal] = useState(false);
+  const [cancelled, setCancelled] = useState(false);
+  const [rows, setRows] = useState<DLCall[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const oppOpts: Opt[] = useMemo(
+    () => (records as Rec[])
+      .map((r) => ({ value: r.opp_id as string, label: `${(r.hard || {}).account_name} — ${(r.hard || {}).opp_name}` }))
+      .filter((o) => o.value)
+      .sort((a, b) => a.label.localeCompare(b.label)),
+    [records]
+  );
+
+  const run = useCallback(async (over?: { from?: string; to?: string }) => {
+    const f = over?.from ?? from;
+    const t = over?.to ?? to;
+    setLoading(true); setErr(null);
+    const p = new URLSearchParams();
+    if (f) p.set("from", f);
+    if (t) p.set("to", t);
+    if (oppId) p.set("opp_id", oppId);
+    if (subject.trim()) p.set("subject", subject.trim());
+    if (internal) p.set("internal", "1");
+    if (cancelled) p.set("cancelled", "1");
+    try {
+      const r = await fetch(`/api/admin/datalake-calls?${p.toString()}`, { cache: "no-store" });
+      const j = await r.json();
+      if (!r.ok || j.error) { setErr(j.error || `Error ${r.status}`); setRows([]); }
+      else setRows(j.rows || []);
+    } catch (e: any) { setErr(e?.message || String(e)); setRows([]); }
+    setLoading(false);
+  }, [from, to, oppId, subject, internal, cancelled]);
+
+  useEffect(() => { void run(); }, []); // initial load (last 30 days)
+
+  function exportCsv() {
+    if (!rows || !rows.length) return;
+    const head = ["date", "subject", "type", "state", "internal", "transcript", "duration_min", "opp_id", "account_id", "attendee_domains"];
+    const lines = [head.join(",")];
+    for (const m of rows) {
+      const vals = [
+        String(m.start_at || "").slice(0, 16).replace("T", " "),
+        `"${String(m.subject || "").replace(/"/g, '""')}"`,
+        m.is_call ? "call" : "meeting",
+        m.state || "",
+        m.is_internal ? "internal" : "external",
+        m.transcript_ready ? "yes" : "no",
+        m.duration ? Math.round(m.duration / 60) : "",
+        m.crm_opportunity_id || "",
+        m.crm_account_id || "",
+        `"${(m.attendee_domains || []).join("; ")}"`,
+      ];
+      lines.push(vals.join(","));
+    }
+    const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = window.URL.createObjectURL(blob);
+    a.download = `datalake_calls_${from}_${to}.csv`;
+    a.click();
+  }
+
+  return (
+    <div className="admin-card">
+      <h3>Calls — Avoma datalake</h3>
+      <p className="admin-desc">Filter the Avoma datalake (the single source of truth for meetings) by date range and opportunity. Excludes internal &amp; cancelled by default.</p>
+      <div className="admin-actions" style={{ gap: 6, marginBottom: 8, alignItems: "center" }}>
+        <span className="admin-meta">Quick range:</span>
+        {([["Last 7 days", 7], ["Last 30 days", 30], ["Last 60 days", 60], ["Last 90 days", 90]] as [string, number][]).map(([lbl, d]) => {
+          const f = isoDay(new Date(Date.now() - d * 86400000));
+          const active = from === f && to === isoDay(new Date());
+          return (
+            <button key={lbl} className={`admin-btn ${active ? "primary" : ""}`}
+              onClick={() => { const t = isoDay(new Date()); setFrom(f); setTo(t); void run({ from: f, to: t }); }}>
+              {lbl}
+            </button>
+          );
+        })}
+      </div>
+      <div className="admin-actions" style={{ flexWrap: "wrap", gap: 10, alignItems: "flex-end" }}>
+        <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12 }}>From
+          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} style={FIELD_STYLE} />
+        </label>
+        <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12 }}>To
+          <input type="date" value={to} onChange={(e) => setTo(e.target.value)} style={FIELD_STYLE} />
+        </label>
+        <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12 }}>Opportunity
+          <MultiSelect single allLabel="All opportunities" options={oppOpts} selected={oppId ? [oppId] : []} onChange={(v) => setOppId(v[0] || "")} />
+        </label>
+        <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12 }}>Subject contains
+          <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="(optional)" style={{ ...FIELD_STYLE, minWidth: 160 }} />
+        </label>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>
+          <input type="checkbox" checked={internal} onChange={(e) => setInternal(e.target.checked)} /> incl. internal
+        </label>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>
+          <input type="checkbox" checked={cancelled} onChange={(e) => setCancelled(e.target.checked)} /> incl. cancelled
+        </label>
+        <button className="admin-btn primary" onClick={() => void run()} disabled={loading}>{loading ? "Loading…" : "Search"}</button>
+        {rows && rows.length > 0 && <button className="admin-btn" onClick={exportCsv}>Export CSV</button>}
+      </div>
+
+      {err && <div className="admin-note err" style={{ marginTop: 10 }}>{err}</div>}
+      {rows && (
+        <div style={{ marginTop: 12 }}>
+          <div className="admin-meta" style={{ marginBottom: 6 }}>{rows.length} call{rows.length === 1 ? "" : "s"}{rows.length >= 2000 ? " (capped at 2000)" : ""}</div>
+          <div style={{ overflowX: "auto" }}>
+            <table className="admin-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+              <thead>
+                <tr style={{ textAlign: "left", borderBottom: "1px solid var(--line)" }}>
+                  {["Date", "Subject", "Type", "State", "Tx", "Min", "Domains", "Opp"].map((h) => (
+                    <th key={h} style={{ padding: "6px 8px", fontSize: 11, textTransform: "uppercase", color: "var(--muted-ink, #888)" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.length === 0 ? (
+                  <tr><td colSpan={8} className="admin-meta" style={{ padding: "14px 8px" }}>No calls match these filters.</td></tr>
+                ) : rows.map((m) => (
+                  <tr key={m.uuid} style={{ borderBottom: "1px solid var(--line)" }}>
+                    <td style={{ padding: "6px 8px", whiteSpace: "nowrap" }}>{String(m.start_at || "").slice(0, 16).replace("T", " ")}</td>
+                    <td style={{ padding: "6px 8px" }}>{m.subject || "—"}{m.is_internal ? <span className="admin-meta"> · internal</span> : null}</td>
+                    <td style={{ padding: "6px 8px" }}>{m.is_call ? "call" : "meeting"}</td>
+                    <td style={{ padding: "6px 8px", color: m.state === "cancelled" ? "var(--red-ink)" : undefined }}>{m.state || "—"}</td>
+                    <td style={{ padding: "6px 8px" }}>{m.transcript_ready ? "✓" : "—"}</td>
+                    <td style={{ padding: "6px 8px" }}>{m.duration ? Math.round(m.duration / 60) : "—"}</td>
+                    <td style={{ padding: "6px 8px", maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={(m.attendee_domains || []).join(", ")}>{(m.attendee_domains || []).filter((d) => !String(d).includes("zycus")).join(", ") || "—"}</td>
+                    <td style={{ padding: "6px 8px", fontFamily: "monospace", fontSize: 11 }}>{String(m.crm_opportunity_id || "").slice(0, 15) || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── 4. Access & Config ──────────────────────────────────────────────────────
+// Chat access policy: choose WHO can use the RevOps Chat — Admins only, Everyone, or
+// a Specific allowlist of emails. Backed by /api/admin/chat-access (GET open for the
+// caller's own access; POST admin-only) → app_config. Admins can always use chat; the
+// chat agent's SYSTEM PROMPT editor stays admin-only regardless of this setting.
+type ChatMode = "admins" | "everyone" | "allowlist";
+const CHAT_MODES: { key: ChatMode; label: string; desc: string }[] = [
+  { key: "admins", label: "Admins only", desc: "Only admins can use chat (default)." },
+  { key: "everyone", label: "Everyone", desc: "Every signed-in MASE user can use chat." },
+  { key: "allowlist", label: "Specific people", desc: "Only the people you select below." },
+];
+// The MASE user roster (the same allow-list that governs who can sign in) → picker
+// options. Admins always have chat, so they don't need selecting here.
+const CHAT_PEOPLE: Opt[] = Object.entries(EMAIL_TO_OWNER)
+  .filter(([email]) => !ADMIN_EMAILS.has(email))
+  .map(([email, name]) => ({ value: email, label: `${name} — ${email}` }))
+  .sort((a, b) => a.label.localeCompare(b.label));
+
+function ChatAccessCard() {
+  const [mode, setMode] = useState<ChatMode | null>(null);
+  const [emails, setEmails] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/admin/chat-access", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((j) => { setMode((j.mode as ChatMode) || "admins"); setEmails(Array.isArray(j.emails) ? j.emails : []); })
+      .catch(() => { setMode("admins"); setEmails([]); });
+  }, []);
+
+  async function save(nextMode: ChatMode, nextEmails: string[]) {
+    setSaving(true); setNote(null);
+    try {
+      const r = await fetch("/api/admin/chat-access", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ mode: nextMode, emails: nextEmails }),
+      });
+      const j = await r.json();
+      if (!r.ok || j.error) { setNote(j.error || `Error ${r.status}`); }
+      else {
+        setMode((j.mode as ChatMode) || nextMode);
+        setEmails(Array.isArray(j.emails) ? j.emails : nextEmails);
+        setNote("Saved.");
+      }
+    } catch (e: any) { setNote(e?.message || String(e)); }
+    setSaving(false);
+  }
+
+  function changeMode(m: ChatMode) { if (m !== mode) { setMode(m); void save(m, emails); } }
+  function selectPeople(next: string[]) { setEmails(next); void save(mode || "allowlist", next); }
+  function removeEmail(e: string) { selectPeople(emails.filter((x) => x !== e)); }
+
+  return (
+    <div className="admin-card">
+      <h3>Chat access</h3>
+      <p className="admin-desc">
+        Choose who can use the RevOps strategist <b>Chat</b>. Admins can always use it; the chat
+        agent&apos;s system-prompt editor stays admin-only regardless of this setting.
+      </p>
+
+      <div className="admin-actions" style={{ flexWrap: "wrap", gap: 8 }}>
+        {CHAT_MODES.map((m) => {
+          const active = mode === m.key;
+          return (
+            <button
+              key={m.key}
+              className={`admin-btn ${active ? "primary" : ""}`}
+              onClick={() => changeMode(m.key)}
+              disabled={mode == null || saving}
+              title={m.desc}
+            >
+              {active ? "● " : ""}{m.label}
+            </button>
+          );
+        })}
+        {saving && <span className="admin-meta">saving…</span>}
+      </div>
+      <p className="admin-meta" style={{ marginTop: 6 }}>
+        {mode == null ? "Loading…" : CHAT_MODES.find((m) => m.key === mode)?.desc}
+      </p>
+
+      {mode === "allowlist" && (
+        <div style={{ marginTop: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 13, fontWeight: 600 }}>People with chat access</span>
+            <MultiSelect
+              allLabel="Select people…"
+              options={CHAT_PEOPLE}
+              selected={emails}
+              onChange={selectPeople}
+            />
+            <span className="admin-meta">{emails.length} selected</span>
+          </div>
+          <div className="admin-doclist" style={{ marginTop: 10 }}>
+            {emails.length === 0 ? (
+              <div className="admin-meta" style={{ padding: "12px 14px" }}>No one selected yet. Pick the people who should get chat.</div>
+            ) : emails.map((e) => (
+              <div key={e} className="admin-docrow">
+                <span className="admin-docname">{EMAIL_TO_OWNER[e] ? `${EMAIL_TO_OWNER[e]} — ${e}` : e}</span>
+                <button className="kn-del" onClick={() => removeEmail(e)} disabled={saving} title="Remove" aria-label="Remove person">Remove</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {note && <div className="admin-meta" style={{ marginTop: 10 }}>{note}</div>}
+    </div>
+  );
+}
+
 function AccessSection() {
   const admins = Array.from(ADMIN_EMAILS).sort();
   return (
+    <>
+      <ChatAccessCard />
     <div className="admin-card">
       <h3>Admins ({admins.length})</h3>
       <p className="admin-desc">Full-access users (whole book + this Agent Control page + Runs/Learning/Sync Quality). The list is defined in <code>lib/engine/helpers.ts</code> (ADMIN_EMAILS); a DB-backed add/remove from this page is a planned upgrade.</p>
@@ -708,5 +977,6 @@ function AccessSection() {
       <h3 style={{ marginTop: 24 }}>Agent model</h3>
       <p className="admin-desc">Runs on <code>claude-opus-4-8</code> (server-configured). Model/tool configuration is managed in the backend; surfacing it here is a planned upgrade.</p>
     </div>
+    </>
   );
 }
