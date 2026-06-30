@@ -34,7 +34,7 @@ const PAGE_SIZE = 20;
 // AI excitement is a computed tier (status OR score OR fit signal) the DB can't filter
 // without a dedicated column. The full per-deal record is fetched on drawer open.
 export default function DealsPage() {
-  const { filtered, records, playbook, loading, canSeeScores, isFav, toggleFav } = useDashboard();
+  const { filtered, records, playbook, loading, canSeeScores, realIsAdmin, isFav, toggleFav } = useDashboard();
   const [sortKey, setSortKey] = useState("days_to_close");
   const [sortDir, setSortDir] = useState(1);
   const [selected, setSelected] = useState<Rec | null>(null);
@@ -73,6 +73,42 @@ export default function DealsPage() {
     else { setSortKey(k); setSortDir(1); }
   }
   const arrow = (k: string) => (sortKey === k ? (sortDir > 0 ? " ▲" : " ▼") : "");
+
+  // Admin-only: export every deal currently matching the scope + filters + search
+  // (the whole result set, not just the visible page) to a CSV the browser downloads.
+  const exportCSV = () => {
+    const hl = (r: any) => (((r.ai || {}).deal_scores || {}).headline || {});
+    const cols: [string, (r: any) => unknown][] = [
+      ["Account", (r) => (r.hard || {}).account_name],
+      ["Opportunity", (r) => (r.hard || {}).opp_name],
+      ["Stage", (r) => (r.hard || {}).stage],
+      ["Forecast", (r) => (r.hard || {}).forecast_category],
+      ["Amount", (r) => (r.hard || {}).amount],
+      ["CloseDate", (r) => (r.hard || {}).close_date],
+      ["DaysToClose", (r) => (r.hard || {}).days_to_close],
+      ["Owner", (r) => (r.hard || {}).owner_name],
+      ["Win", (r) => hl(r).win_position],
+      ["Momentum", (r) => hl(r).deal_momentum],
+      ["Commitment", (r) => hl(r).customer_commitment],
+      ["Risk", (r) => hl(r).deal_risk],
+      ["Read", (r) => hl(r).read],
+      ["Verdict", (r) => ((r.ai || {}).north_star_verdict || {}).verdict],
+      ["OppId", (r) => r.opp_id],
+    ];
+    const esc = (v: unknown) => {
+      const s = v == null ? "" : String(v);
+      return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const lines = [cols.map((c) => c[0]).join(",")];
+    for (const r of rows) lines.push(cols.map((c) => esc(c[1](r))).join(","));
+    const blob = new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `deals_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <>
@@ -152,8 +188,19 @@ export default function DealsPage() {
       </div>
 
       <div className="pager">
-        <span>
-          Showing <b>{rows.length ? start + 1 : 0}–{Math.min(start + PAGE_SIZE, rows.length)}</b> of {rows.length}
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 12 }}>
+          <span>Showing <b>{rows.length ? start + 1 : 0}–{Math.min(start + PAGE_SIZE, rows.length)}</b> of {rows.length}</span>
+          {realIsAdmin ? (
+            <button
+              type="button"
+              onClick={exportCSV}
+              title="Export all matching deals to CSV (admin only)"
+              style={{
+                border: "1px solid var(--line)", background: "var(--surface)", color: "var(--accent)",
+                borderRadius: 8, padding: "5px 11px", fontSize: 12.5, fontWeight: 650, cursor: "pointer",
+              }}
+            >⤓ Export CSV</button>
+          ) : null}
         </span>
         <div className="pbtns">
           <button onClick={() => setPage(1)} disabled={cur === 1}>« First</button>
