@@ -96,8 +96,11 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [realIsAdmin, setRealIsAdmin] = useState(false);
   const [simEmail, setSimEmail] = useState<string | null>(null);
   const [canSeeScores, setCanSeeScores] = useState(false);
-  // Favourites: starred opp_ids, persisted in localStorage keyed by the REAL logged-in
-  // user (not the simulated one — favourites are personal bookmarks).
+  // Favourites: starred opp_ids. Source of truth is the DB (per real logged-in user,
+  // via /api/favourites → app_config), so stars follow the user across browsers and
+  // devices. localStorage is kept only as a fast-load cache + the one-time migration
+  // source for stars saved before the move. Personal bookmarks → keyed to the REAL
+  // user, never the simulated one.
   const [favs, setFavs] = useState<Set<string>>(new Set());
   const [favsOnly, setFavsOnly] = useState(false);
   const [realEmail, setRealEmail] = useState<string | null>(null);
@@ -218,12 +221,35 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const setFilter = useCallback((k: keyof DealFilters, v: string[]) => setFilters((f) => ({ ...f, [k]: v })), []);
   const clearFilters = useCallback(() => { setFilters(EMPTY_FILTERS); setFavsOnly(false); }, []);
 
-  // Load this user's favourites once their identity resolves (admins: keyed "default").
+  // Load favourites: paint the cached set instantly, then reconcile with the DB (the
+  // source of truth). One-time migration: if the DB has none for this user but this
+  // browser does, push the local stars up so nobody loses bookmarks in the move.
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(favKey);
-      setFavs(new Set<string>(raw ? JSON.parse(raw) : []));
-    } catch { setFavs(new Set()); }
+    let cached: string[] = [];
+    try { cached = JSON.parse(localStorage.getItem(favKey) || "[]"); } catch { cached = []; }
+    if (cached.length) setFavs(new Set(cached));
+    let off = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/favourites", { credentials: "include" });
+        if (!res.ok || off) return;
+        const body = await res.json();
+        if (off) return;
+        const server: string[] = Array.isArray(body?.favs) ? body.favs.map(String) : [];
+        if (server.length === 0 && cached.length > 0) {
+          setFavs(new Set(cached));
+          fetch("/api/favourites", {
+            method: "PUT", credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ opp_ids: cached }),
+          }).catch(() => { /* retried on next toggle */ });
+        } else {
+          setFavs(new Set(server));
+          try { localStorage.setItem(favKey, JSON.stringify(server)); } catch { /* cache only */ }
+        }
+      } catch { /* offline / not signed in — keep the cached set */ }
+    })();
+    return () => { off = true; };
   }, [favKey]);
 
   const toggleFav = useCallback((oppId: string) => {
@@ -231,7 +257,15 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     setFavs((prev) => {
       const next = new Set(prev);
       if (next.has(oppId)) next.delete(oppId); else next.add(oppId);
-      try { localStorage.setItem(favKey, JSON.stringify([...next])); } catch { /* localStorage unavailable */ }
+      const arr = [...next];
+      // Cache locally for instant reloads, then persist the full set to the DB
+      // (optimistic — the UI already reflects the change).
+      try { localStorage.setItem(favKey, JSON.stringify(arr)); } catch { /* cache only */ }
+      fetch("/api/favourites", {
+        method: "PUT", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ opp_ids: arr }),
+      }).catch(() => { /* stays in localStorage; re-synced on next toggle/load */ });
       return next;
     });
   }, [favKey]);
