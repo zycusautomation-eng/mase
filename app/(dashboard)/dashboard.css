@@ -84,8 +84,11 @@
   .wrap.deals-scroll{display:block;overflow:auto;padding:0 28px 28px}
   .wrap.deals-scroll #grid{overflow:visible}
   .wrap.deals-scroll>.dl-head{margin-top:18px}
+  /* z-index 30: this sticky-left bar creates its own stacking context, so its open
+     filter dropdowns (.msel-menu) must out-rank the table's sticky header (th z-index:3)
+     — otherwise the whole menu paints BEHIND the table below it. */
   .wrap.deals-scroll>.dl-head,
-  .wrap.deals-scroll>.filterbar{position:sticky;left:0;z-index:2;width:var(--dl-w,calc(100vw - 300px));background:var(--bg)}
+  .wrap.deals-scroll>.filterbar{position:sticky;left:0;z-index:30;width:var(--dl-w,calc(100vw - 300px));background:var(--bg)}
   /* Short viewports (mobile landscape / tiny windows): the stat cards + filters would squeeze
      the table to nothing, so fall back to normal full-page scroll (header just isn't pinned). */
   @media (max-height:620px){
