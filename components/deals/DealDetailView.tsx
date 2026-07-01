@@ -9,7 +9,7 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   fmtAmount, healthLabel, dealTier, dealMeddpicc, cleanText, daysSince,
-  dealComps, type Rec, type MeddItem,
+  dealComps, sfLinkFor, type Rec, type MeddItem,
 } from "@/lib/engine/helpers";
 import { useTodoDone } from "@/lib/engine/useTodoDone";
 import { useTodoSync } from "@/lib/engine/useTodoSync";
@@ -180,7 +180,7 @@ export default function DealDetailView({ rec, variant = "page", onClose }: { rec
             </span>
           ) : null}
           {variant === "drawer" ? <Link href={`/deals/${encodeURIComponent(rec.opp_id)}`} className="dp-action">Full page →</Link> : null}
-          {h.sf_link ? <a className="dp-action" href={h.sf_link} target="_blank" rel="noreferrer">Salesforce ↗</a> : null}
+          {(() => { const sf = sfLinkFor(h, rec.opp_id); return sf ? <a className="dp-action" href={sf} target="_blank" rel="noreferrer">Salesforce ↗</a> : null; })()}
           <button type="button" className="dp-action primary" onClick={() => openNewDeal(dealForAi)} title="Complete this deal's tasks with AI">✦ Ask AI</button>
         </div>
       </div>

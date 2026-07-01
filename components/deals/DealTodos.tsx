@@ -1,6 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { ownerKind, fmtDue, diffDays, clipWordsClean } from "@/lib/engine/helpers";
 import { useTodoSync, type SyncStatus } from "@/lib/engine/useTodoSync";
 import {
@@ -650,24 +651,31 @@ export function SfButton({ it, ownerName, enabled, sync, backend, serverPushed }
         )}
       </button>
 
-      {confirming ? (
-        <div className="sfm-overlay" onClick={() => setConfirming(false)}>
-          <div className="sfm-card" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-            <div className="sfm-h">Log this to-do as complete in Salesforce?</div>
-            <div className="sfm-txt">{it.text}</div>
-            <div className="sfm-actions">
-              <button type="button" className="sfm-btn cancel" onClick={() => setConfirming(false)}>Cancel</button>
-              <button
-                type="button"
-                className="sfm-btn confirm"
-                onClick={() => { setConfirming(false); doPush(); }}
-              >
-                Confirm
-              </button>
+      {/* Portal to <body>: the deal drawer uses `transform` for its slide-in, which makes
+          it the containing block for position:fixed descendants — so an inline modal gets
+          trapped/clipped inside the drawer panel (Confirm unreachable). Portaling escapes
+          the drawer's transform so the modal always centres on the viewport, above the drawer. */}
+      {confirming && typeof document !== "undefined"
+        ? createPortal(
+          <div className="sfm-overlay" onClick={() => setConfirming(false)}>
+            <div className="sfm-card" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+              <div className="sfm-h">Log this to-do as complete in Salesforce?</div>
+              <div className="sfm-txt">{it.text}</div>
+              <div className="sfm-actions">
+                <button type="button" className="sfm-btn cancel" onClick={() => setConfirming(false)}>Cancel</button>
+                <button
+                  type="button"
+                  className="sfm-btn confirm"
+                  onClick={() => { setConfirming(false); doPush(); }}
+                >
+                  Confirm
+                </button>
+              </div>
             </div>
-          </div>
-        </div>
-      ) : null}
+          </div>,
+          document.body,
+        )
+        : null}
     </>
   );
 }

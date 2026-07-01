@@ -5,7 +5,7 @@
 // keeps the original DealDetailView, so this is drawer-only and reversible.
 // All CSS is scoped under .ddw so it can never collide with the app's global styles.
 import { useMemo, useState } from "react";
-import { fmtAmount, daysSince, healthLabel, verdictTone, clipWords, clipWordsClean, getEbOverride, type Rec } from "@/lib/engine/helpers";
+import { fmtAmount, daysSince, healthLabel, verdictTone, clipWords, clipWordsClean, getEbOverride, sfLinkFor, type Rec } from "@/lib/engine/helpers";
 import { useDealAi } from "@/components/deals/DealAiProvider";
 import { Monogram } from "@/components/ui/Monogram";
 import { useBackendTodos } from "@/lib/engine/useBackendTodos";
@@ -460,7 +460,7 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
           <div className="crumb" onClick={onClose}><span className="chev">‹</span> Deals <span className="sep">/</span> <span className="cur">{h.account_name || rec.opp_id}</span></div>
           <div className="dh-actions">
             {analysed ? <span className="analysed" title={`Last analysed ${rec.swept_at}`}>✦ Analysed {analysed.label}{analysed.rel ? ` · ${analysed.rel}` : ""}</span> : null}
-            {h.sf_link ? <a className="btn" href={h.sf_link} target="_blank" rel="noreferrer">Salesforce ↗</a> : null}
+            {(() => { const sf = sfLinkFor(h, rec.opp_id); return sf ? <a className="btn" href={sf} target="_blank" rel="noreferrer">Salesforce ↗</a> : null; })()}
             <button className="btn ai" onClick={() => openNewDeal(dealForAi)}>✦ Ask AI</button>
             <div className="iconbtn" onClick={onClose}>✕</div>
           </div>

@@ -6,6 +6,43 @@
 
 ---
 
+## 2026-07-01 — Deal drawer: to-do → Salesforce confirm modal trapped inside the drawer
+
+**What.** In the deal **drawer**, clicking a to-do's ☁ Salesforce button opened the "Log this
+to-do as complete in Salesforce?" confirm modal, but Confirm was unreachable — the modal was
+clipped/mis-positioned inside the drawer panel. On the full `/deals/[id]` page it worked fine.
+
+**Cause.** `.drawer` animates with `transform: translateX(...)`, which makes it the **containing
+block for `position:fixed` descendants**. The modal (`.sfm-overlay{position:fixed}`) is rendered
+inside `SfButton` (inside the drawer), so `inset:0` resolved to the drawer's box, not the viewport
+— trapping it. Classic transform-vs-fixed stacking bug.
+
+**Fix.** `SfButton` (`components/deals/DealTodos.tsx`) now **portals** the confirm modal to
+`document.body` via `createPortal`, so it escapes the drawer's transform and centres on the
+viewport in both the drawer and the full page. Also raised `.sfm-overlay` z-index 40 → 200 (above
+the drawer at 91) as belt-and-suspenders. Same push logic as espresso — only the mount point moved.
+
+## 2026-07-01 — Filters popover overflowed off the right edge
+
+**What.** The **Filters** popover (`.fpop-panel`) opened with `left:0` at 460px wide; since the
+Filters button sits near the right of the ribbon, the panel spilled off-screen to the right.
+
+**Fix.** Anchored the panel to the button's **right** edge (`right:0`, opens leftward) and capped
+`max-width: min(86vw, 460px)` in `dashboard.css` so it always stays on-screen.
+
+## 2026-07-01 — Deal drawer: "Salesforce ↗" button always resolves
+
+**What.** The drawer/detail "Salesforce ↗" button rendered only when `hard.sf_link` was
+present. The drawer re-fetches the FULL record from the single-opp endpoint on open, whose
+headline (built from the opportunity_cache) can omit `sf_link` — so the button vanished/broke
+once the full record loaded, even though the slim list record had the link.
+
+**Fix.** New `sfLinkFor(hard, oppId)` in `lib/engine/helpers.ts`: returns `hard.sf_link` when
+present, else derives the stable Lightning URL from the opp_id
+(`https://zycus.lightning.force.com/lightning/r/Opportunity/<id>/view`) — the same 15/18-char
+key espresso keys deals off. Wired into `DealDrawerView.tsx` and the shared `DealDetailView.tsx`
+(covers both the drawer and the `/deals/[id]` page). Button now always opens the right opp.
+
 ## 2026-06-30 — Shared DealFold: full-page /deals/[id] now matches the drawer
 
 **What.** Extracted the decision-first fold into a shared **`components/deals/DealFold.tsx`**
@@ -64,6 +101,8 @@ the buyer's AI appetite in plain language, coloured by tier.
 **Note.** `cleanAes()` is a display-layer strip. The durable fix is the **sweep prompt** that
 generates `ai_fit_signal.summary` — it should emit CRO-language AI-fit reads with no AIS-field /
 call-evidence scaffolding. Until then the frontend cleans it on render.
+
+---
 
 ## 2026-06-27 — Deal Scores: separate sortable columns + band filters
 

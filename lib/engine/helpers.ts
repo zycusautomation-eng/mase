@@ -47,6 +47,20 @@ export const HARD_LABELS: Record<string, string> = {
   primary_competitor: "Primary competitor", sf_link: "Salesforce",
 };
 
+// Salesforce Lightning base for the Zycus org. The backend stamps `hard.sf_link` on
+// swept records, but the single-opp endpoint the drawer re-fetches on open can serve a
+// headline WITHOUT it (built from the opportunity_cache) — which is why the drawer's
+// "Salesforce ↗" button vanished/broke once the full record loaded. Derive a stable
+// link from the opp_id (the same 15/18-char key espresso keys deals off) as a fallback,
+// so the button always resolves to the right opportunity.
+const SF_LIGHTNING_BASE = "https://zycus.lightning.force.com/lightning/r/Opportunity";
+export function sfLinkFor(hard: any, oppId?: unknown): string | null {
+  const direct = hard?.sf_link;
+  if (typeof direct === "string" && direct.trim()) return direct.trim();
+  const id = String(oppId ?? hard?.opp_id ?? "").trim();
+  return id ? `${SF_LIGHTNING_BASE}/${id}/view` : null;
+}
+
 export function fmtAmount(a: any): string {
   if (a == null || a === "") return "—";
   const n = Number(a);
@@ -340,7 +354,16 @@ export function isDeadStage(stage: any): boolean {
 // deal_engine_scoring.is_dead_deal.
 export function isDeadDeal(r: any): boolean {
   const h = (r && r.hard) || {};
-  return isDeadStage(h.stage) || String(h.forecast_category || "").trim().toLowerCase() === "omitted";
+  // Terminal by STAGE, or by FORECAST CATEGORY (Omitted, or Closed Lost / Lost / Qualified
+  // Out — the rep often flips the forecast to Closed Lost while the stage lags behind).
+  const fc = String(h.forecast_category || "").trim().toLowerCase();
+  const deadFc = fc === "omitted" || fc.includes("closed lost") || fc.includes("closed-lost")
+    || fc === "lost" || fc.includes("qualified out");
+  // Or by SCORING SIGNAL: the engine flips headline.dead when it detects a LOSS (a "we lost
+  // it" email/call/Next-Step) even while Salesforce still shows the deal as live. A lost deal
+  // is never tracked or scored — so honor that flag here too.
+  const headDead = (((r && r.ai && r.ai.deal_scores) || {}).headline || {}).dead === true;
+  return isDeadStage(h.stage) || deadFc || headDead;
 }
 export function keepRecord(r: Rec): boolean {
   return vpOf(r) != null && !isDeadDeal(r);

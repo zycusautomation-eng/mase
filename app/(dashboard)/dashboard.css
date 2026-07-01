@@ -418,7 +418,7 @@
   .sf-spin{width:15px;height:15px;border-radius:50%;border:2px solid var(--accent-soft);border-top-color:var(--accent);animation:sf-spin .7s linear infinite}
   @keyframes sf-spin{to{transform:rotate(360deg)}}
   /* SF push confirm modal */
-  .sfm-overlay{position:fixed;inset:0;background:rgba(15,27,46,.42);display:flex;align-items:center;justify-content:center;z-index:40;backdrop-filter:blur(3px);padding:16px}
+  .sfm-overlay{position:fixed;inset:0;background:rgba(15,27,46,.42);display:flex;align-items:center;justify-content:center;z-index:200;backdrop-filter:blur(3px);padding:16px}
   .sfm-card{background:var(--surface);border:1px solid var(--line);border-radius:16px;width:min(420px,100%);box-shadow:0 30px 80px -20px rgba(16,30,54,.45);padding:20px 22px;animation:pop .16s ease}
   .sfm-h{font-size:15px;font-weight:700;color:var(--ink);letter-spacing:-.2px}
   .sfm-txt{margin-top:10px;font-size:13px;color:var(--muted);line-height:1.45;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
@@ -514,7 +514,9 @@
   .fpop-ic{font-size:13px;line-height:1}
   .fpop-caret{font-size:9px;color:var(--muted)}
   .fbadge{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;padding:0 5px;border-radius:999px;background:var(--accent);color:#fff;font-size:10.5px;font-weight:700}
-  .fpop-panel{position:absolute;top:calc(100% + 6px);left:0;z-index:40;width:460px;max-width:86vw;background:var(--surface2);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:14px}
+  /* Anchor to the button's RIGHT edge (open leftward) — the Filters button sits near the
+     right of the ribbon, so left:0 pushed the 460px panel off-screen to the right. */
+  .fpop-panel{position:absolute;top:calc(100% + 6px);right:0;z-index:40;width:460px;max-width:min(86vw,460px);background:var(--surface2);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:14px}
   .fpop-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 14px}
   .fpop-facet{display:flex;flex-direction:column;gap:5px;min-width:0}
   .fpop-flabel{font-size:10.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--muted)}
