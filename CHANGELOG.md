@@ -6,6 +6,18 @@
 
 ---
 
+## 2026-06-30 — Shared DealFold: full-page /deals/[id] now matches the drawer
+
+**What.** Extracted the decision-first fold into a shared **`components/deals/DealFold.tsx`**
+(meta line · 3-score strip · "What matters" lenses · Do-now; reads `ai.critical_signals` when
+present, else derives) plus an exported `productGroups()` helper. `DealDetailView.tsx` (the full
+`/deals/[id]` page, also used as the drawer body variant) now renders `<DealFold>` in place of its
+old metrics row + verdict chips, and shows the grouped product chips in its header. Verdict fully
+removed from the page too (header chip + AI-summary card chip; cleaned unused `vt`/`verdictTone`).
+The drawer keeps its inline copy for now — same output; a later pass can point it at `DealFold` too.
+
+**Why.** Drawer and full page had drifted; a shared component means they can't again.
+
 ## 2026-06-30 — Deal-drawer fold redesign, verdict removed, filter ribbon collapsed
 
 **What.**
