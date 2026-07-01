@@ -1,7 +1,8 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { useEffect, useRef, useState } from "react";
 import { useDashboard, type DealFilters } from "@/lib/engine/DashboardContext";
-import { vpsList, teamOwners, uniqSorted, fyq, healthLabel, STAGE_ORDER, SCORE_BANDS, type Rec } from "@/lib/engine/helpers";
+import { vpsList, teamOwners, uniqSorted, fyq, STAGE_ORDER, SCORE_BANDS, type Rec } from "@/lib/engine/helpers";
 import MultiSelect, { type Opt } from "@/components/MultiSelect";
 
 const SIZE_OPTS: Opt[] = [
@@ -10,12 +11,20 @@ const SIZE_OPTS: Opt[] = [
   { value: "gt1m", label: "> $1M" },
 ];
 const AI_OPTS: Opt[] = ["AI Hungry", "AI Curious", "AI Resistant"].map((v) => ({ value: v, label: v }));
-// Canonical ordering for the Verdict facet (healthLabel outputs); "—" = no verdict.
-const VERDICT_RANK: Record<string, number> = { "On track": 0, "Slowing": 1, "Close-date risk": 2, "Off track": 3, "—": 9 };
 const stageRank = (s: string) => { const i = STAGE_ORDER.indexOf(s); return i < 0 ? 999 : i; };
 
 export default function ScopeFilterBar() {
   const { records, vps, rsds, setVps, setRsds, scoped, filters, setFilter, clearFilters, filtered, locked, blocked, scopeName, canSeeScores, favsOnly, setFavsOnly, favs } = useDashboard();
+
+  // Filters popover (progressive disclosure) — hooks must run before any early return.
+  const [fopen, setFopen] = useState(false);
+  const fref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!fopen) return;
+    const onDoc = (e: MouseEvent) => { if (fref.current && !fref.current.contains(e.target as Node)) setFopen(false); };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [fopen]);
 
   // Blocked users (not a known rep/VP/admin) get no deals and no filters.
   if (blocked) {
@@ -37,16 +46,26 @@ export default function ScopeFilterBar() {
   // Stage facet — distinct stages present, ordered by the pipeline sequence (not alphabetical).
   const st: Opt[] = Array.from(new Set(hard.map((h) => h.stage).filter(Boolean) as string[]))
     .sort((a, b) => stageRank(a) - stageRank(b)).map((v) => ({ value: v, label: v }));
-  // Verdict facet — distinct momentum verdicts present (via healthLabel), in canonical order.
-  const vd: Opt[] = Array.from(new Set(scoped.map((r: Rec) => healthLabel(((r.ai || {}).north_star_verdict || {}).verdict))))
-    .sort((a, b) => (VERDICT_RANK[a] ?? 5) - (VERDICT_RANK[b] ?? 5))
-    .map((v) => ({ value: v, label: v === "—" ? "No verdict" : v }));
   // Deal-score band facets — fixed buckets so a VP/CRO can pull deals by Win, Momentum, etc.
   const toOpt = (a: string[]): Opt[] => a.map((v) => ({ value: v, label: v }));
   const winOpts = toOpt(SCORE_BANDS.win_position);
   const momOpts = toOpt(SCORE_BANDS.deal_momentum);
 
   const dirty = Object.values(filters).some((v) => v.length > 0) || favsOnly;
+
+  // All refinement facets live behind one "Filters" popover; applied ones show as chips.
+  const FACETS: { key: keyof DealFilters; label: string; opts: Opt[] }[] = [
+    { key: "stage", label: "Stage", opts: st },
+    { key: "country", label: "Country", opts: co },
+    { key: "size", label: "Deal size", opts: SIZE_OPTS },
+    { key: "ai", label: "AI excitement", opts: AI_OPTS },
+    ...(canSeeScores ? ([
+      { key: "win", label: "Win position", opts: winOpts },
+      { key: "momentum", label: "Deal momentum", opts: momOpts },
+    ] as { key: keyof DealFilters; label: string; opts: Opt[] }[]) : []),
+  ];
+  const labelOf = (opts: Opt[], v: string) => opts.find((o) => o.value === v)?.label || v;
+  const activeFacets = FACETS.filter((fa) => ((filters[fa.key] || []) as string[]).length > 0);
   const f = (k: keyof DealFilters) => (v: string[]) => setFilter(k, v);
 
   return (
@@ -95,25 +114,44 @@ export default function ScopeFilterBar() {
         Favourites{favs.size ? ` (${favs.size})` : ""}
       </button>
 
-      {/* refinement filters */}
+      <span className="fdivider" />
+
+      {/* pinned — Forecast + Close Quarter stay on the bar (core to any forecast call) */}
       <MultiSelect allLabel="All forecast" options={fc} selected={filters.forecast} onChange={f("forecast")} />
-      <MultiSelect allLabel="All Stage" options={st} selected={filters.stage} onChange={f("stage")} />
-      <MultiSelect allLabel="All countries" options={co} selected={filters.country} onChange={f("country")} />
-      <MultiSelect allLabel="All deal sizes" options={SIZE_OPTS} selected={filters.size} onChange={f("size")} />
-      <MultiSelect allLabel="All AI excitement" options={AI_OPTS} selected={filters.ai} onChange={f("ai")} />
-      <MultiSelect allLabel="All Verdict" options={vd} selected={filters.verdict} onChange={f("verdict")} />
       <MultiSelect allLabel="All close quarters" options={cq} selected={filters.close} onChange={f("close")} />
 
-      {/* deal-score band filters — admins + VPs only */}
-      {canSeeScores ? (
-        <>
-          <span className="fdivider" />
-          <MultiSelect allLabel="All Win" options={winOpts} selected={filters.win} onChange={f("win")} />
-          <MultiSelect allLabel="All Momentum" options={momOpts} selected={filters.momentum} onChange={f("momentum")} />
-        </>
-      ) : null}
+      {/* Filters — single entry point (progressive disclosure) */}
+      <div className="fpop" ref={fref}>
+        <button type="button" className={`fpop-btn ${activeFacets.length ? "on" : ""}`} onClick={() => setFopen((o) => !o)} title="Filters">
+          <span className="fpop-ic" aria-hidden>⛃</span> Filters
+          {activeFacets.length ? <span className="fbadge">{activeFacets.length}</span> : null}
+          <span className="fpop-caret" aria-hidden>▾</span>
+        </button>
+        {fopen ? (
+          <div className="fpop-panel">
+            <div className="fpop-grid">
+              {FACETS.map((fa) => (
+                <div className="fpop-facet" key={fa.key as string}>
+                  <div className="fpop-flabel">{fa.label}</div>
+                  <MultiSelect allLabel="Any" options={fa.opts} selected={(filters[fa.key] || []) as string[]} onChange={f(fa.key)} />
+                </div>
+              ))}
+            </div>
+            {activeFacets.length ? <button type="button" className="fpop-clearall" onClick={clearFilters}>Clear all filters</button> : null}
+          </div>
+        ) : null}
+      </div>
 
-      {dirty ? <button className="fclear" onClick={clearFilters}>Clear</button> : null}
+      {/* active-filter chips — only applied facets take space */}
+      {activeFacets.map((fa) => (
+        <span className="fchip" key={fa.key as string}>
+          <span className="fchip-k">{fa.label}</span>
+          <span className="fchip-v">{((filters[fa.key] || []) as string[]).map((v) => labelOf(fa.opts, v)).join(", ")}</span>
+          <button type="button" className="fchip-x" onClick={() => f(fa.key)([])} aria-label={`Clear ${fa.label}`}>✕</button>
+        </span>
+      ))}
+
+      {dirty ? <button className="fclear" onClick={clearFilters}>Clear all</button> : null}
       <span className="fcount" id="f-count">{filtered.length} of {scoped.length} deal{scoped.length === 1 ? "" : "s"}</span>
     </div>
   );

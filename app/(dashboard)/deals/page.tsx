@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useMemo, useState } from "react";
 import { useDashboard } from "@/lib/engine/DashboardContext";
-import { aiLabel, fmtAmount, verdictTone, healthLabel, type Rec } from "@/lib/engine/helpers";
+import { aiLabel, fmtAmount, type Rec } from "@/lib/engine/helpers";
 import DealDrawer from "@/components/deals/DealDrawer";
 import { ScoreCell } from "@/components/deals/DealScores";
 import { Monogram } from "@/components/ui/Monogram";
@@ -120,7 +120,7 @@ export default function DealsPage() {
               {LEAD_COLS.map(([k, label]) => (
                 <th key={k} onClick={() => sortBy(k)}>{label}{arrow(k)}</th>
               ))}
-              <th>Verdict</th><th>AIS</th>
+              <th>AIS</th>
               {canSeeScores && SCORE_COLS.map(([k, label, tip]) => (
                 <Tooltip key={k} delayDuration={0}>
                   <TooltipTrigger asChild>
@@ -142,7 +142,6 @@ export default function DealsPage() {
           <tbody>
             {pageRows.map((r) => {
               const h = r.hard || {}, ai = r.ai || {};
-              const verdict = ai.north_star_verdict && ai.north_star_verdict.verdict;
               const cell = ([k, , numeric]: [string, string, number]) => {
                 let v: any = h[k];
                 if (k === "amount") v = fmtAmount(v);
@@ -174,7 +173,6 @@ export default function DealsPage() {
                     </button>
                   </td>
                   {LEAD_COLS.map(cell)}
-                  <td>{verdict ? <span className={`chip ${verdictTone(verdict)}`}>{healthLabel(verdict)}</span> : ""}</td>
                   <td>{aiLabel(h, ai.ai_fit_signal)}</td>
                   {canSeeScores && SCORE_COLS.map(([k]) => (
                     <td key={k} className="num scorecell"><ScoreCell ds={ai.deal_scores} k={k} /></td>

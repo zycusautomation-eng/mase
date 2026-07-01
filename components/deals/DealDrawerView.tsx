@@ -163,6 +163,32 @@ const CSS = `
 .ddw .pill.aes-hungry{background:#cdeede;color:#0f7a52;border-color:transparent}
 .ddw .pill.aes-curious{background:#eef9f2;color:#46916b;border-color:transparent}
 .ddw .pill.aes-resist{background:var(--red-bg);color:var(--red-ink);border-color:transparent}
+.ddw .foldmeta{font-size:12px;color:var(--ink-mute);margin:0 0 12px;display:flex;flex-wrap:wrap;gap:7px;align-items:baseline}
+.ddw .foldmeta b{color:var(--ink);font-weight:700}
+.ddw .scorestrip{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.ddw .scell{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:13px 16px;box-shadow:var(--shadow-sm)}
+.ddw .sk{font-size:10.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-faint);font-family:var(--mono)}
+.ddw .sv{font-size:30px;font-weight:800;letter-spacing:-1px;margin-top:7px;line-height:1;color:var(--ink)}
+.ddw .sv.b-g{color:var(--pos)} .ddw .sv.b-a{color:var(--over)} .ddw .sv.b-r{color:var(--crit)} .ddw .sv.b-n{color:var(--ink-mute)}
+.ddw .sv .strend{font-size:12px;font-weight:700;color:var(--ink-faint);letter-spacing:0}
+.ddw .sv.aistier{font-size:18px;letter-spacing:-.2px;padding-top:8px}
+.ddw .sv.ais-hungry{color:#0f7a52} .ddw .sv.ais-curious{color:#46916b} .ddw .sv.ais-resist{color:var(--crit)} .ddw .sv.ais-none{color:var(--ink-mute)}
+.ddw .sm{font-size:11.5px;color:var(--ink-faint);font-weight:600;margin-top:7px}
+.ddw .whatmatters{padding:16px 18px;margin-bottom:14px}
+.ddw .wm-h{font-size:13px;font-weight:800;color:var(--ink);margin-bottom:11px}
+.ddw .wm-row{display:flex;gap:11px;padding:8px 0;border-top:1px solid var(--line-soft)}
+.ddw .wm-row:first-of-type{border-top:none;padding-top:0}
+.ddw .wm-lens{flex:0 0 118px;font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;font-family:var(--mono);padding-top:2px;line-height:1.4}
+.ddw .wm-lens.t-pos{color:var(--pos)} .ddw .wm-lens.t-warn{color:var(--over)} .ddw .wm-lens.t-neu{color:var(--ink-mute)} .ddw .wm-lens.t-crit{color:var(--crit)}
+.ddw .wm-text{flex:1;font-size:12.5px;color:var(--ink-soft);line-height:1.55}
+.ddw .donow{background:var(--indigo-soft);border:1px solid #dcdcfb;border-radius:var(--radius);padding:15px 18px;margin-bottom:14px}
+.ddw .donow-h{display:flex;align-items:center;font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--indigo);font-family:var(--mono);margin-bottom:8px}
+.ddw .donow-ic{margin-right:5px;font-size:13px}
+.ddw .donow-ai{margin-left:auto;border:none;background:transparent;color:var(--indigo);font-weight:800;font-size:11px;letter-spacing:.3px;cursor:pointer;text-transform:none;font-family:inherit}
+.ddw .donow-text{font-size:13.5px;color:var(--ink);line-height:1.5;font-weight:600}
+.ddw .donow-foot{font-size:11.5px;color:var(--ink-soft);margin-top:10px;border-top:1px solid #e0e0f7;padding-top:9px}
+.ddw .donow-foot b{color:var(--ink);font-weight:700}
+.ddw .scopechip{display:inline-block;font-size:10.5px;font-weight:700;color:var(--ink-mute);background:var(--neu-bg);border-radius:6px;padding:2px 8px;margin-right:6px;letter-spacing:.2px}
 .ddw .comp{padding:12px 0;border-top:1px solid var(--line-soft);display:flex;gap:14px;align-items:flex-start}
 .ddw .comp .lead{width:120px;flex:none}
 .ddw .comp .nm{font-size:13px;font-weight:800;color:var(--ink)}
@@ -364,6 +390,67 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
 
   const dealForAi = { oid: rec.opp_id, accountName: h.account_name || rec.opp_id, oppName: h.opp_name, ownerName: h.owner_name };
 
+  // ===== Hybrid fold (v1) — all derived from already-swept fields =====
+  const ds = (ai.deal_scores || {}).headline || {};
+  const fmtScore = (v: any) => (v == null || isNaN(Number(v)) ? "—" : Math.round(Number(v)));
+  const scoreBand = (v: any) => (v == null || isNaN(Number(v)) ? "n" : Number(v) >= 70 ? "g" : Number(v) >= 45 ? "a" : "r");
+  const aisTierRaw = String((ai.ai_fit_signal || {}).tier || "").trim();
+  const aisKey = /hungry/i.test(aisTierRaw) ? "hungry" : /resist|cold|low/i.test(aisTierRaw) ? "resist" : aisTierRaw ? "curious" : "none";
+
+  // "What matters" — first 4 lenses with content (competition / EB / champion / value / motion).
+  const eb = stake.find((s: any) => /economic buyer|^eb$/i.test(String(s.role || ""))) || null;
+  const lastMove = ((ai.deal_movement || {}).items || []).slice(-1)[0];
+  const bc = ai.business_case || {};
+  // CRO-clean: drop tactical "CRM / Salesforce / field / this sweep / Avoma" sentences.
+  const cro = (s: string) => {
+    const tactical = /(\bcrm\b|salesforce|\bfield\b|this sweep|\bsweep\b|per avoma|\bavoma\b|next[- ]step|ais field|no ais)/i;
+    const parts = String(s || "").match(/[^.!?]+[.!?]*/g) || [String(s || "")];
+    const kept = parts.filter((x) => x.trim() && !tactical.test(x)).join(" ").replace(/\s+/g, " ").trim();
+    return kept || String(s || "");
+  };
+  const sig = (lens: string, text: any, tone = "neu") => ({ lens, text: clipWords(cro(String(text || "")), 30), tone });
+  const champName = String(champ.champion || "");
+  const ebName2 = String((eb || {}).name || "");
+  const sameName = (a: string, b: string) => !!a && !!b && (a.includes(b) || b.includes(a) || a.split(" ")[0].toLowerCase() === b.split(" ")[0].toLowerCase());
+  const topMove = (gates[0] || {}) as any;
+  // Latest motion = the decisive live event (the top move's trigger / verdict math), NOT
+  // Salesforce field churn (amount/stage/forecast moves are visible to everyone).
+  const motionText = topMove.trigger || nsv.math || (lastMove || {}).change || "";
+  // Product scope → grouped module chips (keeps the header uncrowded).
+  const PROD_GROUP: [RegExp, string][] = [
+    [/agentic|\bana\b|autonomous negot/i, "ANA"],
+    [/merlin intake|\bintake\b|irequest/i, "Intake"],
+    [/icontract|\bclm\b|contract/i, "CLM"],
+    [/isupplier|irisk|\bsrm\b|supplier/i, "SRM"],
+    [/isource|sourcing|\bs2c\b/i, "Sourcing"],
+    [/ianaly|spend/i, "Analytics"],
+    [/einvoic/i, "eInvoicing"],
+    [/eproc|procure|\bp2p\b/i, "eProc"],
+    [/merlin/i, "AI"],
+    [/certinal|esign/i, "eSign"],
+  ];
+  const prodGroups: string[] = [];
+  String(((ai.product_scope || {}) as any).scope || "").split(/[;,]/).map((s) => s.trim()).filter(Boolean).forEach((t) => {
+    const m = PROD_GROUP.find(([re]) => re.test(t));
+    const g = m ? m[1] : t;
+    if (g && !prodGroups.includes(g)) prodGroups.push(g);
+  });
+  // Prefer the backend's structured `critical_signals` (CRO-written) when present; else derive.
+  const structured = Array.isArray((ai as any).critical_signals)
+    ? (ai as any).critical_signals.map((c: any) => ({ lens: c.lens || c.label || "Signal", text: clipWords(cro(String(c.text || c.summary || "")), 30), tone: c.tone || "neu" })).filter((c: any) => c.text)
+    : null;
+  const derivedSignals = ([
+    (ai.competitive_position || {}).summary ? sig("Competition", (ai.competitive_position || {}).summary, "warn") : null,
+    eb ? sig("Economic buyer", `${ebName2 || "EB"}${eb.title ? ` (${eb.title})` : ""} — our relationship: ${eb.sentiment || eb.risk || "unmapped"}`, eb.risk ? "warn" : "pos") : null,
+    (champName && !sameName(champName, ebName2)) ? sig("Champion", `${champName} — ${champ.strength || "developing"} relationship${champ.at_risk ? ", at risk" : ""}`, champ.at_risk ? "warn" : "pos") : null,
+    (bc.evidence || bc.status) ? sig("Commercials / value", `Value case ${bc.status || ""}${bc.evidence ? ` — ${bc.evidence}` : ""}`, bc.status === "strong" ? "pos" : "warn") : null,
+    motionText ? sig("Latest motion", motionText, "warn") : null,
+  ].filter(Boolean) as any[]);
+  const signals = (structured && structured.length ? structured : derivedSignals).slice(0, 4);
+  const doNow = (gates[0] || null) as any;
+
+  const isLate = /vendor selected|negotiat|contract|signed|po received|closing/i.test(String(h.stage || ""));
+
   return (
     <div className="ddw">
       <style>{CSS}</style>
@@ -383,77 +470,62 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
           <div>
             <div className="dh-name">
               <span className="t">{h.account_name || rec.opp_id}</span>
-              {verdict !== "—" ? <span className={`pill ${vRisk ? "risk" : "live"}`}><span className="dot" />{verdict}</span> : null}
               {h.stage ? <span className="pill stage">{h.stage}</span> : null}
             </div>
-            <div className="dh-sub">{h.opp_name || ""}{h.owner_name ? ` · Owner ${h.owner_name}` : ""}{lastAct != null ? ` · Last activity ${lastAct}d ago` : ""}</div>
+            <div className="dh-sub">{prodGroups.length ? prodGroups.map((g, i) => <span className="scopechip" key={i}>{g}</span>) : (h.opp_name || "")}</div>
           </div>
         </div>
       </div>
 
       <div className="body">
-        {/* PULSE */}
-        <div className="card pulse">
-          <div className="pulse-grid">
-            <div className="pcell">
-              <div className="pk">Days to close</div>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 7 }}>
-                <span className={`pv ${vRisk ? "big" : ""}`}>{pulse.days_to_close ?? "—"}</span>
-                {h.close_date ? <span className="pmeta" style={{ marginTop: 0 }}>· {fmtDate(h.close_date)}</span> : null}
-              </div>
-              {nsv.trajectory && nsv.trajectory !== "new" ? <div className="pmeta">{nsv.trajectory}</div> : null}
-            </div>
-            <div className="pcell">
-              <div className="pk">Health</div>
-              <div className="pflex"><span className="dot" style={{ background: vRisk ? "var(--crit)" : "var(--pos)" }} /><span className="lbl">{verdict}</span></div>
-            </div>
-            <div className="pcell">
-              <div className="pk">Deal value</div>
-              <div className="pv">{fmtAmount(h.amount)}</div>
-              <div className="pmeta">Forecast · <b style={{ color: nsv.forecast_defensible === false ? "var(--over)" : "var(--ink)" }}>{nsv.recommended_forecast || h.forecast_category || "—"}</b></div>
-            </div>
-            <div className="pcell">
-              <div className="pk">Main blocker</div>
-              <div className="pflex"><span className="lbl crit">{blockerLabel}</span></div>
-              <div className="pmeta">{pulse.state ? cap(pulse.state) : ""}{pulse.days_since_activity != null ? ` · ${pulse.days_since_activity}d since activity` : ""}</div>
-            </div>
+        {/* META LINE — value · close · ONE honest recency number (fixes the -26d/1d bug) */}
+        <div className="foldmeta">
+          <span><b>{fmtAmount(h.amount)}</b></span>
+          {h.owner_name ? <span>· {h.owner_name}</span> : null}
+          {h.close_date ? <span>· closes {fmtDate(h.close_date)}{pulse.days_to_close != null ? ` · ${pulse.days_to_close}d to close` : ""}</span> : null}
+          {lastAct != null ? <span>· last activity {Math.abs(lastAct)}d ago</span> : null}
+          <span>· Forecast <b style={{ color: nsv.forecast_defensible === false ? "var(--over)" : "var(--ink)" }}>{nsv.recommended_forecast || h.forecast_category || "—"}</b>{nsv.forecast_defensible === false ? " · not yet earned" : ""}</span>
+        </div>
+
+        {/* SCORE STRIP — the two engine scores + AI excitement */}
+        <div className="scorestrip">
+          <div className="scell">
+            <div className="sk">Zycus win position</div>
+            <div className={`sv b-${canSeeScores ? scoreBand(ds.win_position) : "n"}`}>{canSeeScores ? fmtScore(ds.win_position) : "—"}</div>
+            <div className="sm">can we win it</div>
+          </div>
+          <div className="scell">
+            <div className="sk">Deal momentum</div>
+            <div className={`sv b-${canSeeScores ? scoreBand(ds.deal_momentum) : "n"}`}>{canSeeScores ? fmtScore(ds.deal_momentum) : "—"}{canSeeScores && nsv.trajectory && nsv.trajectory !== "new" ? <span className="strend"> {nsv.trajectory}</span> : null}</div>
+            <div className="sm">is it moving</div>
+          </div>
+          <div className="scell">
+            <div className="sk">AI excitement</div>
+            <div className={`sv aistier ais-${aisKey}`}>{aisTierRaw || "—"}</div>
+            <div className="sm">AI appetite</div>
           </div>
         </div>
 
-        {/* AI SUMMARY HERO */}
-        <div className="card ai-hero">
-          <div className="ai-head">
-            <span className="ai-mark">✦</span>
-            <span className="ai-title">AI Summary</span>
-            {verdict !== "—" ? <span className={`pill ${vRisk ? "risk" : "live"}`}><span className="dot" />{verdict}</span> : null}
-            {nsv.risk_tag && String(nsv.risk_tag).toLowerCase() !== "none" ? <span className="pill risk"><span className="dot" />{nsv.risk_tag}</span> : null}
-            {pulse.state ? <span className="pill live">{cap(pulse.state)}{lastAct != null ? ` · updated ${lastAct}d ago` : ""}</span> : null}
-          </div>
-          {nsv.headline ? <div className="ai-lede">{clipWordsClean(nsv.headline, 40)}</div> : null}
-          {(champ.summary || (ai.confidence_signals || {}).summary) ? (
-            <div className="ai-body">
-              {clipWords(champ.summary || (ai.confidence_signals || {}).summary, 28)}
-            </div>
-          ) : null}
-        </div>
-
-        {/* THE PLAY */}
-        {gates.length ? (
-          <div className="play">
-            <div className="play-top">
-              <div>
-                <div className="play-eyebrow">The play · how to win this deal</div>
-                <div className="play-title">Top {gates.length} {gates.length === 1 ? "play" : "plays"} right now</div>
+        {/* WHAT MATTERS — top signals across the lenses */}
+        {signals.length ? (
+          <div className="card whatmatters">
+            <div className="wm-h">⚠ What matters on this deal</div>
+            {signals.map((s: any, i: number) => (
+              <div className="wm-row" key={i}>
+                <span className={`wm-lens t-${s.tone}`}>{s.lens}</span>
+                <span className="wm-text">{s.text}</span>
               </div>
-              <button className="play-cta" onClick={() => openNewDeal(dealForAi)}>Work this with AI →</button>
-            </div>
-            <div className="gates">
-              {gates.map((m: any, i: number) => (
-                <PlayGate m={m} i={i} key={i} />
-              ))}
-            </div>
-            {spof ? <div className="spof"><span>⚠</span><div><b>Single point of failure.</b> {clipWords(spof, 16)}</div></div>
-              : ebName ? <div className="ebok"><span>✓</span><div><b>Economic buyer:</b> {ebName} <span className="ebsrc">· confirmed in MEDDPICC</span></div></div> : null}
+            ))}
+          </div>
+        ) : null}
+
+        {/* DO NOW — the single highest-leverage next move (path-to-win detail lives in the Action tab) */}
+        {doNow ? (
+          <div className="donow">
+            <div className="donow-h"><span className="donow-ic">▷</span> Do now{doNow.act_by ? ` · by ${fmtDate(doNow.act_by)}` : ""}<button className="donow-ai" onClick={() => openNewDeal(dealForAi)}>Work this with AI →</button></div>
+            <div className="donow-text">{clipWords(String(doNow.action || ""), 34)}</div>
+            {spof ? <div className="donow-foot"><b>⚠ Single point of failure.</b> {clipWords(spof, 16)}</div>
+              : ebName ? <div className="donow-foot"><b>✓ Economic buyer:</b> {ebName} · confirmed in MEDDPICC</div> : null}
           </div>
         ) : null}
 

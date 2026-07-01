@@ -6,6 +6,32 @@
 
 ---
 
+## 2026-06-30 — Deal-drawer fold redesign, verdict removed, filter ribbon collapsed
+
+**What.**
+- **New deal-drawer fold (`DealDrawerView.tsx`).** Replaced the 4 generic pulse tiles + AI-summary
+  hero with a decision-first fold: a slim meta line (value · owner · close · one honest recency
+  number — fixes the old `-27d` bug), a **3-score strip** (Zycus Win · Deal Momentum · AIS, band-
+  coloured), a **"What matters"** block (top 4 CRO-cleaned lenses — competition/EB/champion/
+  commercials/latest-motion, derived from swept fields; reads `ai.critical_signals` when the backend
+  ships it), and a single **Do now**. Header sub-line now shows **grouped product chips** (CLM ·
+  SRM · Intake · ANA…) instead of the raw product list. Latest-motion uses the decisive event (top
+  move's trigger), never Salesforce field churn.
+- **Verdict removed from the UI** — the drawer header chip, the deals-table **Verdict column**, and
+  the **"All Verdict" filter** (facet + ranking code + unused imports cleaned).
+- **Filter ribbon redesign (`ScopeFilterBar.tsx`, `dashboard.css`).** Progressive disclosure: scope
+  (VP/RSD) + Favourites + **Forecast** + **Close Quarter** stay pinned; the other 6 facets collapse
+  into one **Filters** popover (2-col grid) with a **count badge**, **active-filter chips** (only
+  applied facets take space, each removable), and **Clear all**. Ribbon went 11 controls → 6.
+
+**Why.** The fold was a status readout, not a decision surface; verdict was a duplicated label we
+retired; the filter bar had sprawled to 11 always-on controls. Pattern borrowed from Linear/Attio/
+Airtable (single filter entry point + active chips).
+
+**Note.** All "What matters" content derives from existing swept fields today (best-effort); the
+durable source is a backend `ai.critical_signals` structured field (spec pending) which the fold
+already reads when present.
+
 ## 2026-06-30 — AI Excitement Score (AES) card: MASE-only, tier colours, CRO copy
 
 **What.** Reworked the AES card in `DealDrawerView.tsx` (Intel tab) and the parallel block in
