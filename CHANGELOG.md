@@ -6,6 +6,24 @@
 
 ---
 
+## 2026-07-02 — Teams Bot control room (admin)
+
+**What.** New admin-only page **`/teams`** ("Teams Bot" in the sidebar) to run the MASE
+Teams bot: manage the **access allowlist** (add/enable/remove users), toggle
+**Enforce allowlist** and **Read group history**, and watch a **recent activity** feed.
+
+**Contract.** Talks to the backend's `/api/teams/*` endpoints through a new server-side
+proxy **`app/api/teams/[[...path]]/route.ts`** (mirrors the deal-engine proxy: injects the
+shared `DEAL_ENGINE_TOKEN`, forwards to `${DEAL_ENGINE_API_BASE}/api/teams/*`). The whole
+control room is **admin-only**, enforced in the proxy via `callerIsAdmin()` (the backend
+trusts the shared token, so the proxy is the real gate). Page gates on `isAdminView`.
+
+**Backend.** Endpoints + tables (`teams_bot_allowlist/activity/settings`) shipped in the
+backend repo; `enforce_allowlist` defaults OFF. "Read group history" is wired but inert
+until the metered Teams Graph API is enabled by IT.
+
+---
+
 ## 2026-07-01 — Deal drawer: to-do → Salesforce confirm modal trapped inside the drawer
 
 **What.** In the deal **drawer**, clicking a to-do's ☁ Salesforce button opened the "Log this

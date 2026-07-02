@@ -12,7 +12,7 @@ import { useDashboard } from "@/lib/engine/DashboardContext";
 import AuthButton from "@/components/AuthButton";
 import {
   Handshake, Coffee, Leaf, MessageSquare, RefreshCw, ListChecks,
-  GraduationCap, Bot, type LucideIcon,
+  GraduationCap, Bot, Users, type LucideIcon,
 } from "lucide-react";
 
 // Same routes as the old header TABS. `adminOnly` mirrors the header's
@@ -25,6 +25,7 @@ const NAV: { href: string; label: string; icon: LucideIcon; adminOnly?: boolean 
   { href: "/sync-quality", label: "Sync Quality", icon: RefreshCw, adminOnly: true },
   { href: "/runs", label: "Runs", icon: ListChecks, adminOnly: true },
   { href: "/learnings", label: "Learning", icon: GraduationCap, adminOnly: true },
+  { href: "/teams", label: "Teams Bot", icon: Users, adminOnly: true },
   { href: "/admin", label: "Admin", icon: Bot, adminOnly: true },
 ];
 
