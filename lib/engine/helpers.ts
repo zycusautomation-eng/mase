@@ -135,6 +135,23 @@ export function aiTier(h: Hard, fit?: any): string | null {
 }
 export function aiLabel(h: Hard, fit?: any): string { const t = aiTier(h, fit); return t ? "AI " + t : "Not scored"; }
 
+// CEO-intervention area codes → human labels (mirrors the backend workflow_v1 shape).
+export const CEO_AREA_LABELS: Record<string, string> = {
+  pricing: "Pricing",
+  product: "Product/roadmap",
+  presales_resources: "Pre-sales/resources",
+  exec_connect: "Exec connect",
+};
+export function ceoAreaLabel(a: string): string { return CEO_AREA_LABELS[a] || a; }
+
+// One filter label per deal (mirrors aiLabel): "CEO help needed" when the workflow
+// flagged it, "No CEO help" when evaluated-but-clear, "" when never evaluated (blank —
+// excluded from both filter buckets).
+export function ceoFilterLabel(ci?: any): string {
+  if (!ci || typeof ci !== "object") return "";
+  return ci.needed ? "CEO help needed" : "No CEO help";
+}
+
 // Four deal-health tones. ORDER MATTERS: "Close Date Risk" contains "risk", so
 // it must be caught BEFORE the legacy "risk" check.
 //   v-on   = On Track        -> green

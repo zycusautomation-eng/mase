@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
 import { trackAppOpenOnce } from "@/lib/tracking/client";
-import { aiLabel, applyStageFix, fyq, healthLabel, inScope, keepRecord, resolveAccess, scoreBand, sizeBand, type Rec } from "./helpers";
+import { aiLabel, applyStageFix, ceoFilterLabel, fyq, healthLabel, inScope, keepRecord, resolveAccess, scoreBand, sizeBand, type Rec } from "./helpers";
 import { createClient } from "@/lib/supabase/client";
 
 // Each filter is a multi-select: an empty array means "all".
@@ -12,6 +12,7 @@ export interface DealFilters {
   country: string[];
   size: string[];
   ai: string[];
+  ceo: string[];
   verdict: string[];
   close: string[];
   win: string[];
@@ -21,7 +22,7 @@ export interface DealFilters {
   fc: string[];
 }
 const EMPTY_FILTERS: DealFilters = {
-  forecast: [], stage: [], country: [], size: [], ai: [], verdict: [], close: [],
+  forecast: [], stage: [], country: [], size: [], ai: [], ceo: [], verdict: [], close: [],
   win: [], momentum: [], commitment: [], risk: [], fc: [],
 };
 
@@ -307,6 +308,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       if (filters.country.length && !filters.country.includes(h.billing_country)) return false;
       if (filters.size.length && !filters.size.includes(sizeBand(h.amount))) return false;
       if (filters.ai.length && !filters.ai.includes(aiLabel(h, (r.ai || {}).ai_fit_signal))) return false;
+      if (filters.ceo.length && !filters.ceo.includes(ceoFilterLabel((r.ai || {}).ceo_intervention))) return false;
       if (filters.verdict.length && !filters.verdict.includes(healthLabel(((r.ai || {}).north_star_verdict || {}).verdict))) return false;
       // Deal-score band filters (read from ai.deal_scores.headline)
       const ds = ((r.ai || {}).deal_scores || {}).headline || {};

@@ -51,8 +51,24 @@ export interface RecommendedMove {
   expected_effect?: string;
 }
 
+// CEO-intervention gate (backend workflow_v1) — present on forecasted deals; absent
+// deals are "not evaluated" and render blank. Mirrors deal.ai.ceo_intervention.
+export type CeoInterventionArea = "pricing" | "product" | "presales_resources" | "exec_connect";
+export interface CeoIntervention {
+  needed: boolean;
+  priority?: "high" | "medium";        // only when needed=true
+  areas?: CeoInterventionArea[];
+  reason?: string;                     // one-line why
+  ceo_action?: string;                 // the concrete CEO action
+  win?: number;
+  mom?: number;
+  source?: string;                     // e.g. "workflow_v1"
+  generated_at?: string;               // e.g. "2026-07-02"
+}
+
 export interface AiAnalysis {
   north_star_verdict?: NorthStarVerdict;
+  ceo_intervention?: CeoIntervention;
   recommended_moves?: { items?: RecommendedMove[] };
   open_deliverables?: { items?: Array<{ who?: string; commitment?: string; due?: string; status?: string }> };
   explicit_requirements?: { items?: Array<{ requirement?: string; said_by?: string; date?: string; addressed?: boolean }> };

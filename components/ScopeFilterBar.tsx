@@ -11,6 +11,7 @@ const SIZE_OPTS: Opt[] = [
   { value: "gt1m", label: "> $1M" },
 ];
 const AI_OPTS: Opt[] = ["AI Hungry", "AI Curious", "AI Resistant"].map((v) => ({ value: v, label: v }));
+const CEO_OPTS: Opt[] = ["CEO help needed", "No CEO help"].map((v) => ({ value: v, label: v }));
 const stageRank = (s: string) => { const i = STAGE_ORDER.indexOf(s); return i < 0 ? 999 : i; };
 
 export default function ScopeFilterBar() {
@@ -59,6 +60,7 @@ export default function ScopeFilterBar() {
     { key: "country", label: "Country", opts: co },
     { key: "size", label: "Deal size", opts: SIZE_OPTS },
     { key: "ai", label: "AI excitement", opts: AI_OPTS },
+    { key: "ceo", label: "CEO help", opts: CEO_OPTS },
     ...(canSeeScores ? ([
       { key: "win", label: "Win position", opts: winOpts },
       { key: "momentum", label: "Deal momentum", opts: momOpts },
