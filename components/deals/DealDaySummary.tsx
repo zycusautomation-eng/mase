@@ -2,8 +2,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // "24h Summary" drawer tab. Reads the deal_daily_summaries table directly via the
 // browser Supabase client (anon SELECT, same deal DB as deal_records) — no backend
-// endpoint required. Renders inside the .ddw scope, so it reuses the drawer's
-// card / ic-title / ai-hero / pill styles; summary-specific bits are inline-styled.
+// endpoint required. Renders inside the .ddw scope and is built entirely from the
+// drawer's shared design language (card / ic-title / ai-hero + the .sum-* row/badge
+// classes defined in DealDrawerView), so the tab reads identically to the rest of
+// the drawer — no bespoke inline styling.
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -18,18 +20,18 @@ function fmt(iso?: string | null): string {
   } catch { return String(iso); }
 }
 const KIND_ICON: Record<string, string> = { email: "✉", call: "📞", meeting: "📅", task: "✓" };
+// Activity kinds we have a themed badge for; anything else falls back to the neutral badge.
+const KNOWN_KINDS = new Set(["email", "call", "meeting", "task"]);
+const kindClass = (k: any) => (KNOWN_KINDS.has(String(k)) ? String(k) : "neu");
 
-function Chip({ n, label, tone = "neu" }: { n: number; label: string; tone?: string }) {
-  if (!n) return null;
-  const tones: Record<string, [string, string]> = {
-    email: ["#e4f1fb", "#2b8fd6"], call: ["#e7f6ec", "#1f9d57"],
-    meeting: ["#eceafe", "#6b5bf0"], sched: ["#f4f4fa", "#7c8198"],
-    move: ["#fbf0df", "#b26a12"], ns: ["#fdebef", "#d23b54"], neu: ["#eef0f6", "#6b6f86"],
-  };
-  const [bg, fg] = tones[tone] || tones.neu;
+// A count "stat" tag — same tinted-badge language as the drawer's pills/flags.
+// Omit the count (n) for boolean facts like "next step updated".
+function Stat({ n, label, tone = "neu", plural = true }: { n?: number; label: string; tone?: string; plural?: boolean }) {
+  if (n != null && !n) return null;
   return (
-    <span className="pill" style={{ background: bg, color: fg }}>
-      {n} {label}{n !== 1 ? "s" : ""}
+    <span className={`sum-stat k-${tone}`}>
+      <span className="dot" />
+      {n != null ? `${n} ` : ""}{label}{plural && n != null && n !== 1 ? "s" : ""}
     </span>
   );
 }
@@ -74,16 +76,12 @@ export function DealDaySummary({ oppId }: { oppId: string }) {
   return (
     <>
       {/* headline narrative */}
-      <div className="ai-hero" style={{ marginBottom: 14 }}>
+      <div className="ai-hero mb14">
         <div className="spine" />
         <div className="ai-head">
           <div className="ai-mark">🕐</div>
           <div className="ai-title">What happened in the last 24 hours</div>
-          <span className="pill" style={{
-            marginLeft: "auto",
-            background: isClaude ? "#eceafe" : "#eef0f6",
-            color: isClaude ? "#6b5bf0" : "#6b6f86",
-          }}>{isClaude ? "AI summary" : "auto"}</span>
+          <span className={`sum-tag ${isClaude ? "t-ai" : ""}`} style={{ marginLeft: "auto" }}>{isClaude ? "AI summary" : "Auto"}</span>
         </div>
         <div className="ai-lede" style={{ whiteSpace: "pre-wrap" }}>{r.summary}</div>
         <div className="ai-body">
@@ -94,29 +92,32 @@ export function DealDaySummary({ oppId }: { oppId: string }) {
 
       {/* counts */}
       {r.has_activity ? (
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
-          <Chip n={c.emails} label="email" tone="email" />
-          <Chip n={c.calls} label="call" tone="call" />
-          <Chip n={c.meetings} label="meeting" tone="meeting" />
-          {c.meetings_scheduled ? <span className="pill" style={{ background: "#f4f4fa", color: "#7c8198" }}>{c.meetings_scheduled} scheduled</span> : null}
-          <Chip n={c.tasks} label="task" tone="neu" />
-          <Chip n={c.movements} label="movement" tone="move" />
-          {c.next_step_changed ? <span className="pill" style={{ background: "#fdebef", color: "#d23b54" }}>next step updated</span> : null}
+        <div className="sum-counts">
+          <Stat n={c.emails} label="email" tone="email" />
+          <Stat n={c.calls} label="call" tone="call" />
+          <Stat n={c.meetings} label="meeting" tone="meeting" />
+          <Stat n={c.meetings_scheduled} label="scheduled" tone="sched" plural={false} />
+          <Stat n={c.tasks} label="task" tone="task" />
+          <Stat n={c.movements} label="movement" tone="move" />
+          {c.next_step_changed ? <Stat label="next step updated" tone="ns" /> : null}
         </div>
       ) : null}
 
       {/* movements */}
       {moves.length ? (
         <div className="card card-pad mb14">
-          <div className="ic-title" style={{ marginBottom: 10 }}>Movements</div>
+          <div className="ic-title" style={{ marginBottom: 4 }}>Movements</div>
           {moves.map((m: any, i: number) => (
-            <div key={i} style={{ padding: "8px 0", borderTop: i ? "1px solid var(--line-soft)" : "none", fontSize: 13 }}>
-              <b style={{ color: "var(--ink)" }}>{m.label}</b>{" "}
-              <span style={{ color: "var(--ink-soft)" }}>{m.old || "—"}</span>
-              <span style={{ color: "var(--ink-faint)" }}> → </span>
-              <b style={{ color: "var(--ink)" }}>{m.new || "—"}</b>
-              <div style={{ fontSize: 11, color: "var(--ink-faint)", marginTop: 3 }}>
-                {m.by ? `${m.by} · ` : ""}{fmt(m.at)}
+            <div className="sum-row" key={i}>
+              <div className="sum-ic k-move">⇅</div>
+              <div className="sum-main">
+                <div className="sum-t"><b>{m.label}</b></div>
+                <div className="sum-move">
+                  <span className="from">{m.old || "—"}</span>
+                  <span className="arrow">→</span>
+                  <span className="to">{m.new || "—"}</span>
+                </div>
+                <div className="sum-meta">{m.by ? `${m.by} · ` : ""}{fmt(m.at)}</div>
               </div>
             </div>
           ))}
@@ -134,16 +135,16 @@ export function DealDaySummary({ oppId }: { oppId: string }) {
       {/* activity list */}
       {acts.length ? (
         <div className="card card-pad mb14">
-          <div className="ic-title" style={{ marginBottom: 8 }}>Activity ({acts.length})</div>
+          <div className="ic-title" style={{ marginBottom: 4 }}>Activity ({acts.length})</div>
           {acts.map((a: any, i: number) => (
-            <div key={i} style={{ display: "flex", gap: 11, padding: "9px 0", borderTop: i ? "1px solid var(--line-soft)" : "none" }}>
-              <span style={{ fontSize: 14, width: 18, textAlign: "center", flex: "none" }}>{KIND_ICON[a.kind] || "•"}</span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, color: "var(--ink)", lineHeight: 1.4 }}>
+            <div className="sum-row" key={i}>
+              <div className={`sum-ic k-${kindClass(a.kind)}`}>{KIND_ICON[a.kind] || "•"}</div>
+              <div className="sum-main">
+                <div className="sum-t">
                   {a.subject || "(no subject)"}
-                  {a.upcoming ? <span className="pill" style={{ marginLeft: 7, background: "#f4f4fa", color: "#7c8198" }}>upcoming</span> : null}
+                  {a.upcoming ? <span className="sum-tag">Upcoming</span> : null}
                 </div>
-                <div style={{ fontSize: 11, color: "var(--ink-faint)", marginTop: 3 }}>
+                <div className="sum-meta">
                   {a.kind}{a.direction ? ` · ${a.direction === "in" ? "inbound" : "outbound"}` : ""} · {fmt(a.at)}{a.owner ? ` · ${a.owner}` : ""}
                 </div>
               </div>
@@ -155,13 +156,17 @@ export function DealDaySummary({ oppId }: { oppId: string }) {
       {/* avoma calls */}
       {avoma.length ? (
         <div className="card card-pad mb14">
-          <div className="ic-title" style={{ marginBottom: 8 }}>Avoma calls</div>
+          <div className="ic-title" style={{ marginBottom: 4 }}>Avoma calls</div>
           {avoma.map((m: any, i: number) => (
-            <div key={i} style={{ padding: "7px 0", borderTop: i ? "1px solid var(--line-soft)" : "none", fontSize: 13, color: "var(--ink)" }}>
-              📞 {m.subject || "(untitled call)"}
-              <span style={{ fontSize: 11, color: "var(--ink-faint)", marginLeft: 8 }}>
-                {fmt(m.start_at)}{m.transcript_ready ? " · transcript ready" : ""}
-              </span>
+            <div className="sum-row" key={i}>
+              <div className="sum-ic k-call">📞</div>
+              <div className="sum-main">
+                <div className="sum-t">
+                  {m.subject || "(untitled call)"}
+                  {m.transcript_ready ? <span className="sum-tag t-pos">Transcript</span> : null}
+                </div>
+                <div className="sum-meta">{fmt(m.start_at)}</div>
+              </div>
             </div>
           ))}
         </div>
