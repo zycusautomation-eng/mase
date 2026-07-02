@@ -11,7 +11,6 @@ const SIZE_OPTS: Opt[] = [
   { value: "gt1m", label: "> $1M" },
 ];
 const AI_OPTS: Opt[] = ["AI Hungry", "AI Curious", "AI Resistant"].map((v) => ({ value: v, label: v }));
-const CEO_OPTS: Opt[] = ["CEO help needed", "No CEO help"].map((v) => ({ value: v, label: v }));
 const stageRank = (s: string) => { const i = STAGE_ORDER.indexOf(s); return i < 0 ? 999 : i; };
 
 export default function ScopeFilterBar() {
@@ -52,6 +51,7 @@ export default function ScopeFilterBar() {
   const winOpts = toOpt(SCORE_BANDS.win_position);
   const momOpts = toOpt(SCORE_BANDS.deal_momentum);
 
+  const ceoOn = ((filters.ceo || []) as string[]).includes("CEO help needed");
   const dirty = Object.values(filters).some((v) => v.length > 0) || favsOnly;
 
   // All refinement facets live behind one "Filters" popover; applied ones show as chips.
@@ -60,7 +60,6 @@ export default function ScopeFilterBar() {
     { key: "country", label: "Country", opts: co },
     { key: "size", label: "Deal size", opts: SIZE_OPTS },
     { key: "ai", label: "AI excitement", opts: AI_OPTS },
-    { key: "ceo", label: "CEO help", opts: CEO_OPTS },
     ...(canSeeScores ? ([
       { key: "win", label: "Win position", opts: winOpts },
       { key: "momentum", label: "Deal momentum", opts: momOpts },
@@ -114,6 +113,25 @@ export default function ScopeFilterBar() {
       >
         <span style={{ color: "#f0b400", fontSize: 14, lineHeight: 1 }}>{favsOnly ? "★" : "☆"}</span>
         Favourites{favs.size ? ` (${favs.size})` : ""}
+      </button>
+
+      {/* CEO help — quick toggle beside Favourites: filters the book to deals that
+          need CEO intervention (win>60 AND momentum>60). Not buried in the Filters popover. */}
+      <button
+        type="button"
+        onClick={() => setFilter("ceo", ceoOn ? [] : ["CEO help needed"])}
+        title={ceoOn ? "Showing only deals needing CEO help — click to show all" : "Show only deals needing CEO help"}
+        style={{
+          display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 11px",
+          borderRadius: 8, border: "1px solid", cursor: "pointer", fontWeight: 600, fontSize: 12,
+          whiteSpace: "nowrap",
+          borderColor: ceoOn ? "#e0443e" : "var(--line, #e2e2ea)",
+          background: ceoOn ? "#fdecea" : "transparent",
+          color: ceoOn ? "#a12622" : "inherit",
+        }}
+      >
+        <span style={{ fontSize: 13, lineHeight: 1 }}>👔</span>
+        CEO help
       </button>
 
       <span className="fdivider" />

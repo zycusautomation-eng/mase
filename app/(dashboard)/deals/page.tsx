@@ -123,7 +123,6 @@ export default function DealsPage() {
                 <th key={k} onClick={() => sortBy(k)}>{label}{arrow(k)}</th>
               ))}
               <th>AIS</th>
-              <th>CEO help</th>
               {canSeeScores && SCORE_COLS.map(([k, label, tip]) => (
                 <Tooltip key={k} delayDuration={0}>
                   <TooltipTrigger asChild>
@@ -177,25 +176,6 @@ export default function DealsPage() {
                   </td>
                   {LEAD_COLS.map(cell)}
                   <td>{aiLabel(h, ai.ai_fit_signal)}</td>
-                  <td>{(() => {
-                    const ci: any = ai.ceo_intervention;
-                    if (!ci || typeof ci !== "object") return null;         // not evaluated → blank
-                    if (!ci.needed) return <span className="ceo-none">—</span>;
-                    const pr = ci.priority === "high" ? "high" : "medium";
-                    const areas = (ci.areas || []).map((a: string) => ceoAreaLabel(a));
-                    return (
-                      <Tooltip delayDuration={0}>
-                        <TooltipTrigger asChild>
-                          <span className={`ceo-chip ceo-${pr}`}>CEO help{ci.priority ? ` · ${ci.priority}` : ""}</span>
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-xs duration-100">
-                          {areas.length ? <div><b>Areas:</b> {areas.join(", ")}</div> : null}
-                          {ci.reason ? <div style={{ marginTop: areas.length ? 4 : 0 }}>{ci.reason}</div> : null}
-                          {ci.ceo_action ? <div style={{ marginTop: 4 }}><b>CEO action:</b> {ci.ceo_action}</div> : null}
-                        </TooltipContent>
-                      </Tooltip>
-                    );
-                  })()}</td>
                   {canSeeScores && SCORE_COLS.map(([k]) => (
                     <td key={k} className="num scorecell"><ScoreCell ds={ai.deal_scores} k={k} /></td>
                   ))}
