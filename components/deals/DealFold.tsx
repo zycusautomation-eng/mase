@@ -1,11 +1,21 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// Shared "decision-first" fold for a deal — the top-of-page/drawer block that answers
-// can-we-win / is-it-moving / what-matters / do-now. Rendered by BOTH the slide-in
-// DealDrawerView and the full-page DealDetailView so they can never drift.
-// Everything derives from already-swept fields; reads ai.critical_signals when the
-// backend ships that structured field, else derives (best-effort).
-import { fmtAmount, daysSince, clipWords, getEbOverride, ceoAreaLabel, type Rec } from "@/lib/engine/helpers";
+// ============================================================================================
+// ⚠️  DEPRECATED — DO NOT ADD OR CHANGE DEAL-VIEW UI HERE. THIS IS NOT THE DEAL DRAWER.
+// --------------------------------------------------------------------------------------------
+// The deal view users actually see when they open a deal is the slide-in drawer:
+//        →  components/deals/DealDrawerView.tsx   ← THE CURRENT / LIVE COMPONENT. EDIT THAT.
+// That drawer renders its OWN score strip, "What matters", tabs, and every per-deal card
+// (including the CEO-help card). DealFold does NOT power the drawer and never has — despite the
+// old comment that claimed it was "shared". A change was once added to THIS file and never
+// appeared in the UI for exactly that reason. Don't repeat that mistake.
+//
+// DealFold is retained ONLY because the legacy full-page view
+// components/deals/DealDetailView.tsx (route /deals/[id]) still imports it, so deleting it would
+// break that build. If you are adding/altering anything a user sees on a deal, do it in
+// DealDrawerView.tsx — NOT here. Treat this file as frozen.
+// ============================================================================================
+import { fmtAmount, daysSince, clipWords, getEbOverride, type Rec } from "@/lib/engine/helpers";
 
 const CSS = `
 .dfold{--df-good:var(--green-ink,#0f7a52);--df-warn:var(--amber-ink,#8a5a06);--df-bad:var(--red-ink,#c0341d)}
@@ -35,14 +45,6 @@ const CSS = `
 .dfold-donow-text{font-size:13.5px;color:var(--ink,#101828);line-height:1.5;font-weight:600}
 .dfold-donow-foot{font-size:11.5px;color:var(--ink2,#3d4860);margin-top:10px;border-top:1px solid #e0e0f7;padding-top:9px}
 .dfold-donow-foot b{color:var(--ink,#101828);font-weight:700}
-.dfold-ceo{background:var(--amber-bg,#fdf4e3);border:1px solid var(--amber-ink,#d9a441);border-left:3px solid var(--amber-ink,#8a5a06);border-radius:14px;padding:13px 16px;margin-bottom:14px}
-.dfold-ceo-h{display:flex;align-items:center;gap:9px;flex-wrap:wrap;font-size:13.5px;font-weight:800;color:var(--ink,#101828)}
-.dfold-ceo-pr{font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;border-radius:999px;padding:2px 8px}
-.dfold-ceo-pr.pr-high{background:var(--red-bg,#fdecea);color:var(--red-ink,#c0341d)}
-.dfold-ceo-pr.pr-med{background:#f6e6c4;color:var(--amber-ink,#8a5a06)}
-.dfold-ceo-areas{font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--amber-ink,#8a5a06)}
-.dfold-ceo-text{font-size:12.5px;color:var(--ink2,#3d4860);line-height:1.55;margin-top:8px}
-.dfold-ceo-text b{color:var(--ink,#101828);font-weight:700}
 `;
 
 const fmtDate = (s?: string) => { if (!s) return ""; const d = new Date(s); return isNaN(d.getTime()) ? String(s) : d.toLocaleDateString(undefined, { day: "numeric", month: "short" }); };
@@ -123,22 +125,6 @@ export default function DealFold({ rec, canSeeScores = true, onAskAi }: { rec: R
         {lastAct != null ? <span>· last activity {Math.abs(lastAct)}d ago</span> : null}
         <span>· Forecast <b style={{ color: nsv.forecast_defensible === false ? "var(--amber-ink,#8a5a06)" : undefined }}>{nsv.recommended_forecast || h.forecast_category || "—"}</b>{nsv.forecast_defensible === false ? " · not yet earned" : ""}</span>
       </div>
-
-      {ai.ceo_intervention && ai.ceo_intervention.needed ? (
-        <div className="dfold-ceo">
-          <div className="dfold-ceo-h">
-            <span>👔 CEO help needed</span>
-            {ai.ceo_intervention.priority ? (
-              <span className={`dfold-ceo-pr pr-${ai.ceo_intervention.priority === "high" ? "high" : "med"}`}>{ai.ceo_intervention.priority}</span>
-            ) : null}
-            {(ai.ceo_intervention.areas || []).length ? (
-              <span className="dfold-ceo-areas">{(ai.ceo_intervention.areas || []).map((a: string) => ceoAreaLabel(a)).join(" · ")}</span>
-            ) : null}
-          </div>
-          {ai.ceo_intervention.reason ? <div className="dfold-ceo-text">{ai.ceo_intervention.reason}</div> : null}
-          {ai.ceo_intervention.ceo_action ? <div className="dfold-ceo-text"><b>CEO action:</b> {ai.ceo_intervention.ceo_action}</div> : null}
-        </div>
-      ) : null}
 
       <div className="dfold-scores">
         <div className="dfold-scell">

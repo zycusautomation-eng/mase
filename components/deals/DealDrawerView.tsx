@@ -5,7 +5,7 @@
 // keeps the original DealDetailView, so this is drawer-only and reversible.
 // All CSS is scoped under .ddw so it can never collide with the app's global styles.
 import { useMemo, useState } from "react";
-import { fmtAmount, daysSince, healthLabel, verdictTone, clipWords, clipWordsClean, getEbOverride, sfLinkFor, type Rec } from "@/lib/engine/helpers";
+import { fmtAmount, daysSince, healthLabel, verdictTone, clipWords, clipWordsClean, getEbOverride, sfLinkFor, ceoAreaLabel, type Rec } from "@/lib/engine/helpers";
 import { useDealAi } from "@/components/deals/DealAiProvider";
 import { Monogram } from "@/components/ui/Monogram";
 import { useBackendTodos } from "@/lib/engine/useBackendTodos";
@@ -14,6 +14,7 @@ import { useTodoDone } from "@/lib/engine/useTodoDone";
 import { useTodoSync } from "@/lib/engine/useTodoSync";
 import { DealTodoBuckets, bucketsForOpp } from "@/components/deals/DealTodos";
 import { DealReasonsPanel } from "@/components/deals/DealScores";
+import { DealDaySummary } from "@/components/deals/DealDaySummary";
 import { useDashboard } from "@/lib/engine/DashboardContext";
 
 const CSS = `
@@ -165,6 +166,15 @@ const CSS = `
 .ddw .pill.aes-resist{background:var(--red-bg);color:var(--red-ink);border-color:transparent}
 .ddw .foldmeta{font-size:12px;color:var(--ink-mute);margin:0 0 12px;display:flex;flex-wrap:wrap;gap:7px;align-items:baseline}
 .ddw .foldmeta b{color:var(--ink);font-weight:700}
+.ddw .ceo-banner{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:15px 18px;margin-bottom:14px;box-shadow:var(--shadow-sm)}
+.ddw .ceo-banner-h{display:flex;align-items:center;gap:9px;font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--over);font-family:var(--mono);margin-bottom:9px}
+.ddw .ceo-pr{font-size:9.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;padding:2px 8px;border-radius:999px;font-family:var(--mono)}
+.ddw .ceo-pr.pr-high{background:var(--crit-bg);color:var(--crit)}
+.ddw .ceo-pr.pr-med{background:var(--over-bg);color:var(--over)}
+.ddw .ceo-areas{margin-left:auto;font-size:10.5px;font-weight:700;color:var(--ink-mute)}
+.ddw .ceo-txt{font-size:12.5px;color:var(--ink-soft);line-height:1.55}
+.ddw .ceo-txt + .ceo-txt{margin-top:8px}
+.ddw .ceo-txt b{color:var(--ink);font-weight:800}
 .ddw .scorestrip{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
 .ddw .scell{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:13px 16px;box-shadow:var(--shadow-sm)}
 .ddw .sk{font-size:10.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-faint);font-family:var(--mono)}
@@ -283,7 +293,7 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
   const backend = useBackendTodos();
   const { done: doneSet, toggle } = useTodoDone();
   const sync = useTodoSync();
-  const [tab, setTab] = useState<"action" | "intel" | "people" | "reasons">("action");
+  const [tab, setTab] = useState<"action" | "summary" | "intel" | "people" | "reasons">("action");
 
   const h = rec.hard || {}, ai = rec.ai || {}, pulse = rec.pulse || {};
   const nsv = ai.north_star_verdict || {};
@@ -487,6 +497,23 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
           <span>· Forecast <b style={{ color: nsv.forecast_defensible === false ? "var(--over)" : "var(--ink)" }}>{nsv.recommended_forecast || h.forecast_category || "—"}</b>{nsv.forecast_defensible === false ? " · not yet earned" : ""}</span>
         </div>
 
+        {/* CEO help — top of the drawer, only when the deal is flagged (win>60 AND momentum>60) */}
+        {ai.ceo_intervention && ai.ceo_intervention.needed ? (
+          <div className="ceo-banner">
+            <div className="ceo-banner-h">
+              <span>👔 CEO help needed</span>
+              {ai.ceo_intervention.priority ? (
+                <span className={`ceo-pr pr-${ai.ceo_intervention.priority === "high" ? "high" : "med"}`}>{ai.ceo_intervention.priority}</span>
+              ) : null}
+              {(ai.ceo_intervention.areas || []).length ? (
+                <span className="ceo-areas">{(ai.ceo_intervention.areas || []).map((a: string) => ceoAreaLabel(a)).join(" · ")}</span>
+              ) : null}
+            </div>
+            {ai.ceo_intervention.reason ? <div className="ceo-txt">{ai.ceo_intervention.reason}</div> : null}
+            {ai.ceo_intervention.ceo_action ? <div className="ceo-txt"><b>CEO action:</b> {ai.ceo_intervention.ceo_action}</div> : null}
+          </div>
+        ) : null}
+
         {/* SCORE STRIP — the two engine scores + AI excitement */}
         <div className="scorestrip">
           <div className="scell">
@@ -532,6 +559,7 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
         {/* SECTION NAV */}
         <div className="nav">
           <div className={`nav-item ${tab === "action" ? "active" : ""}`} onClick={() => setTab("action")}>Action Plan <span className="nav-cnt">{done}/{total}</span></div>
+          <div className={`nav-item ${tab === "summary" ? "active" : ""}`} onClick={() => setTab("summary")}>24h Summary</div>
           <div className={`nav-item ${tab === "intel" ? "active" : ""}`} onClick={() => setTab("intel")}>Deal Intelligence</div>
           <div className={`nav-item ${tab === "people" ? "active" : ""}`} onClick={() => setTab("people")}>Stakeholders &amp; Risk {liveCount < stake.length ? <span className="nav-dot" /> : null}</div>
           {canSeeScores && ai.deal_scores ? (
@@ -584,6 +612,11 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
               ))}
             </div>
           ) : (!todoBuckets.length ? <div className="card card-pad ic-body" style={{ marginTop: 12 }}>No open to-dos on this deal yet.</div> : null)}
+        </div>
+
+        {/* ===== 24h SUMMARY ===== */}
+        <div className={`tab ${tab === "summary" ? "active" : ""}`}>
+          <DealDaySummary oppId={rec.opp_id} />
         </div>
 
         {/* ===== INTEL ===== */}
