@@ -12,7 +12,7 @@ import { useBackendTodos } from "@/lib/engine/useBackendTodos";
 import { AddUpdateForm } from "@/components/deals/DealDetailView";
 import { useTodoDone } from "@/lib/engine/useTodoDone";
 import { useTodoSync } from "@/lib/engine/useTodoSync";
-import { DealTodoBuckets, bucketsForOpp } from "@/components/deals/DealTodos";
+import { DealTodoBuckets, bucketsForOpp, displayedTodos } from "@/components/deals/DealTodos";
 import { DealReasonsPanel } from "@/components/deals/DealScores";
 import { useDashboard } from "@/lib/engine/DashboardContext";
 
@@ -244,6 +244,8 @@ const CSS = `
 .ddw .sk-hint{font-size:11.5px;color:var(--ink-faint);font-weight:600;margin:0 2px 8px;display:flex;align-items:center;gap:7px}
 .ddw .sk-hint .dot{width:7px;height:7px;border-radius:50%;background:var(--indigo);animation:ddwpulse 1.1s ease infinite}
 @keyframes ddwpulse{0%,100%{opacity:1}50%{opacity:.25}}
+.ddw .donow-more{margin-left:6px;border:none;background:none;color:var(--indigo);font-size:11.5px;font-weight:800;cursor:pointer;padding:0;text-decoration:underline;white-space:nowrap;font-family:inherit}
+.ddw .wm-more{margin-left:5px;border:none;background:none;color:var(--indigo);font-size:12px;font-weight:800;cursor:pointer;padding:0;text-decoration:underline;white-space:nowrap;font-family:inherit}
 `;
 
 const cap = (s: any) => { const t = String(s || ""); return t ? t[0].toUpperCase() + t.slice(1) : ""; };
@@ -271,6 +273,22 @@ function PlayGate({ m, i }: { m: any; i: number }) {
       </div>
       {open && m.expected_effect ? <div className="gate-d">{m.expected_effect}</div> : null}
     </div>
+  );
+}
+
+// Inline "more / less" clamp — collapses long text to an N-word clean clip with a
+// toggle to reveal the rest. Mirrors the PlayGate "more" affordance so everything in
+// the drawer expands the same way. When the text already fits, it renders as-is.
+function ClampMore({ text, words = 16, cls = "donow-more" }: { text: string; words?: number; cls?: string }) {
+  const [open, setOpen] = useState(false);
+  const full = String(text || "").trim();
+  const truncated = full.split(/\s+/).filter(Boolean).length > words;
+  if (!truncated) return <>{full}</>;
+  return (
+    <>
+      {open ? full : clipWordsClean(full, words)}
+      <button type="button" className={cls} onClick={() => setOpen((o) => !o)}>{open ? "less" : "more"}</button>
+    </>
   );
 }
 // A short one-liner that says WHAT the move is — the leading clause of the action,
@@ -354,10 +372,12 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
     if (crit) return base.map((b) => b.category === "critical" ? { ...b, items: [...b.items, ...extra] } : b);
     return [{ category: "critical", items: extra }, ...base];
   }, [backend.flat, rec]);
-  const allTodos = todoBuckets.flatMap((b: any) => b.items);
-  const total = allTodos.length;
-  const done = allTodos.filter((it: any) => backend.isPushed(it) || doneSet.has(it.todoKey)).length;
-  const C = 138.23;
+  // Count the to-dos ACTUALLY rendered below. buildActionBuckets clubs / de-dupes /
+  // caps the raw backend list, so the counter must count that SAME reduced set — else
+  // "done/total" won't match the rows on screen (the 0/41-vs-actual mismatch).
+  const shownTodos = displayedTodos(todoBuckets, backend);
+  const total = shownTodos.length;
+  const done = shownTodos.filter((it: any) => backend.isPushed(it) || doneSet.has(it.todoKey)).length;
 
   // ---- coverage + stakeholders ----
   const stake = (ai.stakeholder_map || {}).items || [];
@@ -408,7 +428,9 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
     const kept = parts.filter((x) => x.trim() && !tactical.test(x)).join(" ").replace(/\s+/g, " ").trim();
     return kept || String(s || "");
   };
-  const sig = (lens: string, text: any, tone = "neu") => ({ lens, text: clipWords(cro(String(text || "")), 30), tone });
+  // Keep the FULL cleaned text — the What-matters rows clamp it at render with a
+  // more/less toggle (ClampMore), so the reader can expand any signal in place.
+  const sig = (lens: string, text: any, tone = "neu") => ({ lens, text: cro(String(text || "")), tone });
   const champName = String(champ.champion || "");
   const ebName2 = String((eb || {}).name || "");
   const sameName = (a: string, b: string) => !!a && !!b && (a.includes(b) || b.includes(a) || a.split(" ")[0].toLowerCase() === b.split(" ")[0].toLowerCase());
@@ -437,7 +459,7 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
   });
   // Prefer the backend's structured `critical_signals` (CRO-written) when present; else derive.
   const structured = Array.isArray((ai as any).critical_signals)
-    ? (ai as any).critical_signals.map((c: any) => ({ lens: c.lens || c.label || "Signal", text: clipWords(cro(String(c.text || c.summary || "")), 30), tone: c.tone || "neu" })).filter((c: any) => c.text)
+    ? (ai as any).critical_signals.map((c: any) => ({ lens: c.lens || c.label || "Signal", text: cro(String(c.text || c.summary || "")), tone: c.tone || "neu" })).filter((c: any) => c.text)
     : null;
   const derivedSignals = ([
     (ai.competitive_position || {}).summary ? sig("Competition", (ai.competitive_position || {}).summary, "warn") : null,
@@ -513,7 +535,7 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
             {signals.map((s: any, i: number) => (
               <div className="wm-row" key={i}>
                 <span className={`wm-lens t-${s.tone}`}>{s.lens}</span>
-                <span className="wm-text">{s.text}</span>
+                <span className="wm-text"><ClampMore text={s.text} words={30} cls="wm-more" /></span>
               </div>
             ))}
           </div>
@@ -524,7 +546,7 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
           <div className="donow">
             <div className="donow-h"><span className="donow-ic">▷</span> Do now{doNow.act_by ? ` · by ${fmtDate(doNow.act_by)}` : ""}<button className="donow-ai" onClick={() => openNewDeal(dealForAi)}>Work this with AI →</button></div>
             <div className="donow-text">{clipWords(String(doNow.action || ""), 34)}</div>
-            {spof ? <div className="donow-foot"><b>⚠ Single point of failure.</b> {clipWords(spof, 16)}</div>
+            {spof ? <div className="donow-foot"><b>⚠ Single point of failure.</b> <ClampMore text={spof} words={16} /></div>
               : ebName ? <div className="donow-foot"><b>✓ Economic buyer:</b> {ebName} · confirmed in MEDDPICC</div> : null}
           </div>
         ) : null}
@@ -541,20 +563,6 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
 
         {/* ===== ACTION ===== */}
         <div className={`tab ${tab === "action" ? "active" : ""}`}>
-          <div className="card progress-bar">
-            <div className="ring">
-              <svg width="54" height="54" viewBox="0 0 54 54">
-                <circle cx="27" cy="27" r="22" fill="none" stroke="#eeeef6" strokeWidth="6" />
-                <circle cx="27" cy="27" r="22" fill="none" stroke="#5b5bf0" strokeWidth="6" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={total ? (C * (1 - done / total)).toFixed(2) : C} style={{ transition: "stroke-dashoffset .35s ease" }} />
-              </svg>
-              <div className="lbl">{done}/{total}</div>
-            </div>
-            <div className="progress-meta">
-              <div className="t">Action plan</div>
-              <div className="d">{total === 0 ? "No open to-dos." : done === total ? "All to-dos pushed to Salesforce." : "Tick a to-do, then push it to Salesforce with the ☁ button."}</div>
-            </div>
-          </div>
-
           <div className="card card-pad mb14">
             <div className="ic-title" style={{ marginBottom: 4 }}>☁ Log to Salesforce</div>
             <div className="ic-body" style={{ color: "var(--ink-faint)", marginBottom: 2 }}>Write a completed task, an open to-do, or a Next Step straight to this opportunity in Salesforce.</div>

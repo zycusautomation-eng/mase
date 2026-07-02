@@ -385,17 +385,15 @@ function sortByPriority(items: BackendTodoItem[]): BackendTodoItem[] {
   });
 }
 
-export function DealTodoBuckets({
-  buckets, ownerName, done, toggle, sync, backend,
-}: {
-  buckets: TodoBucket[];
-  ownerName?: string;
-  done: Set<string>;
-  toggle: (id: string) => void;
-  sync: TodoSync;
-  backend: Backend;
-}) {
-  const rowProps = { ownerName, done, toggle, sync, backend };
+// The reduction pipeline that turns the 5 raw backend categories into the 4 VP-facing
+// display buckets ACTUALLY shown in the UI: optimistic edit/delete overlay → re-group
+// (displayBucketOf) → club homogeneous → cross-bucket de-dup → cap each head at 5.
+// Exported so the drawer's "done/total" counter can count the SAME rows the list
+// renders — the two must never diverge (that was the 0/41-vs-actual mismatch).
+export function buildActionBuckets(
+  buckets: TodoBucket[],
+  backend: Backend,
+): Record<DisplayBucketKey, BackendTodoItem[]> {
   // Apply optimistic edit/delete overlays so a row vanishes/updates instantly
   // (the server applies the same overrides, so a later reload stays consistent).
   const effItems = (items: BackendTodoItem[]): BackendTodoItem[] =>
@@ -423,6 +421,29 @@ export function DealTodoBuckets({
   // Cap EVERY bucket at its 5 highest-priority items so no head becomes a tiring,
   // exhaustive list — the dropped ones are the lowest-priority, never the urgent few.
   for (const k of ACTION_ORDER) grouped[k] = sortByPriority(grouped[k]).slice(0, 5);
+  return grouped;
+}
+
+// The FLAT list of to-dos the drawer/Espresso actually render (all 4 heads, in order).
+// The Action-plan progress counter counts THESE, so "3/9" equals the rows on screen —
+// not the larger raw backend list, which is clubbed / de-duped / capped away.
+export function displayedTodos(buckets: TodoBucket[], backend: Backend): BackendTodoItem[] {
+  const grouped = buildActionBuckets(buckets, backend);
+  return ACTION_ORDER.flatMap((k) => grouped[k]);
+}
+
+export function DealTodoBuckets({
+  buckets, ownerName, done, toggle, sync, backend,
+}: {
+  buckets: TodoBucket[];
+  ownerName?: string;
+  done: Set<string>;
+  toggle: (id: string) => void;
+  sync: TodoSync;
+  backend: Backend;
+}) {
+  const rowProps = { ownerName, done, toggle, sync, backend };
+  const grouped = buildActionBuckets(buckets, backend);
   return (
     <>
       {ACTION_ORDER.map((key) =>
