@@ -123,7 +123,6 @@ const ALL_ROWS: [string, string, string][] = [
   ["Deal momentum", "deal_momentum", "engagement · next steps · milestones"],
 ];
 
-const sgn = (n: any) => { const x = Math.round(Number(n) * 10) / 10; return (x > 0 ? "+" : "") + x; };
 
 // ── CRO-readable narrative ───────────────────────────────────────────────────
 // When the backend has attached a `cro_panel` (deal_engine_cro.build_cro_panel),
@@ -237,83 +236,37 @@ export function DealReasonsPanel({ ds }: { ds: any }) {
       </div>
     );
   }
+  // No CRO panel yet (a mid-sweep transient, or a deterministic-only deal). Show a CLEAN
+  // read — the score + one plain-English line each — and NEVER the raw math / weights /
+  // "how it adds up" / "what moved the rubric" dump (user-directed: that breakdown is not
+  // human-readable). Customer Commitment is not shown (dropped from the panel).
+  const readFor = (key: string, v: any): string => {
+    const n = Number(v);
+    if (v == null || isNaN(n)) return "";
+    if (key === "win_position") return n >= 70 ? "We're ahead." : n >= 55 ? "We're in it, with a slight edge." : n >= 45 ? "Too close to call." : n >= 30 ? "We're behind." : "We're well behind — this one is cold.";
+    if (key === "deal_momentum") return n >= 75 ? "Accelerating — one of the hotter deals in the book." : n >= 60 ? "Moving — steady forward motion." : n >= 50 ? "Lukewarm — some motion, but not strong." : n >= 40 ? "Flat — little is happening." : "Going quiet — engagement has dropped off.";
+    if (key === "deal_risk") return n <= 20 ? "No real break-risk observed yet." : n >= 60 ? "Serious downside — this is what could lose it." : "Some downside to keep an eye on.";
+    if (key === "forecast_confidence") return n >= 70 ? "On track to close in the forecast window." : n >= 45 ? "Could go either way on timing." : "Unlikely to close in the forecast window as it stands.";
+    return "";
+  };
   return (
     <div className="ds-panel">
+      <div className="ds-fc-sub" style={{ marginBottom: 10 }}>
+        A plain-English read on each score. The full deal-specific reasons refresh on the next sweep.
+      </div>
       <div className="ds-rows">
-        {ALL_ROWS.map(([label, key, hint]) => {
-          const sc = ds[key] || {};
+        {ALL_ROWS.filter(([, key]) => key !== "customer_commitment").map(([label, key, hint]) => {
           const v = (h as any)[key];
-          const why = (comm as any)[key];
+          if (v == null) return null;
           const cls = key === "forecast_confidence" ? band(v) : bandOf(key, v);
-          const contribs = (sc.contributions || []).filter((c: any) => c && Number(c.points));
-
-          // EXACT additive breakdown — the lines shown literally sum to the headline.
-          // Win builds from anchor + rubric lift + momentum (then min-capped by the stage
-          // ceiling); the per-factor rubric points DON'T sum to the lift (net-clamp + folded
-          // trends), so they're shown separately as drivers, not as summed numbers. Momentum
-          // (base 50), Commitment (floor 8) and Risk (base 0) sum exactly from their factors.
-          let baseVal: number | null = null, baseLabel = "", total = 0, totalNote = "";
-          let deltas: [string, number, string | undefined][] = [];
-          let drivers: any[] = [];
-          if (key === "win_position") {
-            baseVal = Number(sc.anchor ?? 0); baseLabel = "Stage anchor";
-            const lift = Number(sc.lift ?? 0), mom = Number(sc.momentum_adj ?? 0);
-            deltas = [
-              ["Rubric (CRM · Next-Step · trends)", lift, undefined],
-              ["Momentum boost (vs stage-expected)", mom, undefined],
-            ];
-            const raw = Math.round((baseVal + lift + mom) * 10) / 10; total = raw;
-            const ceil = sc.ceiling != null ? Number(sc.ceiling) : null;
-            totalNote = (ceil != null && raw > ceil + 0.05) ? `capped at ${r0(ceil)} (stage ceiling)  →  ${r0(v)}` : `→  ${r0(v)}`;
-            drivers = contribs.filter((c: any) => c.factor !== "momentum_adj");
-          } else if (key === "deal_momentum" || key === "customer_commitment" || key === "deal_risk") {
-            baseVal = key === "deal_momentum" ? 50 : key === "customer_commitment" ? 8 : 0;
-            baseLabel = key === "deal_momentum" ? "Baseline (flat = 50)" : key === "customer_commitment" ? "Earned-from-zero floor" : "Base (no observed risk)";
-            deltas = contribs.map((c: any) => [String(c.factor || "").replace(/_/g, " "), Number(c.points), c.evidence] as [string, number, string | undefined]);
-            total = Math.round((baseVal + contribs.reduce((a: number, c: any) => a + Number(c.points || 0), 0)) * 10) / 10;
-            totalNote = `→  ${r0(v)}`;
-          }
-          const showMath = baseVal != null && deltas.length > 0;
-
+          const read = readFor(key, v);
           return (
             <div className="ds-row" key={key}>
               <div className="ds-row-top">
                 <span className={`ds-num ds-${cls}`}>{r0(v)}</span>
                 <span className="ds-row-lbl">{label}<span className="ds-hint"> · {hint}</span></span>
               </div>
-              {why ? <div className="ds-comm sm">{why}</div> : null}
-              {showMath ? (
-                <div className="ds-contribs open">
-                  <div className="ds-contribs-h">How it adds up</div>
-                  <div className="ds-contrib" style={{ opacity: 0.85 }}>
-                    <span className="ds-pts" style={{ color: "var(--ink-mute, #7c8198)", fontWeight: 600 }}>{Math.round(baseVal!)}</span>
-                    <span className="ds-factor">{baseLabel}</span>
-                  </div>
-                  {deltas.map(([lbl, pts, evi], i) => (
-                    <div className="ds-contrib" key={i}>
-                      <span className={`ds-pts ${pts >= 0 ? "pos" : "neg"}`}>{sgn(pts)}</span>
-                      <span className="ds-factor">{lbl}</span>
-                      {evi ? <span className="ds-evi">{evi}</span> : null}
-                    </div>
-                  ))}
-                  <div className="ds-contrib" style={{ borderTop: "1px solid var(--line, #ececf4)", marginTop: 5, paddingTop: 6, fontWeight: 700 }}>
-                    <span className="ds-pts" style={{ color: "var(--ink, #1d2030)" }}>{total}</span>
-                    <span className="ds-factor">{totalNote}</span>
-                  </div>
-                </div>
-              ) : (!why ? <div className="ds-comm sm" style={{ opacity: 0.7 }}>Roll-up of the four scores above.</div> : null)}
-              {drivers.length ? (
-                <div className="ds-contribs open" style={{ marginTop: 6 }}>
-                  <div className="ds-contribs-h">What moved the rubric</div>
-                  {drivers.map((c: any, i: number) => (
-                    <div className="ds-contrib" key={i}>
-                      <span className={`ds-pts ${Number(c.points) >= 0 ? "pos" : "neg"}`} style={{ opacity: 0.7 }}>{Number(c.points) >= 0 ? "▲" : "▼"}</span>
-                      <span className="ds-factor">{String(c.factor || "").replace(/_/g, " ")}</span>
-                      {c.evidence ? <span className="ds-evi">{c.evidence}</span> : null}
-                    </div>
-                  ))}
-                </div>
-              ) : null}
+              {read ? <div className="ds-comm sm">{read}</div> : null}
             </div>
           );
         })}
