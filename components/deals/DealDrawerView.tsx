@@ -345,7 +345,7 @@ function ClampMore({ text, words = 16, cls = "donow-more" }: { text: string; wor
 
 export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: () => void }) {
   const { openNewDeal } = useDealAi();
-  const { canSeeScores } = useDashboard();
+  const { canSeeScores, isAdminView } = useDashboard();
   const backend = useBackendTodos();
   const { done: doneSet, toggle } = useTodoDone();
   const sync = useTodoSync();
@@ -582,7 +582,7 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
             falls back to the legacy support/monitor or flat shapes for old records. */}
         {(() => {
           const civ: any = ai.ceo_intervention;
-          if (!civ || !civ.needed) return null;
+          if (!civ || !civ.needed || !isAdminView) return null;  // CEO help is ADMIN-ONLY
           const rLabel = (t: string) => t === "support" ? "CEO to act"
             : t === "our_slip" ? "Our-side slip"
             : t === "large_slowdown" ? "Large deal slowing"

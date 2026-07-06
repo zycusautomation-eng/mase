@@ -14,7 +14,7 @@ const AI_OPTS: Opt[] = ["AI Hungry", "AI Curious", "AI Resistant"].map((v) => ({
 const stageRank = (s: string) => { const i = STAGE_ORDER.indexOf(s); return i < 0 ? 999 : i; };
 
 export default function ScopeFilterBar() {
-  const { records, vps, rsds, setVps, setRsds, scoped, filters, setFilter, clearFilters, filtered, locked, blocked, scopeName, canSeeScores, favsOnly, setFavsOnly, favs } = useDashboard();
+  const { records, vps, rsds, setVps, setRsds, scoped, filters, setFilter, clearFilters, filtered, locked, blocked, scopeName, canSeeScores, isAdminView, favsOnly, setFavsOnly, favs } = useDashboard();
 
   // Filters popover (progressive disclosure) — hooks must run before any early return.
   const [fopen, setFopen] = useState(false);
@@ -115,8 +115,10 @@ export default function ScopeFilterBar() {
         Favourites{favs.size ? ` (${favs.size})` : ""}
       </button>
 
-      {/* CEO help — quick toggle beside Favourites: filters the book to deals that
-          need CEO intervention (win>60 AND momentum>60). Not buried in the Filters popover. */}
+      {/* CEO help — quick toggle beside Favourites: filters the book to deals that need
+          CEO intervention. ADMIN-ONLY: hidden entirely for non-admins (and for an admin
+          simulating a non-admin view). */}
+      {isAdminView && (
       <button
         type="button"
         onClick={() => setFilter("ceo", ceoOn ? [] : ["CEO help needed"])}
@@ -133,6 +135,7 @@ export default function ScopeFilterBar() {
         <span style={{ fontSize: 13, lineHeight: 1 }}>👔</span>
         CEO help
       </button>
+      )}
 
       <span className="fdivider" />
 
