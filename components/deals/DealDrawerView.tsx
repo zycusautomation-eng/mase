@@ -717,7 +717,7 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
 
         {/* ===== 24h SUMMARY ===== */}
         <div className={`tab ${tab === "summary" ? "active" : ""}`}>
-          <DealDaySummary oppId={rec.opp_id} />
+          <DealDaySummary oppId={rec.opp_id} daySummary={(ai as any).day_summary} />
         </div>
 
         {/* ===== INTEL ===== */}
