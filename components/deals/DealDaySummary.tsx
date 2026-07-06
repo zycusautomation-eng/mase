@@ -36,7 +36,7 @@ function cleanSubject(s?: string | null): string {
   t = t.replace(/^(avoma|clari|gong|outreach|lemlist)\s*[-:–]\s*/i, "");
   return t.trim();
 }
-const KIND_ICON: Record<string, string> = { email: "✉", call: "📞", meeting: "📅", task: "✓" };
+const KIND_ICON: Record<string, string> = { email: "✉", call: "📞", meeting: "📅", task: "✓", movement: "⇅" };
 // Activity kinds we have a themed badge for; anything else falls back to the neutral badge.
 const KNOWN_KINDS = new Set(["email", "call", "meeting", "task"]);
 const kindClass = (k: any) => (KNOWN_KINDS.has(String(k)) ? String(k) : "neu");
@@ -53,12 +53,20 @@ function Stat({ n, label, tone = "neu", plural = true }: { n?: number; label: st
   );
 }
 
-export function DealDaySummary({ oppId }: { oppId: string }) {
+export function DealDaySummary({ oppId, daySummary }: { oppId: string; daySummary?: any }) {
   const [row, setRow] = useState<any | null>(null);     // the row we DISPLAY
   const [latest, setLatest] = useState<any | null>(null); // the most-recent row (may be empty)
   const [state, setState] = useState<State>("loading");
 
+  // PRIMARY: the sweep (Sonnet) now emits ai.day_summary — a real summary (overall + each
+  // meeting/email named + one line of what was discussed). Render THAT when present; only
+  // fall back to the legacy deal_daily_summaries table for deals not yet swept with the field.
+  const ds = daySummary && typeof daySummary === "object" ? daySummary : null;
+  const dsItems: any[] = ds && Array.isArray(ds.items) ? ds.items : [];
+  const hasNew = !!(ds && (String(ds.overall || "").trim() || dsItems.length));
+
   useEffect(() => {
+    if (hasNew) { setState("ok"); return; }      // no table fetch needed
     if (!oppId) { setState("none"); return; }
     const oid = String(oppId).slice(0, 15); // table keys on 15-char SF ids
     let off = false;
@@ -94,7 +102,42 @@ export function DealDaySummary({ oppId }: { oppId: string }) {
       } catch { if (!off) setState("err"); }
     })();
     return () => { off = true; };
-  }, [oppId]);
+  }, [oppId, hasNew]);
+
+  // ---- PRIMARY render: the sweep-authored ai.day_summary (a real summary) ----
+  if (hasNew && ds) {
+    return (
+      <>
+        <div className="ai-hero mb14">
+          <div className="spine" />
+          <div className="ai-head">
+            <div className="ai-mark">🕐</div>
+            <div className="ai-title">What happened{ds.as_of ? ` · ${fmtDate(ds.as_of)}` : ""}</div>
+            <span className="sum-tag t-ai" style={{ marginLeft: "auto" }}>AI summary</span>
+          </div>
+          {String(ds.overall || "").trim()
+            ? <div className="ai-lede" style={{ whiteSpace: "pre-wrap" }}>{ds.overall}</div>
+            : null}
+        </div>
+        {dsItems.length ? (
+          <div className="card card-pad mb14">
+            {dsItems.map((it: any, i: number) => (
+              <div className="sum-row" key={i}>
+                <div className={`sum-ic k-${kindClass(it.kind)}`}>{KIND_ICON[it.kind] || "•"}</div>
+                <div className="sum-main">
+                  <div className="sum-t"><b>{cleanSubject(it.name) || it.kind || "Activity"}</b></div>
+                  {String(it.summary || "").trim()
+                    ? <div className="ic-body" style={{ color: "var(--ink-soft)", marginTop: 2, fontSize: 12.5, lineHeight: 1.5 }}>{it.summary}</div>
+                    : null}
+                  <div className="sum-meta">{it.kind}{it.at ? ` · ${fmtDate(it.at)}` : ""}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </>
+    );
+  }
 
   if (state === "loading") return <div className="card card-pad ic-body">Loading the 24-hour summary…</div>;
   if (state === "err") return <div className="card card-pad ic-body">Couldn&apos;t load the 24-hour summary.</div>;
