@@ -28,6 +28,14 @@ function fmtDate(iso?: string | null): string {
     });
   } catch { return String(iso); }
 }
+// Strip logging-tool metadata prefixes so a subject reads like plain English
+// ("[Clari - Email Sent] Re: Checking In…" → "Re: Checking In…", "Avoma - ANA PoC" → "ANA PoC").
+function cleanSubject(s?: string | null): string {
+  let t = String(s || "").trim();
+  t = t.replace(/^(\s*\[[^\]]*\]\s*)+/g, "");                    // [Clari - Email Sent], [Outreach][Email][In]…
+  t = t.replace(/^(avoma|clari|gong|outreach|lemlist)\s*[-:–]\s*/i, "");
+  return t.trim();
+}
 const KIND_ICON: Record<string, string> = { email: "✉", call: "📞", meeting: "📅", task: "✓" };
 // Activity kinds we have a themed badge for; anything else falls back to the neutral badge.
 const KNOWN_KINDS = new Set(["email", "call", "meeting", "task"]);
@@ -161,13 +169,9 @@ export function DealDaySummary({ oppId }: { oppId: string }) {
         </div>
       ) : null}
 
-      {/* next step */}
-      {r.next_step_changed_at && r.next_step_text ? (
-        <div className="card card-pad mb14">
-          <div className="ic-title" style={{ marginBottom: 6 }}>Next Step</div>
-          <div className="ic-body" style={{ color: "var(--ink-soft)" }}>{r.next_step_text}</div>
-        </div>
-      ) : null}
+      {/* Next Step: the raw Next_Step__c field is a MONTHS-LONG running log, not a
+          24h item — do not dump it here. Its update is already noted in the counts strip
+          ("next step updated"). Intentionally not rendering the full text. */}
 
       {/* activity list */}
       {acts.length ? (
@@ -178,7 +182,7 @@ export function DealDaySummary({ oppId }: { oppId: string }) {
               <div className={`sum-ic k-${kindClass(a.kind)}`}>{KIND_ICON[a.kind] || "•"}</div>
               <div className="sum-main">
                 <div className="sum-t">
-                  {a.subject || "(no subject)"}
+                  {cleanSubject(a.subject) || "(no subject)"}
                   {a.upcoming ? <span className="sum-tag">Upcoming</span> : null}
                 </div>
                 <div className="sum-meta">
