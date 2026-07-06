@@ -19,6 +19,15 @@ function fmt(iso?: string | null): string {
     });
   } catch { return String(iso); }
 }
+// A date-only ('YYYY-MM-DD') label, e.g. "Jul 4" — used for the summary_date / stale-day note.
+function fmtDate(iso?: string | null): string {
+  if (!iso) return "";
+  try {
+    return new Date(String(iso).slice(0, 10) + "T00:00:00").toLocaleDateString(undefined, {
+      month: "short", day: "numeric",
+    });
+  } catch { return String(iso); }
+}
 const KIND_ICON: Record<string, string> = { email: "✉", call: "📞", meeting: "📅", task: "✓" };
 // Activity kinds we have a themed badge for; anything else falls back to the neutral badge.
 const KNOWN_KINDS = new Set(["email", "call", "meeting", "task"]);
@@ -37,7 +46,8 @@ function Stat({ n, label, tone = "neu", plural = true }: { n?: number; label: st
 }
 
 export function DealDaySummary({ oppId }: { oppId: string }) {
-  const [row, setRow] = useState<any | null>(null);
+  const [row, setRow] = useState<any | null>(null);     // the row we DISPLAY
+  const [latest, setLatest] = useState<any | null>(null); // the most-recent row (may be empty)
   const [state, setState] = useState<State>("loading");
 
   useEffect(() => {
@@ -47,6 +57,7 @@ export function DealDaySummary({ oppId }: { oppId: string }) {
     (async () => {
       try {
         const sb = createClient();
+        // 1) the most-recent summary row, whatever its activity.
         const { data, error } = await sb
           .from("deal_daily_summaries")
           .select("*")
@@ -56,7 +67,22 @@ export function DealDaySummary({ oppId }: { oppId: string }) {
         if (off) return;
         if (error) { setState("err"); return; }
         if (!data || !data.length) { setState("none"); return; }
-        setRow(data[0]); setState("ok");
+        const top = data[0];
+        setLatest(top);
+        if (top.has_activity) { setRow(top); setState("ok"); return; }
+        // 2) today's window is empty — the daily job still wrote an empty row, so fall back to
+        // the most recent day that ACTUALLY had activity and show that (with its date) instead
+        // of a bare "nothing happened". Summaries are persisted per day, so this is a lookup.
+        const { data: act } = await sb
+          .from("deal_daily_summaries")
+          .select("*")
+          .eq("opp_id", oid)
+          .eq("has_activity", true)
+          .order("summary_date", { ascending: false })
+          .limit(1);
+        if (off) return;
+        setRow(act && act.length ? act[0] : top);
+        setState("ok");
       } catch { if (!off) setState("err"); }
     })();
     return () => { off = true; };
@@ -72,6 +98,9 @@ export function DealDaySummary({ oppId }: { oppId: string }) {
   const moves: any[] = r.movements || [];
   const avoma: any[] = r.meetings_avoma || [];
   const isClaude = r.summary_source === "claude";
+  // Showing an EARLIER active day because the most recent day (today) had no activity.
+  const showingStale = !!(latest && !latest.has_activity && r.has_activity &&
+                          r.summary_date && r.summary_date !== latest.summary_date);
 
   return (
     <>
@@ -80,12 +109,20 @@ export function DealDaySummary({ oppId }: { oppId: string }) {
         <div className="spine" />
         <div className="ai-head">
           <div className="ai-mark">🕐</div>
-          <div className="ai-title">What happened in the last 24 hours</div>
+          <div className="ai-title">
+            {r.has_activity
+              ? (showingStale ? `Latest activity · ${fmtDate(r.summary_date)}` : "What happened in the last 24 hours")
+              : "24-hour summary"}
+          </div>
           <span className={`sum-tag ${isClaude ? "t-ai" : ""}`} style={{ marginLeft: "auto" }}>{isClaude ? "AI summary" : "Auto"}</span>
         </div>
-        <div className="ai-lede" style={{ whiteSpace: "pre-wrap" }}>{r.summary}</div>
+        <div className="ai-lede" style={{ whiteSpace: "pre-wrap" }}>
+          {r.has_activity ? r.summary : "No activity has been recorded for this deal yet."}
+        </div>
         <div className="ai-body">
-          As of {fmt(r.window_end)} · window {fmt(r.window_start)} → {fmt(r.window_end)}
+          {showingStale
+            ? `Latest activity — ${fmtDate(r.summary_date)}`
+            : `${r.summary_date ? fmtDate(r.summary_date) + " · " : ""}As of ${fmt(r.window_end)} · window ${fmt(r.window_start)} → ${fmt(r.window_end)}`}
           {r.owner_name ? ` · ${r.owner_name}` : ""}
         </div>
       </div>

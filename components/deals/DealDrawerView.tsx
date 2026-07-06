@@ -5,6 +5,7 @@
 // keeps the original DealDetailView, so this is drawer-only and reversible.
 // All CSS is scoped under .ddw so it can never collide with the app's global styles.
 import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { fmtAmount, daysSince, healthLabel, verdictTone, clipWords, clipWordsClean, getEbOverride, sfLinkFor, ceoAreaLabel, type Rec } from "@/lib/engine/helpers";
 import { useDealAi } from "@/components/deals/DealAiProvider";
 import { Monogram } from "@/components/ui/Monogram";
@@ -177,6 +178,12 @@ const CSS = `
 .ddw .ceo-txt b{color:var(--ink);font-weight:800}
 .ddw .scorestrip{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
 .ddw .scell{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:13px 16px;box-shadow:var(--shadow-sm)}
+.ddw .scell.clickable{position:relative;cursor:pointer;transition:box-shadow .15s ease,transform .15s ease,border-color .15s ease}
+.ddw .scell.clickable:hover{border-color:#dcdcf5;box-shadow:var(--shadow-card);transform:translateY(-1px)}
+.ddw .scell.clickable:active{transform:translateY(0)}
+.ddw .scell.clickable:focus-visible{outline:2px solid var(--indigo);outline-offset:2px}
+.ddw .scell.clickable::after{content:"›";position:absolute;top:9px;right:12px;font-size:16px;font-weight:800;line-height:1;color:var(--ink-faint);opacity:.5;transition:opacity .15s ease,transform .15s ease,color .15s ease}
+.ddw .scell.clickable:hover::after{opacity:1;color:var(--indigo);transform:translateX(2px)}
 .ddw .sk{font-size:10.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-faint);font-family:var(--mono)}
 .ddw .sv{font-size:30px;font-weight:800;letter-spacing:-1px;margin-top:7px;line-height:1;color:var(--ink)}
 .ddw .sv.b-g{color:var(--pos)} .ddw .sv.b-a{color:var(--over)} .ddw .sv.b-r{color:var(--crit)} .ddw .sv.b-n{color:var(--ink-mute)}
@@ -343,6 +350,10 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
   const { done: doneSet, toggle } = useTodoDone();
   const sync = useTodoSync();
   const [tab, setTab] = useState<"action" | "summary" | "intel" | "people" | "reasons">("action");
+  // Clicking any score card opens the Scores & Reasons content as a modal (same data as
+  // the "Scores & Reasons" tab). Portaled to <body> at render so the drawer's transform
+  // can't trap the overlay. Gated exactly like the tab: canSeeScores && ai.deal_scores.
+  const [scoresOpen, setScoresOpen] = useState(false);
 
   const h = rec.hard || {}, ai = rec.ai || {}, pulse = rec.pulse || {};
   const nsv = ai.north_star_verdict || {};
@@ -514,6 +525,22 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
 
   const isLate = /vendor selected|negotiat|contract|signed|po received|closing/i.test(String(h.stage || ""));
 
+  // Score cards are interactive only when there's something to show (same gate as the
+  // Scores & Reasons tab). scellProps is spread onto each card: adds the click/keyboard
+  // affordance + a11y role when clickable, otherwise just the base class.
+  const scoresClickable = canSeeScores && !!ai.deal_scores;
+  const openScores = () => setScoresOpen(true);
+  const scellProps: any = scoresClickable
+    ? {
+        className: "scell clickable",
+        role: "button",
+        tabIndex: 0,
+        title: "View scores & reasons",
+        onClick: openScores,
+        onKeyDown: (e: any) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openScores(); } },
+      }
+    : { className: "scell" };
+
   return (
     <div className="ddw">
       <style>{CSS}</style>
@@ -550,36 +577,71 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
           <span>· Forecast <b style={{ color: nsv.forecast_defensible === false ? "var(--over)" : "var(--ink)" }}>{nsv.recommended_forecast || h.forecast_category || "—"}</b>{nsv.forecast_defensible === false ? " · not yet earned" : ""}</span>
         </div>
 
-        {/* CEO help — top of the drawer, only when the deal is flagged (win>60 AND momentum>60) */}
-        {ai.ceo_intervention && ai.ceo_intervention.needed ? (
-          <div className="ceo-banner">
-            <div className="ceo-banner-h">
-              <span>👔 CEO help needed</span>
-              {ai.ceo_intervention.priority ? (
-                <span className={`ceo-pr pr-${ai.ceo_intervention.priority === "high" ? "high" : "med"}`}>{ai.ceo_intervention.priority}</span>
-              ) : null}
-              {(ai.ceo_intervention.areas || []).length ? (
-                <span className="ceo-areas">{(ai.ceo_intervention.areas || []).map((a: string) => ceoAreaLabel(a)).join(" · ")}</span>
-              ) : null}
+        {/* CEO Monitor — ONE watchlist banner. Support (CEO must ACT) is just one
+            reason TYPE inside it, auto-included. Reads ceo_intervention.reasons[];
+            falls back to the legacy support/monitor or flat shapes for old records. */}
+        {(() => {
+          const civ: any = ai.ceo_intervention;
+          if (!civ || !civ.needed) return null;
+          const rLabel = (t: string) => t === "support" ? "CEO to act"
+            : t === "our_slip" ? "Our-side slip"
+            : t === "large_slowdown" ? "Large deal slowing"
+            : t === "competitor_edge" ? "Competitor ahead" : t;
+          // Build a unified reasons[] from the new shape, else synthesize from legacy.
+          let reasons: any[] = Array.isArray(civ.reasons) ? civ.reasons : [];
+          if (!reasons.length) {
+            const s = civ.support || ((civ.ceo_action || civ.areas) ? civ : null);
+            if (s && (s.needed ?? true)) reasons.push({ type: "support", act: true, severity: s.priority, summary: s.reason, ceo_action: s.ceo_action, areas: s.areas });
+            for (const t of ((civ.monitor && civ.monitor.triggers) || [])) reasons.push({ ...t, act: false });
+          }
+          if (!reasons.length) return null;
+          const types = reasons.map((r) => rLabel(r.type)).filter((v, i, a) => a.indexOf(v) === i);
+          return (
+            <div className="ceo-banner" style={{ background: "#fbf0df", borderColor: "#e8c98a" }}>
+              <div className="ceo-banner-h">
+                <span>🔎 CEO monitor</span>
+                {civ.severity ? <span className={`ceo-pr pr-${civ.severity === "high" ? "high" : "med"}`}>{civ.severity}</span> : null}
+                <span className="ceo-areas">{types.join(" · ")}</span>
+              </div>
+              {reasons.map((r: any, i: number) => (
+                <div className="ceo-txt" key={i} style={{ paddingTop: i ? 8 : 4, marginTop: i ? 8 : 0, borderTop: i ? "1px solid #e8c98a" : "none" }}>
+                  {/* headline */}
+                  <div>
+                    <b>{rLabel(r.type)}{r.severity ? ` · ${r.severity}` : ""}:</b> {r.summary}
+                    {(r.act && (r.areas || []).length) ? <span className="ceo-areas" style={{ marginLeft: 6 }}>{(r.areas || []).map((a: string) => ceoAreaLabel(a)).join(" · ")}</span> : null}
+                  </div>
+                  {/* fuller detail */}
+                  {r.detail ? <div style={{ marginTop: 3 }}>{r.detail}</div> : null}
+                  {/* metric · owner · as of */}
+                  {(r.metric || r.owner || r.as_of) ? (
+                    <div style={{ marginTop: 3, color: "var(--ink-faint)", fontSize: 12 }}>
+                      {[r.metric, r.owner ? `owner: ${r.owner}` : null, r.as_of ? `as of ${r.as_of}` : null].filter(Boolean).join(" · ")}
+                    </div>
+                  ) : null}
+                  {/* evidence quote */}
+                  {r.evidence ? <div style={{ marginTop: 3, color: "var(--ink-soft)", fontSize: 12, fontStyle: "italic" }}>“{r.evidence}”</div> : null}
+                  {/* the CEO's action / what to ask */}
+                  {r.act && r.ceo_action ? <div style={{ marginTop: 4 }}><b>CEO action:</b> {r.ceo_action}</div> : null}
+                  {r.ceo_ask && !(r.act && r.ceo_action) ? <div style={{ marginTop: 4 }}><b>{r.act ? "CEO action:" : "CEO to ask:"}</b> {r.ceo_ask}</div> : null}
+                </div>
+              ))}
             </div>
-            {ai.ceo_intervention.reason ? <div className="ceo-txt">{ai.ceo_intervention.reason}</div> : null}
-            {ai.ceo_intervention.ceo_action ? <div className="ceo-txt"><b>CEO action:</b> {ai.ceo_intervention.ceo_action}</div> : null}
-          </div>
-        ) : null}
+          );
+        })()}
 
         {/* SCORE STRIP — the two engine scores + AI excitement */}
         <div className="scorestrip">
-          <div className="scell">
+          <div {...scellProps}>
             <div className="sk">Zycus win position</div>
             <div className={`sv b-${canSeeScores ? scoreBand(ds.win_position) : "n"}`}>{canSeeScores ? fmtScore(ds.win_position) : "—"}</div>
             <div className="sm">can we win it</div>
           </div>
-          <div className="scell">
+          <div {...scellProps}>
             <div className="sk">Deal momentum</div>
             <div className={`sv b-${canSeeScores ? scoreBand(ds.deal_momentum) : "n"}`}>{canSeeScores ? fmtScore(ds.deal_momentum) : "—"}{canSeeScores && nsv.trajectory && nsv.trajectory !== "new" ? <span className="strend"> {nsv.trajectory}</span> : null}</div>
             <div className="sm">is it moving</div>
           </div>
-          <div className="scell">
+          <div {...scellProps}>
             <div className="sk">AI excitement</div>
             <div className={`sv aistier ais-${aisKey}`}>{aisTierRaw || "—"}</div>
             <div className="sm">AI appetite</div>
@@ -766,6 +828,42 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
         ) : null}
 
       </div>
+
+      {/* SCORES & REASONS — modal, opened by clicking any score card above. Portaled to
+          the document body because the drawer uses a CSS transform (making it the
+          containing block for fixed descendants), which would otherwise trap this overlay
+          inside the panel — the same reason the Salesforce-push confirm modal portals.
+          Reuses the global sfm modal chrome plus the ds- and cro- reason styles (all in
+          dashboard.css), so it reads identically to the tab. */}
+      {scoresOpen && scoresClickable && typeof document !== "undefined"
+        ? createPortal(
+          <div className="sfm-overlay" onClick={() => setScoresOpen(false)}>
+            <div
+              className="sfm-card"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Scores and reasons"
+              style={{ width: "min(560px, 100%)", maxHeight: "85vh", overflowY: "auto" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="sfm-h" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                <span>Scores &amp; reasons — {h.account_name || rec.opp_id}</span>
+                <button
+                  type="button"
+                  onClick={() => setScoresOpen(false)}
+                  aria-label="Close"
+                  style={{ border: "none", background: "none", cursor: "pointer", fontSize: 18, lineHeight: 1, color: "var(--muted,#7c8198)", padding: 2 }}
+                >✕</button>
+              </div>
+              <div style={{ marginTop: 8, marginBottom: 14, fontSize: 12.5, color: "var(--muted,#7c8198)", lineHeight: 1.5 }}>
+                A plain-English read on each score, the honest downside, and what moves the deal — grounded in the latest Salesforce and call evidence.
+              </div>
+              <DealReasonsPanel ds={ai.deal_scores} />
+            </div>
+          </div>,
+          document.body,
+        )
+        : null}
     </div>
   );
 }
