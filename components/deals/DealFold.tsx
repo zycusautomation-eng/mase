@@ -1,10 +1,20 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// Shared "decision-first" fold for a deal — the top-of-page/drawer block that answers
-// can-we-win / is-it-moving / what-matters / do-now. Rendered by BOTH the slide-in
-// DealDrawerView and the full-page DealDetailView so they can never drift.
-// Everything derives from already-swept fields; reads ai.critical_signals when the
-// backend ships that structured field, else derives (best-effort).
+// ============================================================================================
+// ⚠️  DEPRECATED — DO NOT ADD OR CHANGE DEAL-VIEW UI HERE. THIS IS NOT THE DEAL DRAWER.
+// --------------------------------------------------------------------------------------------
+// The deal view users actually see when they open a deal is the slide-in drawer:
+//        →  components/deals/DealDrawerView.tsx   ← THE CURRENT / LIVE COMPONENT. EDIT THAT.
+// That drawer renders its OWN score strip, "What matters", tabs, and every per-deal card
+// (including the CEO-help card). DealFold does NOT power the drawer and never has — despite the
+// old comment that claimed it was "shared". A change was once added to THIS file and never
+// appeared in the UI for exactly that reason. Don't repeat that mistake.
+//
+// DealFold is retained ONLY because the legacy full-page view
+// components/deals/DealDetailView.tsx (route /deals/[id]) still imports it, so deleting it would
+// break that build. If you are adding/altering anything a user sees on a deal, do it in
+// DealDrawerView.tsx — NOT here. Treat this file as frozen.
+// ============================================================================================
 import { fmtAmount, daysSince, clipWords, getEbOverride, type Rec } from "@/lib/engine/helpers";
 
 const CSS = `

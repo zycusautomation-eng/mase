@@ -4,6 +4,7 @@
 // (Win / Momentum / Commitment / Risk + the FC roll-up and a Read confidence label).
 // Two surfaces: a compact strip for the deals table and a full panel for the drawer.
 // Graceful absence: if a deal has no deal_scores (not yet scored), both render null.
+import { useState } from "react";
 import { scoreColorBand } from "@/lib/engine/helpers";
 
 // Colour band for the FC roll-up (same standard High/Mid/Low ramp).
@@ -128,16 +129,33 @@ const sgn = (n: any) => { const x = Math.round(Number(n) * 10) / 10; return (x >
 // When the backend has attached a `cro_panel` (deal_engine_cro.build_cro_panel),
 // render the plain-English brief — one read per score, ✅/⚠️ bullets, an honest
 // "what could lose it" block, and the moves — instead of the maths breakdown.
+// One bullet. When the backend attached a `full` (the untrimmed narrative behind a
+// clipped `text`), show a "more" toggle to expand it in place.
+function CroBullet({ b }: { b: any }) {
+  const [open, setOpen] = useState(false);
+  const hasMore = typeof b.full === "string" && b.full.trim() && b.full.trim() !== (b.text || "").trim();
+  return (
+    <li className={`cro-b ${b.tone === "warn" ? "warn" : "good"}`}>
+      <span className="cro-ic">{b.tone === "warn" ? "⚠️" : "✅"}</span>
+      <span className="cro-bt">
+        {open && hasMore ? b.full : b.text}
+        {hasMore ? (
+          <button type="button" onClick={() => setOpen((v) => !v)}
+            style={{ marginLeft: 6, padding: 0, border: "none", background: "none",
+              color: "var(--indigo, #5b5bf0)", font: "inherit", fontWeight: 600, cursor: "pointer" }}>
+            {open ? "less" : "more"}
+          </button>
+        ) : null}
+      </span>
+    </li>
+  );
+}
+
 function CroBullets({ items }: { items: any[] }) {
   if (!items || !items.length) return null;
   return (
     <ul className="cro-bullets">
-      {items.map((b: any, i: number) => (
-        <li key={i} className={`cro-b ${b.tone === "warn" ? "warn" : "good"}`}>
-          <span className="cro-ic">{b.tone === "warn" ? "⚠️" : "✅"}</span>
-          <span className="cro-bt">{b.text}</span>
-        </li>
-      ))}
+      {items.map((b: any, i: number) => <CroBullet key={i} b={b} />)}
     </ul>
   );
 }

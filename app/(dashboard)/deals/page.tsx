@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useMemo, useState } from "react";
 import { useDashboard } from "@/lib/engine/DashboardContext";
-import { aiLabel, fmtAmount, type Rec } from "@/lib/engine/helpers";
+import { aiLabel, ceoAreaLabel, fmtAmount, type Rec } from "@/lib/engine/helpers";
 import DealDrawer from "@/components/deals/DealDrawer";
 import { ScoreCell } from "@/components/deals/DealScores";
 import { Monogram } from "@/components/ui/Monogram";
@@ -34,7 +34,7 @@ const PAGE_SIZE = 20;
 // AI excitement is a computed tier (status OR score OR fit signal) the DB can't filter
 // without a dedicated column. The full per-deal record is fetched on drawer open.
 export default function DealsPage() {
-  const { filtered, records, playbook, loading, canSeeScores, realIsAdmin, isFav, toggleFav } = useDashboard();
+  const { filtered, records, playbook, loading, canSeeScores, realIsAdmin, isAdminView, isFav, toggleFav } = useDashboard();
   const [sortKey, setSortKey] = useState("days_to_close");
   const [sortDir, setSortDir] = useState(1);
   const [selected, setSelected] = useState<Rec | null>(null);
@@ -93,6 +93,11 @@ export default function DealsPage() {
       ["Risk", (r) => hl(r).deal_risk],
       ["Read", (r) => hl(r).read],
       ["Verdict", (r) => ((r.ai || {}).north_star_verdict || {}).verdict],
+      // CEO help columns are ADMIN-ONLY — omitted from a non-admin's CSV export.
+      ...(isAdminView ? ([
+        ["CeoHelp", (r) => { const ci = (r.ai || {}).ceo_intervention; return ci ? (ci.needed ? `Yes (${ci.priority || ""})` : "No") : ""; }],
+        ["CeoAreas", (r) => { const ci = (r.ai || {}).ceo_intervention; return ci && ci.needed ? (ci.areas || []).map(ceoAreaLabel).join("; ") : ""; }],
+      ] as [string, (r: any) => unknown][]) : []),
       ["OppId", (r) => r.opp_id],
     ];
     const esc = (v: unknown) => {
