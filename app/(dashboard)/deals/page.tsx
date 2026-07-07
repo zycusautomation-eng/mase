@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useMemo, useState } from "react";
 import { useDashboard } from "@/lib/engine/DashboardContext";
-import { aiLabel, ceoAreaLabel, fmtAmount, type Rec } from "@/lib/engine/helpers";
+import { ceoAreaLabel, fmtAmount, type Rec } from "@/lib/engine/helpers";
 import DealDrawer from "@/components/deals/DealDrawer";
 import { ScoreCell } from "@/components/deals/DealScores";
 import { Monogram } from "@/components/ui/Monogram";
@@ -17,7 +17,7 @@ const SCORE_COLS: [string, string, string][] = [
 const SCORE_KEYS = new Set(SCORE_COLS.map(([k]) => k));
 import { PageLoader } from "@/components/ui/page-loader";
 
-// Columns are split so Verdict + AIS sit immediately after Opportunity.
+// Columns are split so the score columns sit immediately after Opportunity.
 const LEAD_COLS: [string, string, number][] = [
   ["account_name", "Account", 0], ["opp_name", "Opportunity", 0],
 ];
@@ -125,7 +125,6 @@ export default function DealsPage() {
               {LEAD_COLS.map(([k, label]) => (
                 <th key={k} onClick={() => sortBy(k)}>{label}{arrow(k)}</th>
               ))}
-              <th>AIS</th>
               {canSeeScores && SCORE_COLS.map(([k, label, tip]) => (
                 <Tooltip key={k} delayDuration={0}>
                   <TooltipTrigger asChild>
@@ -178,7 +177,6 @@ export default function DealsPage() {
                     </button>
                   </td>
                   {LEAD_COLS.map(cell)}
-                  <td>{aiLabel(h, ai.ai_fit_signal)}</td>
                   {canSeeScores && SCORE_COLS.map(([k]) => (
                     <td key={k} className="num scorecell"><ScoreCell ds={ai.deal_scores} k={k} /></td>
                   ))}
