@@ -159,7 +159,7 @@ function CroBullets({ items }: { items: any[] }) {
   );
 }
 
-function CroReasons({ panel }: { panel: any }) {
+function CroReasons({ panel, headline }: { panel: any; headline?: any }) {
   const blocks = panel.blocks || [];
   return (
     <div className="cro-panel">
@@ -167,10 +167,16 @@ function CroReasons({ panel }: { panel: any }) {
       {panel.intro ? <div className="cro-intro">{panel.intro}</div> : null}
       {blocks.map((bl: any, i: number) => {
         if (bl.kind === "score") {
+          // ONE SOURCE OF TRUTH: the numeral always comes from ai.deal_scores.headline —
+          // the same field the drawer header cards and the deals list read. The panel's
+          // embedded copy is only a fallback for legacy records (prevents the
+          // list-vs-header-vs-modal three-different-scores bug).
+          const hv = headline && bl.key != null ? headline[bl.key] : null;
+          const shown = typeof hv === "number" ? hv : bl.score;
           return (
             <div className="cro-block" key={i}>
               <div className="cro-block-top">
-                <span className={`cro-score ds-${bandOf(bl.key || "win_position", bl.score)}`}>{r0(bl.score)}</span>
+                <span className={`cro-score ds-${bandOf(bl.key || "win_position", shown)}`}>{r0(shown)}</span>
                 <span className="cro-title">{bl.title}{bl.sub ? <span className="cro-sub"> · {bl.sub}</span> : null}</span>
               </div>
               {bl.read ? <div className="cro-read">{bl.read}</div> : null}
@@ -222,7 +228,7 @@ export function DealReasonsPanel({ ds }: { ds: any }) {
   const lost = !!(h.dead || h.decision === "lost" || /^lost/i.test(String(h.read || "")));
   // Prefer the CRO-readable narrative when present (and the deal isn't closed).
   if (ds.cro_panel && (ds.cro_panel.blocks || []).length && !lost) {
-    return <div className="ds-panel"><CroReasons panel={ds.cro_panel} /></div>;
+    return <div className="ds-panel"><CroReasons panel={ds.cro_panel} headline={h} /></div>;
   }
   if (lost) {
     const label = h.dead_label || (h.decision === "lost" ? "Lost" : h.read || "Closed");
