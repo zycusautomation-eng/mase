@@ -665,7 +665,8 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
         {doNow ? (
           <div className="donow">
             <div className="donow-h"><span className="donow-ic">▷</span> Do now{doNow.act_by ? ` · by ${fmtDate(doNow.act_by)}` : ""}<button className="donow-ai" onClick={() => openNewDeal(dealForAi)}>Work this with AI →</button></div>
-            <div className="donow-text">{clipWords(String(doNow.action || ""), 34)}</div>
+            {/* full action must always be reachable — clamp with an expander, never a dead "…" */}
+            <div className="donow-text"><ClampMore text={String(doNow.action || "")} words={34} /></div>
             {spof ? <div className="donow-foot"><b>⚠ Single point of failure.</b> <ClampMore text={spof} words={16} /></div>
               : ebName ? <div className="donow-foot"><b>✓ Economic buyer:</b> {ebName} · confirmed in MEDDPICC</div> : null}
           </div>
