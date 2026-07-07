@@ -574,7 +574,13 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
           {h.owner_name ? <span>· {h.owner_name}</span> : null}
           {h.close_date ? <span>· closes {fmtDate(h.close_date)}{pulse.days_to_close != null ? ` · ${pulse.days_to_close}d to close` : ""}</span> : null}
           {lastAct != null ? <span>· last activity {Math.abs(lastAct)}d ago</span> : null}
-          <span>· Forecast <b style={{ color: nsv.forecast_defensible === false ? "var(--over)" : "var(--ink)" }}>{nsv.recommended_forecast || h.forecast_category || "—"}</b>{nsv.forecast_defensible === false ? " · not yet earned" : ""}</span>
+          {/* ONE SOURCE OF TRUTH: "Forecast" is ALWAYS the Salesforce fact (same value the
+              deals list shows). The AI's differing view renders as a clearly-labelled
+              suggestion — never in the fact's place (the ACEN "Best Case vs Pipeline" bug). */}
+          <span>· Forecast <b style={{ color: "var(--ink)" }}>{h.forecast_category || "—"}</b></span>
+          {nsv.recommended_forecast && h.forecast_category && String(nsv.recommended_forecast).toLowerCase().indexOf(String(h.forecast_category).toLowerCase()) === -1
+            ? <span style={{ color: "var(--over)" }}>· AI suggests: {nsv.recommended_forecast}{nsv.forecast_defensible === false ? " (current not yet earned)" : ""}</span>
+            : (nsv.forecast_defensible === false ? <span style={{ color: "var(--over)" }}>· not yet earned</span> : null)}
         </div>
 
         {/* CEO Monitor — ONE watchlist banner. Support (CEO must ACT) is just one
