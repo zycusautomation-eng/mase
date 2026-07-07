@@ -51,20 +51,23 @@ export function DealDaySummary({ daySummary }: { daySummary?: any }) {
           <span className="sum-tag t-ai" style={{ marginLeft: "auto" }}>{ds.source === "sf_activity" ? "From Salesforce" : "AI summary"}</span>
         </div>
         {String(ds.overall || "").trim()
-          ? <div className="ai-lede" style={{ whiteSpace: "pre-wrap" }}>{ds.overall}</div>
+          ? <p style={{ margin: 0, fontSize: 14, fontWeight: 400, color: "var(--ink)", lineHeight: 1.68, letterSpacing: 0, whiteSpace: "pre-wrap" }}>{ds.overall}</p>
           : null}
       </div>
       {items.length ? (
         <div className="card card-pad mb14">
+          <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".6px", textTransform: "uppercase", color: "var(--ink-faint)", marginBottom: 2 }}>
+            Activity that day
+          </div>
           {items.map((it: any, i: number) => (
-            <div className="sum-row" key={i}>
+            <div className="sum-row" key={i} style={{ padding: "13px 0" }}>
               <div className={`sum-ic k-${kindClass(it.kind)}`}>{KIND_ICON[it.kind] || "•"}</div>
               <div className="sum-main">
-                <div className="sum-t"><b>{cleanName(it.name)}</b></div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)", lineHeight: 1.4 }}>{cleanName(it.name)}</div>
                 {String(it.summary || "").trim()
-                  ? <div className="ic-body" style={{ color: "var(--ink-soft)", marginTop: 2, fontSize: 12.5, lineHeight: 1.5 }}>{it.summary}</div>
+                  ? <div style={{ color: "var(--ink-soft)", marginTop: 4, fontSize: 13, fontWeight: 400, lineHeight: 1.6 }}>{it.summary}</div>
                   : null}
-                <div className="sum-meta">{it.kind}{it.at ? ` · ${fmtDate(it.at)}` : ""}</div>
+                <div className="sum-meta" style={{ marginTop: 5 }}>{it.kind}{it.at ? ` · ${fmtDate(it.at)}` : ""}</div>
               </div>
             </div>
           ))}
