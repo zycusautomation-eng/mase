@@ -6,6 +6,18 @@
 
 ---
 
+## 2026-07-07 — Remove AIS column from the deals table
+
+**What.** Dropped the **AIS** column (AI Excitement tier — "AI Hungry / Curious / Resistant")
+from the deals list table (`app/(dashboard)/deals/page.tsx`): removed the `<th>AIS</th>`
+header, the per-row `aiLabel(...)` cell, and the now-unused `aiLabel` import.
+
+**Why.** The tier badge cluttered every table row. The AI Excitement read is retained where
+it's actually useful — **inside the deal drawer** (the AES card with meter + CRO commentary in
+the Deal Intelligence tab, and the "AI excitement" cell in the score strip), which is unchanged.
+
+---
+
 ## 2026-07-02 — Teams Bot control room (admin)
 
 **What.** New admin-only page **`/teams`** ("Teams Bot" in the sidebar) to run the MASE
