@@ -12,6 +12,8 @@ import { Eye, Lock, LockOpen, History, RefreshCw, Trash2, Pencil, ShieldCheck } 
 
 type EngineCard = {
   engine: string; name: string;
+  kind?: "engine" | "reference";           // Studio v2: reference assets (vendor dictionary, playbook)
+  ref_token?: string | null;               // e.g. "{{ref:vendor-dictionary}}" — how engines cite it
   active: { version: string; kind: string; note: string; locked_by: string | null; locked_at: string | null } | null;
   has_draft: boolean; draft_saved_at: string | null; versions: number;
 };
@@ -204,8 +206,10 @@ function Studio() {
         <div>
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700 }}>Omnivision — Scoring Version Studio</h1>
           <p style={{ margin: "3px 0 0", fontSize: 12.5, ...ink2 }}>
-            The five versioned engine instructions. Edit → draft → <b>lock</b> (changelog note required) —
-            the sweep only ever runs LOCKED versions, and every output is stamped with the versions it ran on.
+            The versioned engine instructions + reference assets (vendor dictionary, deal playbook).
+            Edit → draft → <b>lock</b> (changelog note required) — the sweep only ever runs LOCKED
+            versions, and every output is stamped with the versions it ran on. The <b>Deal Sweep</b> asset
+            IS the sweep&apos;s base system prompt; references are cited by the engines via <code>{"{{ref:…}}"}</code>.
           </p>
         </div>
         <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
@@ -219,10 +223,11 @@ function Studio() {
       {err && <div style={{ border: "1px solid #e4b4b0", background: "#fdf3f2", color: "#b3261e", borderRadius: 10, padding: "8px 12px", fontSize: 13 }}>{err}</div>}
       {ok && <div style={{ border: "1px solid #b5d4bd", background: "#f1f8f3", color: "#1b6e3a", borderRadius: 10, padding: "8px 12px", fontSize: 13 }}>{ok}</div>}
 
-      {/* Engine cards — platform surface, accent border when active, NO glow */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0,1fr))", gap: 10 }}>
+      {/* Asset cards (engines + reference assets) — platform surface, accent border when active, NO glow */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0,1fr))", gap: 10 }}>
         {engines.map((e) => {
           const active = sel === e.engine;
+          const isRef = e.kind === "reference";
           return (
             <button key={e.engine} type="button" onClick={() => setSel(e.engine)}
               className="admin-card"
@@ -239,8 +244,16 @@ function Studio() {
                 {e.has_draft
                   ? <span style={{ fontSize: 11, fontWeight: 600, color: "#8a5a00", background: "#fdf4e3", border: "1px solid #ecd9ad", borderRadius: 6, padding: "2px 7px", display: "inline-flex", gap: 4, alignItems: "center" }}><LockOpen size={11} />draft</span>
                   : <span style={{ fontSize: 11, fontWeight: 600, color: "#1b6e3a", background: "#f1f8f3", border: "1px solid #b5d4bd", borderRadius: 6, padding: "2px 7px", display: "inline-flex", gap: 4, alignItems: "center" }}><Lock size={11} />locked</span>}
+                {isRef && (
+                  <span title={e.ref_token ? `Engines cite this as ${e.ref_token}` : "Reference asset"}
+                    style={{ fontSize: 11, fontWeight: 600, color: "#4a4460", background: "#f2f0fa", border: "1px solid #d5cfeb", borderRadius: 6, padding: "2px 7px" }}>
+                    reference
+                  </span>
+                )}
               </div>
-              <div style={{ marginTop: 6, fontSize: 11, ...ink2 }}>{e.versions} versions</div>
+              <div style={{ marginTop: 6, fontSize: 11, ...ink2 }}>
+                {e.versions} versions{isRef && e.ref_token ? ` · cited as ${e.ref_token}` : ""}
+              </div>
             </button>
           );
         })}
