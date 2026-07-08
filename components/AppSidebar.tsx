@@ -12,12 +12,13 @@ import { useDashboard } from "@/lib/engine/DashboardContext";
 import AuthButton from "@/components/AuthButton";
 import {
   Handshake, Coffee, Leaf, MessageSquare, RefreshCw, ListChecks,
-  GraduationCap, Bot, Users, type LucideIcon,
+  GraduationCap, Bot, Users, Eye, type LucideIcon,
 } from "lucide-react";
 
 // Same routes as the old header TABS. `adminOnly` mirrors the header's
 // ADMIN_ONLY_TABS so non-admins only see Deals / Espresso / Matcha.
-const NAV: { href: string; label: string; icon: LucideIcon; adminOnly?: boolean }[] = [
+// `superOnly` = SUPER-ADMINS only (Omnivision / Scoring Version Studio).
+const NAV: { href: string; label: string; icon: LucideIcon; adminOnly?: boolean; superOnly?: boolean }[] = [
   { href: "/deals", label: "Deals", icon: Handshake },
   { href: "/espresso", label: "Espresso", icon: Coffee },
   { href: "/matcha", label: "Matcha", icon: Leaf },
@@ -27,11 +28,12 @@ const NAV: { href: string; label: string; icon: LucideIcon; adminOnly?: boolean 
   { href: "/learnings", label: "Learning", icon: GraduationCap, adminOnly: true },
   { href: "/teams", label: "Teams Bot", icon: Users, adminOnly: true },
   { href: "/admin", label: "Admin", icon: Bot, adminOnly: true },
+  { href: "/omnivision", label: "Omnivision", icon: Eye, superOnly: true },
 ];
 
 export default function AppSidebar() {
   const pathname = usePathname();
-  const { isAdminView, realIsAdmin, simEmail, scopeName, chatAllowed } = useDashboard();
+  const { isAdminView, isSuperAdminView, realIsAdmin, simEmail, scopeName, chatAllowed } = useDashboard();
   const [userName, setUserName] = useState<string | null>(null);
 
   useEffect(() => {
@@ -46,7 +48,8 @@ export default function AppSidebar() {
   // EXCEPTION: Chat access is governed by the admin policy (admins / everyone /
   // allowlist) — show it whenever this user is allowed, even if not an admin.
   const items = NAV.filter((n) =>
-    n.href === "/chat" ? (isAdminView || chatAllowed) : (!n.adminOnly || isAdminView)
+    n.superOnly ? isSuperAdminView
+      : n.href === "/chat" ? (isAdminView || chatAllowed) : (!n.adminOnly || isAdminView)
   );
   const role = simEmail
     ? `Simulating · ${scopeName ?? ""}`.trim()

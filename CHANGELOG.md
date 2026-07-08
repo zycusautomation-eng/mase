@@ -6,6 +6,26 @@
 
 ---
 
+## 2026-07-08 — Omnivision: Scoring Version Studio (SUPER-ADMIN only)
+
+**What.** New route **`/omnivision`** ("Omnivision" in the sidebar) — the control plane for the
+five versioned scoring-engine instructions (Signal Extraction, Win Position, Deal Momentum,
+To-Do Generation, 24-Hour Summary). Engine cards (active locked version + draft badge), full
+version trail with changelog notes, read-only version viewer, draft editor, and a **lock modal**
+(minor/major + required changelog note). Edit → a single unlocked DRAFT; while unlocked the
+engine keeps running its last locked version (lock-before-run); locking bumps the semver.
+
+**Access.** SUPER-ADMIN only — a strict subset of admins: `SUPER_ADMIN_EMAILS`
+(**aleen.dhar@zycus.com, sam.thomas@zycus.com**) in `lib/engine/helpers.ts`; `isSuperAdminView`
+in `DashboardContext`; sidebar `superOnly` flag; and the REAL gate in the deal-engine proxy —
+`callerIsSuperAdmin()` 403s **every** method of `/api/deal-engine/scoring-studio/*` (reads too:
+the instructions encode the whole scoring strategy).
+
+**Contract.** Backend endpoints `/api/deal-engine/scoring-studio/{engines,active,
+{engine}/trail,{engine}/version/{v},{engine}/draft,{engine}/lock}` (mase_backend
+`scoring_studio.py`), storing to Supabase `scoring_instructions`. Backend CHANGELOG has the
+full gap-analysis pointer (`docs/scoring-studio-gap-analysis.md`).
+
 ## 2026-07-02 — Teams Bot control room (admin)
 
 **What.** New admin-only page **`/teams`** ("Teams Bot" in the sidebar) to run the MASE

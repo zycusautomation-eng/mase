@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
 import { trackAppOpenOnce } from "@/lib/tracking/client";
-import { aiLabel, applyStageFix, ceoFilterLabel, fyq, healthLabel, inScope, keepRecord, resolveAccess, scoreBand, sizeBand, type Rec } from "./helpers";
+import { aiLabel, applyStageFix, ceoFilterLabel, fyq, healthLabel, inScope, isSuperAdminEmail, keepRecord, resolveAccess, scoreBand, sizeBand, type Rec } from "./helpers";
 import { createClient } from "@/lib/supabase/client";
 
 // Each filter is a multi-select: an empty array means "all".
@@ -58,6 +58,9 @@ interface DashboardState {
   // an admin AND is NOT simulating a non-admin view, so a simulated rep/VP view
   // hides them exactly as that user would see.
   isAdminView: boolean;
+  // gates the Omnivision / Scoring Version Studio: the real user is a SUPER-ADMIN
+  // (strict subset of admins — Aleen + Sam) and is not simulating another view.
+  isSuperAdminView: boolean;
   // gates the deal-scores UI (Win/Momentum/Commitment/Risk/FC columns, drawer panel,
   // and the score band filters): visible ONLY to admins and VPs. RSDs / reps / unknown
   // users never see it. Reflects the EFFECTIVE view, so an admin simulating an RSD also
@@ -329,7 +332,9 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     setVps, setRsds, setFilter, clearFilters, setQuery,
     scoped, filtered,
     locked, blocked, scopeName,
-    realIsAdmin, simEmail, isAdminView: realIsAdmin && !simEmail, canSeeScores, simulateAs,
+    realIsAdmin, simEmail, isAdminView: realIsAdmin && !simEmail,
+    isSuperAdminView: isSuperAdminEmail(realEmail) && !simEmail,
+    canSeeScores, simulateAs,
     chatAllowed,
     favs, isFav, toggleFav, favsOnly, setFavsOnly,
   };
