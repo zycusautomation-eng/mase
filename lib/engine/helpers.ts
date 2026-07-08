@@ -512,6 +512,18 @@ export const ADMIN_EMAILS = new Set<string>([
   "rishabh.tickoo@zycus.com",
 ]);
 
+// SUPER-ADMINS — the platform owners. Gates the Omnivision / Scoring Version Studio
+// (versioned engine instructions with lock-before-run). A strict SUBSET of ADMIN_EMAILS:
+// being an admin does NOT grant Omnivision; only these two do.
+export const SUPER_ADMIN_EMAILS = new Set<string>([
+  "aleen.dhar@zycus.com",
+  "sam.thomas@zycus.com",
+]);
+
+export function isSuperAdminEmail(email: string | null | undefined): boolean {
+  return SUPER_ADMIN_EMAILS.has((email || "").toLowerCase());
+}
+
 // Region admins: see ALL deals in a region (every VP team in it), LOCKED — but NOT the
 // whole book and NOT the admin agent-control surfaces. They resolve to a multi-VP
 // `scoped` role (not `admin`), so region-wide visibility falls out of the normal scope

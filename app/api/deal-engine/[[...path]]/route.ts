@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { ADMIN_EMAILS } from "@/lib/engine/helpers";
+import { ADMIN_EMAILS, SUPER_ADMIN_EMAILS } from "@/lib/engine/helpers";
 import { freshAccessToken } from "@/lib/sfdc/server";
 import { chatAllowedForCaller } from "@/lib/config/server";
 
@@ -86,6 +86,33 @@ function isSweepRerunPath(path?: string[]): boolean {
   return !!path && path.length === 2 && path[0] === "sweep" && path[1] === "rerun";
 }
 
+// Omnivision / Scoring Version Studio: versioned engine instructions with
+// lock-before-run. EVERY method (read + write) is SUPER-ADMIN only — the
+// instructions encode the entire scoring strategy.
+function isScoringStudioPath(path?: string[]): boolean {
+  return !!path && path.length >= 1 && path[0] === "scoring-studio";
+}
+
+async function callerEmail(): Promise<string | null> {
+  try {
+    const supabase = await createClient();
+    const { data: u } = await supabase.auth.getUser();
+    let email = u?.user?.email ?? null;
+    if (!email) {
+      const { data: s } = await supabase.auth.getSession();
+      email = s?.session?.user?.email ?? null;
+    }
+    return email;
+  } catch {
+    return null;
+  }
+}
+
+async function callerIsSuperAdmin(): Promise<boolean> {
+  const email = await callerEmail();
+  return SUPER_ADMIN_EMAILS.has((email || "").toLowerCase());
+}
+
 async function callerIsAdmin(): Promise<boolean> {
   try {
     const supabase = await createClient();
@@ -164,6 +191,9 @@ export async function GET(req: NextRequest, ctx: Ctx) {
   if ((isPromptPath(path) || isTodoRunnerRunsPath(path) || isKnowledgePath(path)) && !(await callerIsAdmin())) {
     return NextResponse.json({ error: "Admin only." }, { status: 403 });
   }
+  if (isScoringStudioPath(path) && !(await callerIsSuperAdmin())) {
+    return NextResponse.json({ error: "Super-admin only." }, { status: 403 });
+  }
   // Chat conversational endpoints: admin OR the admin-set "enable chat for users"
   // toggle. The chat/prompt EDITOR stays admin-only (caught by isPromptPath above).
   if (isChatPath(path) && !isPromptPath(path) && !(await chatAllowedForCaller())) {
@@ -178,6 +208,9 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
   if (isKnowledgePath(path) && !(await callerIsAdmin())) {
     return NextResponse.json({ error: "Admin only." }, { status: 403 });
   }
+  if (isScoringStudioPath(path) && !(await callerIsSuperAdmin())) {
+    return NextResponse.json({ error: "Super-admin only." }, { status: 403 });
+  }
   return forward(req, path);
 }
 
@@ -189,6 +222,9 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   if ((isPromptPath(path) || isTodoRunnerPromptPath(path) || isLearningsWritePath(path) || isKnowledgePath(path) || isSweepRerunPath(path))
       && !(await callerIsAdmin())) {
     return NextResponse.json({ error: "Admin only." }, { status: 403 });
+  }
+  if (isScoringStudioPath(path) && !(await callerIsSuperAdmin())) {
+    return NextResponse.json({ error: "Super-admin only." }, { status: 403 });
   }
   // Chat conversational writes (/chat, /chat/async, /chat/stop): admin OR the
   // "enable chat for users" toggle. The chat/prompt editor stays admin-only above.

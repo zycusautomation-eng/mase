@@ -21,7 +21,7 @@ function Shell({ children }: { children: React.ReactNode }) {
   const onDealsList = pathname === "/deals"; // the deals book (stat cards live here)
   // The scope + deal filters belong only to the deal-book views (not the detail page).
   const showScope = !pathname.startsWith("/chat") && !pathname.startsWith("/sync-quality")
-    && !pathname.startsWith("/admin") && !onDealDetail;
+    && !pathname.startsWith("/admin") && !pathname.startsWith("/omnivision") && !onDealDetail;
   const onEspresso = pathname.startsWith("/espresso");
   const onChat = pathname.startsWith("/chat");
   // Per-tab accent hue: warm/coffee on Espresso, green on Matcha (bg stays white).
