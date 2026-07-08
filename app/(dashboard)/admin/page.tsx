@@ -364,8 +364,8 @@ function DocumentsSection() {
 // Supabase (the runtime source of truth) and returns {prompt, default, is_override}
 // from `endpoint`; an empty save clears the override and falls back to the shipped
 // default. Used for BOTH the chat/todo-runner agent and the deal-sweep agent.
-function PromptEditor({ endpoint, heading, description, saveLabel, savedMsg, rows = 18 }: {
-  endpoint: string; heading: string; description: string; saveLabel: string; savedMsg: string; rows?: number;
+function PromptEditor({ endpoint, heading, description, governanceNote, saveLabel, savedMsg, rows = 18 }: {
+  endpoint: string; heading: string; description: string; governanceNote?: string; saveLabel: string; savedMsg: string; rows?: number;
 }) {
   const [prompt, setPrompt] = useState("");
   const [serverPrompt, setServerPrompt] = useState("");
@@ -391,6 +391,16 @@ function PromptEditor({ endpoint, heading, description, saveLabel, savedMsg, row
   useEffect(() => { void load(); }, [load]);
 
   async function save(value: string) {
+    // A pasted prompt sometimes still carries the disk-seed DEPRECATION banner (a
+    // leading <!-- ... --> block). It must never enter the live prompt — the agent
+    // would literally read "this file is deprecated" as its opening line (that
+    // exact bug shipped once). Strip ONE leading HTML comment before saving; the
+    // backend does the same server-side.
+    const t = value.trimStart();
+    if (t.startsWith("<!--")) {
+      const end = t.indexOf("-->");
+      if (end !== -1) value = t.slice(end + 3).trimStart();
+    }
     setSaving(true); setNote(null);
     try {
       const r = await fetch(endpoint, {
@@ -411,14 +421,18 @@ function PromptEditor({ endpoint, heading, description, saveLabel, savedMsg, row
   const dirty = prompt !== serverPrompt;
   return (
     <div className="admin-card">
-      <h3>{heading} {isOverride && <span className="ap-tag ap-custom">custom</span>}</h3>
+      <h3>{heading} {isOverride
+        ? <span className="ap-tag ap-custom">live — supabase override</span>
+        : <span className="ap-tag">shipped default (no override)</span>}</h3>
       <p className="admin-desc">{description}</p>
+      {governanceNote && <p className="admin-desc" style={{ color: "var(--accent)" }}>{governanceNote}</p>}
       {loading ? <div className="admin-meta">Loading…</div> : (
         <>
           <textarea className="admin-textarea mono" value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={rows} />
           <div className="admin-actions">
             <button className="admin-btn primary" onClick={() => save(prompt)} disabled={saving || !dirty}>{saving ? "Saving…" : saveLabel}</button>
             <button className="admin-btn" onClick={() => save("")} disabled={saving}>Reset to default</button>
+            <span className="admin-meta">{prompt.length.toLocaleString()} chars</span>
             {dirty && <span className="admin-meta">unsaved changes</span>}
             {note && <span className="admin-note">{note}</span>}
           </div>
@@ -453,6 +467,7 @@ function SweepPromptSection() {
       endpoint="/api/deal-engine/sweep/prompt"
       heading="Deal Sweep agent system prompt"
       description="Governs the Deal Intelligence Engine sweep: the agent that analyses one opportunity end-to-end against live Salesforce + Avoma (transcripts, MEDDPICC, competition) and emits the canonical deal record the Deals / Espresso / Matcha views read. Stored in Supabase and applied on the next opportunity swept — no redeploy. Leave empty + save to fall back to the shipped default. This is NOT the chat / to-do-runner agent."
+      governanceNote="What the sweep actually runs = THIS text + the LOCKED Omnivision engine instructions (Signal Extraction · Win Position · Momentum · To-Dos · 24h Summary) appended after it as the authoritative final section — where they conflict, the locked instructions win. Locked versions are managed in Omnivision (super-admin) and every swept record is stamped with the versions that governed it."
       saveLabel="Save sweep prompt"
       savedMsg="Saved — applies to the next opportunity swept."
       rows={28}

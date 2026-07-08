@@ -6,6 +6,21 @@
 
 ---
 
+## 2026-07-09 — Admin prompt editors: live-provenance badge + banner guard + Omnivision note
+
+**What.** The Agent-Control prompt editors (Todo Runner / Deal Sweep / Chat) now (1) label the
+loaded text explicitly — `live — supabase override` vs `shipped default (no override)` — so
+nobody mistakes the live prompt for the deprecated disk seed again; (2) strip ONE leading
+`<!-- ... -->` deprecation banner on save (the mase_deal_sweep row had been seeded WITH the
+banner, so the live sweep agent was literally reading "this file is deprecated" as its opening
+line — row cleaned 2026-07-09, backend now also strips at load/save); (3) show a char count;
+and (4) the Deal Sweep editor carries a governance note: the runtime appends the LOCKED
+Omnivision engine instructions after this text as the authoritative final section.
+
+**Why.** "Why do I see the deprecated one, where is the real one?" — the editor showed the real
+Supabase override, but its first 20 lines were the stale banner. Kill the ambiguity at the
+surface AND at the store.
+
 ## 2026-07-08 — Omnivision: Scoring Version Studio (SUPER-ADMIN only)
 
 **What.** New route **`/omnivision`** ("Omnivision" in the sidebar) — the control plane for the
