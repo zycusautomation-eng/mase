@@ -1,21 +1,13 @@
 "use client";
-// Omnivision — Scoring Version Studio. SUPER-ADMIN ONLY (Aleen + Sam).
-// The control plane for the five versioned engine instructions (Signal Extraction,
-// Win Position, Deal Momentum, To-Do Generation, 24-Hour Summary), per the
-// MASE_Scoring_Studio handoff:
-//   · independent semver per engine (minor 10.1 / major 11.0), full changelog trail
-//   · edit → a single unlocked DRAFT; while a draft is unlocked the engine is
-//     BLOCKED from adopting a new instruction (lock-before-run)
-//   · LOCK requires a changelog note; every runtime output stamps the exact locked
-//     version(s) it used (provenance)
-// Data: backend Supabase `scoring_instructions` via /api/deal-engine/scoring-studio/*
-// (the proxy enforces super-admin on every method).
-import { useCallback, useEffect, useState } from "react";
+// Omnivision — Scoring Version Studio. SUPER-ADMIN ONLY (Aleen + Sam; enforced in the
+// sidebar, here, AND the deal-engine proxy on every method).
+// Styled with the platform's design tokens (dashboard.css: --surface/--line/--ink/--accent,
+// .admin-card) — no Tailwind-slate borders, no glow. Version switching is OPTIMISTIC:
+// clicking a version activates it instantly and renders a skeleton while the text loads;
+// loaded versions are cached so revisits are instant.
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useDashboard } from "@/lib/engine/DashboardContext";
 import { createClient } from "@/lib/supabase/client";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Eye, Lock, LockOpen, History, RefreshCw, Trash2, Pencil, ShieldCheck } from "lucide-react";
 
 type EngineCard = {
@@ -30,6 +22,8 @@ type TrailRow = {
 type Trail = { engine: string; name: string; trail: TrailRow[]; draft: TrailRow | null };
 
 const API = "/api/deal-engine/scoring-studio";
+const line = "1px solid var(--line)";
+const ink2 = { color: "var(--ink2)" } as const;
 
 async function j<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API}${path}`, {
@@ -42,6 +36,33 @@ async function j<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 const fmtDate = (s?: string | null) => (s ? new Date(s).toLocaleString() : "—");
+
+function Skeleton() {
+  return (
+    <div style={{ display: "grid", gap: 10, padding: 4 }}>
+      {[92, 100, 84, 96, 70, 88, 60].map((w, i) => (
+        <div key={i} style={{
+          height: 12, width: `${w}%`, borderRadius: 6, background: "var(--line)",
+          opacity: 0.7, animation: "ovpulse 1.1s ease-in-out infinite", animationDelay: `${i * 90}ms`,
+        }} />
+      ))}
+      <style>{`@keyframes ovpulse{0%,100%{opacity:.35}50%{opacity:.8}}`}</style>
+    </div>
+  );
+}
+
+function Btn({ children, onClick, disabled, kind = "ghost" }: {
+  children: React.ReactNode; onClick?: () => void; disabled?: boolean; kind?: "primary" | "ghost" | "danger";
+}) {
+  const base: React.CSSProperties = {
+    display: "inline-flex", alignItems: "center", gap: 6, borderRadius: 8, cursor: disabled ? "default" : "pointer",
+    padding: "7px 12px", fontSize: 12.5, fontWeight: 600, border: line, opacity: disabled ? 0.55 : 1,
+    background: "var(--surface)", color: "var(--ink)",
+  };
+  if (kind === "primary") Object.assign(base, { background: "var(--accent)", borderColor: "var(--accent)", color: "#fff" });
+  if (kind === "danger") Object.assign(base, { color: "#b3261e" });
+  return <button type="button" style={base} onClick={onClick} disabled={disabled}>{children}</button>;
+}
 
 export default function OmnivisionPage() {
   const { isSuperAdminView } = useDashboard();
@@ -59,7 +80,8 @@ function Studio() {
   const [engines, setEngines] = useState<EngineCard[]>([]);
   const [sel, setSel] = useState<string | null>(null);
   const [trail, setTrail] = useState<Trail | null>(null);
-  const [viewing, setViewing] = useState<{ version: string; content: string } | null>(null);
+  const [trailLoading, setTrailLoading] = useState(false);
+  const [viewing, setViewing] = useState<{ version: string; content: string | null } | null>(null);
   const [editing, setEditing] = useState(false);
   const [draftText, setDraftText] = useState("");
   const [lockOpen, setLockOpen] = useState(false);
@@ -69,6 +91,8 @@ function Studio() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [ok, setOk] = useState("");
+  // engine:version -> content cache, so switching versions is instant after first load
+  const cache = useRef<Map<string, string>>(new Map());
 
   useEffect(() => {
     createClient().auth.getUser().then(({ data }) => setMe(data.user?.email || "")).catch(() => {});
@@ -80,40 +104,50 @@ function Studio() {
     try {
       const d = await j<{ engines: EngineCard[] }>("/engines");
       setEngines(d.engines);
-      if (!sel && d.engines.length) setSel(d.engines[0].engine);
+      setSel((s) => s ?? (d.engines[0]?.engine || null));
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
-  }, [sel]);
+  }, []);
 
   const loadTrail = useCallback(async (engine: string) => {
+    setTrailLoading(true);
     try {
       setTrail(await j<Trail>(`/${engine}/trail`));
-      setViewing(null); setEditing(false);
+      setViewing(null); setEditing(false); setErr("");
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
+    setTrailLoading(false);
   }, []);
 
   useEffect(() => { loadEngines(); }, [loadEngines]);
   useEffect(() => { if (sel) loadTrail(sel); }, [sel, loadTrail]);
 
-  const openVersion = async (version: string) => {
+  // OPTIMISTIC version open: activate the tab immediately, skeleton the pane, cache the text.
+  const openVersion = useCallback((version: string) => {
     if (!sel) return;
-    setBusy(true); setErr("");
-    try {
-      const row = await j<{ version: string; content: string }>(`/${sel}/version/${version}`);
-      setViewing({ version: row.version, content: row.content });
-      setEditing(false);
-    } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
-    setBusy(false);
-  };
+    setEditing(false); setErr("");
+    const key = `${sel}:${version}`;
+    const hit = cache.current.get(key);
+    setViewing({ version, content: hit ?? null });
+    if (hit !== undefined) return;
+    j<{ version: string; content: string }>(`/${sel}/version/${version}`)
+      .then((row) => {
+        cache.current.set(key, row.content);
+        setViewing((v) => (v && v.version === version ? { version, content: row.content } : v));
+      })
+      .catch((e) => setErr(e instanceof Error ? e.message : String(e)));
+  }, [sel]);
 
   const startEdit = async () => {
     if (!sel || !trail) return;
     setBusy(true); setErr("");
     try {
-      // Prefill: the existing draft if there is one, else the latest locked text.
-      const src = trail.draft
-        ? await j<{ content: string }>(`/${sel}/version/draft`)
-        : await j<{ content: string }>(`/${sel}/version/${trail.trail.find(t => t.locked)?.version}`);
-      setDraftText(src.content);
+      const from = trail.draft ? "draft" : trail.trail.find((t) => t.locked)?.version;
+      const key = `${sel}:${from}`;
+      let text = cache.current.get(key);
+      if (text === undefined) {
+        const src = await j<{ content: string }>(`/${sel}/version/${from}`);
+        text = src.content; cache.current.set(key, text);
+      }
+      setDraftText(text || "");
       setEditing(true); setViewing(null);
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
     setBusy(false);
@@ -124,7 +158,8 @@ function Studio() {
     setBusy(true); setErr("");
     try {
       await j(`/${sel}/draft`, { method: "POST", body: JSON.stringify({ content: draftText, author: me }) });
-      flash("Draft saved — the engine is BLOCKED from adopting a new instruction until you lock.");
+      cache.current.set(`${sel}:draft`, draftText);
+      flash("Draft saved — the engine keeps running its last LOCKED version until you lock this.");
       await loadEngines(); await loadTrail(sel);
       setEditing(false);
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
@@ -137,6 +172,7 @@ function Studio() {
     setBusy(true); setErr("");
     try {
       await j(`/${sel}/draft`, { method: "DELETE" });
+      cache.current.delete(`${sel}:draft`);
       flash("Draft discarded.");
       await loadEngines(); await loadTrail(sel);
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
@@ -151,7 +187,7 @@ function Studio() {
         method: "POST",
         body: JSON.stringify({ kind: lockKind, note: lockNote.trim(), locked_by: me }),
       });
-      flash(`Locked as v${r.version} — the engine adopts it on the next run.`);
+      flash(`Locked as v${r.version} — the sweep adopts it on the next run.`);
       setLockOpen(false); setLockNote("");
       await loadEngines(); await loadTrail(sel);
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
@@ -161,160 +197,172 @@ function Studio() {
   const cur = engines.find((e) => e.engine === sel);
 
   return (
-    <div className="p-6 max-w-[1200px] mx-auto space-y-4">
-      <div className="flex items-center gap-3">
-        <Eye className="h-7 w-7 text-indigo-600" />
+    <div style={{ padding: "22px 26px", maxWidth: 1240, margin: "0 auto", display: "grid", gap: 14 }}>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <Eye size={26} style={{ color: "var(--accent)" }} />
         <div>
-          <h1 className="text-2xl font-semibold">Omnivision — Scoring Version Studio</h1>
-          <p className="text-sm text-slate-500">
-            The five versioned engine instructions. Edit → draft → <b>lock</b> (with a changelog note) — nothing
-            sweeps, scores, or generates on an unlocked draft, and every output is stamped with the versions it ran on.
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700 }}>Omnivision — Scoring Version Studio</h1>
+          <p style={{ margin: "3px 0 0", fontSize: 12.5, ...ink2 }}>
+            The five versioned engine instructions. Edit → draft → <b>lock</b> (changelog note required) —
+            the sweep only ever runs LOCKED versions, and every output is stamped with the versions it ran on.
           </p>
         </div>
-        <div className="ml-auto flex items-center gap-2">
-          <Badge variant="outline" className="gap-1"><ShieldCheck className="h-3 w-3" /> super-admin</Badge>
-          <Button variant="outline" size="sm" onClick={() => { loadEngines(); if (sel) loadTrail(sel); }}>
-            <RefreshCw className="h-4 w-4" />
-          </Button>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
+          <span style={{ display: "inline-flex", gap: 5, alignItems: "center", fontSize: 11.5, fontWeight: 600, ...ink2, border: line, borderRadius: 999, padding: "4px 10px" }}>
+            <ShieldCheck size={13} /> super-admin
+          </span>
+          <Btn onClick={() => { loadEngines(); if (sel) loadTrail(sel); }}><RefreshCw size={14} /></Btn>
         </div>
       </div>
 
-      {err && <div className="rounded-md bg-rose-50 border border-rose-200 text-rose-700 px-3 py-2 text-sm">{err}</div>}
-      {ok && <div className="rounded-md bg-emerald-50 border border-emerald-200 text-emerald-700 px-3 py-2 text-sm">{ok}</div>}
+      {err && <div style={{ border: "1px solid #e4b4b0", background: "#fdf3f2", color: "#b3261e", borderRadius: 10, padding: "8px 12px", fontSize: 13 }}>{err}</div>}
+      {ok && <div style={{ border: "1px solid #b5d4bd", background: "#f1f8f3", color: "#1b6e3a", borderRadius: 10, padding: "8px 12px", fontSize: 13 }}>{ok}</div>}
 
-      {/* Engine cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        {engines.map((e) => (
-          <button key={e.engine} onClick={() => setSel(e.engine)}
-            className={`text-left rounded-lg border p-3 transition-shadow hover:shadow ${sel === e.engine ? "border-indigo-500 ring-2 ring-indigo-200" : "border-slate-200"}`}>
-            <div className="text-[13px] font-medium leading-tight">{e.name}</div>
-            <div className="mt-2 flex items-center gap-1.5 flex-wrap">
-              <Badge className="bg-slate-900 text-white">v{e.active?.version ?? "—"}</Badge>
-              {e.has_draft
-                ? <Badge className="bg-amber-100 text-amber-800 gap-1"><LockOpen className="h-3 w-3" />draft</Badge>
-                : <Badge className="bg-emerald-100 text-emerald-700 gap-1"><Lock className="h-3 w-3" />locked</Badge>}
-            </div>
-            <div className="mt-1 text-[11px] text-slate-400">{e.versions} versions</div>
-          </button>
-        ))}
+      {/* Engine cards — platform surface, accent border when active, NO glow */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0,1fr))", gap: 10 }}>
+        {engines.map((e) => {
+          const active = sel === e.engine;
+          return (
+            <button key={e.engine} type="button" onClick={() => setSel(e.engine)}
+              className="admin-card"
+              style={{
+                textAlign: "left", cursor: "pointer", padding: "12px 14px",
+                border: active ? "1.5px solid var(--accent)" : line,
+                background: "var(--surface)", borderRadius: 12,
+              }}>
+              <div style={{ fontSize: 12.5, fontWeight: 700, lineHeight: 1.25 }}>{e.name}</div>
+              <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 8, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 11, fontWeight: 700, background: "var(--ink)", color: "var(--surface)", borderRadius: 6, padding: "2px 7px" }}>
+                  v{e.active?.version ?? "—"}
+                </span>
+                {e.has_draft
+                  ? <span style={{ fontSize: 11, fontWeight: 600, color: "#8a5a00", background: "#fdf4e3", border: "1px solid #ecd9ad", borderRadius: 6, padding: "2px 7px", display: "inline-flex", gap: 4, alignItems: "center" }}><LockOpen size={11} />draft</span>
+                  : <span style={{ fontSize: 11, fontWeight: 600, color: "#1b6e3a", background: "#f1f8f3", border: "1px solid #b5d4bd", borderRadius: 6, padding: "2px 7px", display: "inline-flex", gap: 4, alignItems: "center" }}><Lock size={11} />locked</span>}
+              </div>
+              <div style={{ marginTop: 6, fontSize: 11, ...ink2 }}>{e.versions} versions</div>
+            </button>
+          );
+        })}
       </div>
 
       {cur?.has_draft && (
-        <div className="rounded-md bg-amber-50 border border-amber-300 text-amber-800 px-3 py-2 text-sm flex items-center gap-2">
-          <LockOpen className="h-4 w-4 shrink-0" />
-          <span><b>{cur.name}</b> has an UNLOCKED draft — the engine keeps running its last locked version
-            (v{cur.active?.version}) and will not adopt the edit until it is locked.</span>
-          <span className="ml-auto flex gap-2">
-            <Button size="sm" onClick={() => setLockOpen(true)} disabled={busy}><Lock className="h-4 w-4 mr-1" />Lock…</Button>
-            <Button size="sm" variant="outline" onClick={discardDraft} disabled={busy}><Trash2 className="h-4 w-4 mr-1" />Discard</Button>
+        <div style={{ border: "1px solid #ecd9ad", background: "#fdf4e3", color: "#6b4a00", borderRadius: 10, padding: "9px 12px", fontSize: 13, display: "flex", alignItems: "center", gap: 8 }}>
+          <LockOpen size={15} />
+          <span><b>{cur.name}</b> has an UNLOCKED draft — the engine keeps running v{cur.active?.version} until you lock it.</span>
+          <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+            <Btn kind="primary" onClick={() => setLockOpen(true)} disabled={busy}><Lock size={13} />Lock…</Btn>
+            <Btn kind="danger" onClick={discardDraft} disabled={busy}><Trash2 size={13} />Discard</Btn>
           </span>
         </div>
       )}
 
-      {trail && (
-        <div className="grid md:grid-cols-[380px_1fr] gap-4">
-          {/* Version trail */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center gap-2">
-                <History className="h-4 w-4" /> {trail.name} — version trail
-                <span className="ml-auto">
-                  <Button size="sm" onClick={startEdit} disabled={busy}>
-                    <Pencil className="h-4 w-4 mr-1" />{trail.draft ? "Edit draft" : "Edit"}
-                  </Button>
-                </span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {trail.draft && (
-                <button onClick={() => openVersion("draft")}
-                  className="w-full text-left rounded-md border border-amber-300 bg-amber-50 p-2">
-                  <div className="flex items-center gap-2 text-sm font-medium text-amber-800">
-                    <LockOpen className="h-3.5 w-3.5" /> draft (unlocked)
+      <div style={{ display: "grid", gridTemplateColumns: "380px 1fr", gap: 14, alignItems: "start" }}>
+        {/* Version trail */}
+        <div className="admin-card" style={{ padding: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+            <History size={15} />
+            <span style={{ fontSize: 14, fontWeight: 700 }}>{trail?.name || "…"} — version trail</span>
+            <span style={{ marginLeft: "auto" }}>
+              <Btn kind="primary" onClick={startEdit} disabled={busy || trailLoading}>
+                <Pencil size={13} />{trail?.draft ? "Edit draft" : "Edit"}
+              </Btn>
+            </span>
+          </div>
+          {trailLoading ? <Skeleton /> : (
+            <div style={{ display: "grid", gap: 8 }}>
+              {trail?.draft && (
+                <button type="button" onClick={() => openVersion("draft")}
+                  style={{ textAlign: "left", borderRadius: 10, padding: 10, cursor: "pointer", border: viewing?.version === "draft" ? "1.5px solid var(--accent)" : "1px solid #ecd9ad", background: "#fdf4e3" }}>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13, fontWeight: 700, color: "#8a5a00" }}>
+                    <LockOpen size={13} /> draft (unlocked)
                   </div>
-                  <div className="text-xs text-amber-700 mt-0.5">{trail.draft.note} · {fmtDate(trail.draft.created_at)}</div>
+                  <div style={{ fontSize: 11.5, color: "#8a5a00", marginTop: 3 }}>{fmtDate(trail.draft.created_at)}</div>
                 </button>
               )}
-              {trail.trail.map((v) => (
-                <button key={v.version} onClick={() => openVersion(v.version)}
-                  className={`w-full text-left rounded-md border p-2 hover:bg-slate-50 ${viewing?.version === v.version ? "border-indigo-400 bg-indigo-50/50" : "border-slate-200"}`}>
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="font-semibold">v{v.version}</span>
-                    <Badge variant="outline" className="text-[10px]">{v.kind}</Badge>
-                    {v.locked && <Lock className="h-3 w-3 text-emerald-600" />}
-                    <span className="ml-auto text-[11px] text-slate-400">{fmtDate(v.locked_at || v.created_at)}</span>
-                  </div>
-                  <div className="text-xs text-slate-600 mt-1 line-clamp-3">{v.note}</div>
-                  {v.locked_by && <div className="text-[11px] text-slate-400 mt-0.5">locked by {v.locked_by}</div>}
-                </button>
-              ))}
-            </CardContent>
-          </Card>
-
-          {/* Viewer / editor */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">
-                {editing ? "Editing → saves as the unlocked draft"
-                  : viewing ? `v${viewing.version} — instruction text (read-only)`
-                  : "Select a version to view, or Edit to draft a change"}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {editing ? (
-                <div className="space-y-2">
-                  <textarea value={draftText} onChange={(e) => setDraftText(e.target.value)}
-                    className="w-full h-[520px] rounded-md border border-slate-300 p-3 font-mono text-[12.5px] leading-relaxed focus:outline-none focus:ring-2 focus:ring-indigo-300"
-                    spellCheck={false} />
-                  <div className="flex gap-2">
-                    <Button onClick={saveDraft} disabled={busy || !draftText.trim()}>Save draft</Button>
-                    <Button variant="outline" onClick={() => setEditing(false)} disabled={busy}>Cancel</Button>
-                    <span className="text-xs text-slate-500 self-center">
-                      Saving creates/updates the single unlocked draft; lock it to make it live.
-                    </span>
-                  </div>
-                </div>
-              ) : viewing ? (
-                <pre className="w-full h-[560px] overflow-auto rounded-md bg-slate-950 text-slate-100 p-4 text-[12.5px] leading-relaxed whitespace-pre-wrap">{viewing.content}</pre>
-              ) : (
-                <div className="h-[300px] grid place-items-center text-sm text-slate-400">
-                  Pick a version on the left — the full instruction text renders here.
-                </div>
-              )}
-            </CardContent>
-          </Card>
+              {trail?.trail.map((v) => {
+                const active = viewing?.version === v.version;
+                return (
+                  <button key={v.version} type="button" onClick={() => openVersion(v.version)}
+                    style={{
+                      textAlign: "left", borderRadius: 10, padding: 10, cursor: "pointer",
+                      border: active ? "1.5px solid var(--accent)" : line, background: "var(--surface)",
+                    }}>
+                    <div style={{ display: "flex", gap: 7, alignItems: "center", fontSize: 13 }}>
+                      <b>v{v.version}</b>
+                      <span style={{ fontSize: 10.5, fontWeight: 600, border: line, borderRadius: 5, padding: "1px 6px", ...ink2 }}>{v.kind}</span>
+                      {v.locked && <Lock size={12} style={{ color: "#1b6e3a" }} />}
+                      <span style={{ marginLeft: "auto", fontSize: 11, ...ink2 }}>{fmtDate(v.locked_at || v.created_at)}</span>
+                    </div>
+                    <div style={{ fontSize: 12, marginTop: 5, lineHeight: 1.45, ...ink2, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{v.note}</div>
+                    {v.locked_by && <div style={{ fontSize: 11, marginTop: 3, ...ink2 }}>locked by {v.locked_by}</div>}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
-      )}
+
+        {/* Viewer / editor */}
+        <div className="admin-card" style={{ padding: 16 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 10 }}>
+            {editing ? "Editing → saves as the unlocked draft"
+              : viewing ? `v${viewing.version} — instruction text (read-only)`
+              : "Select a version to view, or Edit to draft a change"}
+          </div>
+          {editing ? (
+            <div style={{ display: "grid", gap: 10 }}>
+              <textarea value={draftText} onChange={(e) => setDraftText(e.target.value)} spellCheck={false}
+                style={{ width: "100%", height: 520, border: line, borderRadius: 10, padding: 12, font: "12.5px/1.6 ui-monospace, monospace", background: "var(--surface)", color: "var(--ink)", outline: "none", resize: "vertical" }} />
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <Btn kind="primary" onClick={saveDraft} disabled={busy || !draftText.trim()}>Save draft</Btn>
+                <Btn onClick={() => setEditing(false)} disabled={busy}>Cancel</Btn>
+                <span style={{ fontSize: 11.5, ...ink2 }}>Saving creates/updates the single unlocked draft; lock it to make it live.</span>
+              </div>
+            </div>
+          ) : viewing ? (
+            viewing.content === null ? <Skeleton /> : (
+              <pre style={{ width: "100%", height: 560, overflow: "auto", borderRadius: 10, border: line, background: "var(--surface)", color: "var(--ink)", padding: 14, font: "12.5px/1.65 ui-monospace, monospace", whiteSpace: "pre-wrap", margin: 0 }}>{viewing.content}</pre>
+            )
+          ) : (
+            <div style={{ height: 280, display: "grid", placeItems: "center", fontSize: 13, ...ink2 }}>
+              Pick a version on the left — the full instruction text renders here.
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Lock modal */}
       {lockOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 grid place-items-center" onClick={() => !busy && setLockOpen(false)}>
-          <div className="bg-white rounded-lg shadow-xl w-[520px] max-w-[92vw] p-5 space-y-4" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center gap-2 text-lg font-semibold"><Lock className="h-5 w-5" /> Lock {cur?.name}</div>
-            <div className="text-sm text-slate-600">
-              Locking promotes the draft to the next version and makes it the instruction the engine runs.
-              Current: <b>v{cur?.active?.version}</b> → next: <b>{lockKind === "minor"
+        <div style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(15,18,25,.42)", display: "grid", placeItems: "center" }}
+          onClick={() => !busy && setLockOpen(false)}>
+          <div className="admin-card" style={{ width: 520, maxWidth: "92vw", padding: 20, display: "grid", gap: 14, background: "var(--surface)" }}
+            onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 16, fontWeight: 700 }}><Lock size={17} /> Lock {cur?.name}</div>
+            <div style={{ fontSize: 13, ...ink2 }}>
+              Locking promotes the draft to the next version — the instruction the sweep runs.
+              Current <b>v{cur?.active?.version}</b> → next <b>{lockKind === "minor"
                 ? `v${cur?.active ? `${cur.active.version.split(".")[0]}.${Number(cur.active.version.split(".")[1] || 0) + 1}` : "10.0"}`
                 : `v${cur?.active ? `${Number(cur.active.version.split(".")[0]) + 1}.0` : "10.0"}`}</b>
             </div>
-            <div className="flex gap-3">
+            <div style={{ display: "flex", gap: 10 }}>
               {(["minor", "major"] as const).map((k) => (
-                <label key={k} className={`flex-1 rounded-md border p-2 cursor-pointer text-sm ${lockKind === k ? "border-indigo-500 bg-indigo-50" : "border-slate-200"}`}>
-                  <input type="radio" className="mr-2" checked={lockKind === k} onChange={() => setLockKind(k)} />
-                  <b className="capitalize">{k}</b>
-                  <div className="text-xs text-slate-500 mt-1">{k === "minor" ? "tweak / added rule (10.1 → 10.2)" : "changed behaviour (10.x → 11.0)"}</div>
+                <label key={k} style={{ flex: 1, borderRadius: 10, padding: 10, cursor: "pointer", fontSize: 13, border: lockKind === k ? "1.5px solid var(--accent)" : line }}>
+                  <input type="radio" style={{ marginRight: 7 }} checked={lockKind === k} onChange={() => setLockKind(k)} />
+                  <b style={{ textTransform: "capitalize" }}>{k}</b>
+                  <div style={{ fontSize: 11.5, marginTop: 4, ...ink2 }}>{k === "minor" ? "tweak / added rule (10.1 → 10.2)" : "changed behaviour (10.x → 11.0)"}</div>
                 </label>
               ))}
             </div>
             <div>
-              <div className="text-sm font-medium mb-1">Changelog note <span className="text-rose-600">*</span></div>
+              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 5 }}>Changelog note <span style={{ color: "#b3261e" }}>*</span></div>
               <textarea value={lockNote} onChange={(e) => setLockNote(e.target.value)} rows={3}
                 placeholder="What changed and why — this is the audit trail every score traces back to."
-                className="w-full rounded-md border border-slate-300 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+                style={{ width: "100%", border: line, borderRadius: 10, padding: 10, fontSize: 13, background: "var(--surface)", color: "var(--ink)", outline: "none" }} />
             </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setLockOpen(false)} disabled={busy}>Cancel</Button>
-              <Button onClick={doLock} disabled={busy || !lockNote.trim()}><Lock className="h-4 w-4 mr-1" />Lock version</Button>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <Btn onClick={() => setLockOpen(false)} disabled={busy}>Cancel</Btn>
+              <Btn kind="primary" onClick={doLock} disabled={busy || !lockNote.trim()}><Lock size={13} />Lock version</Btn>
             </div>
           </div>
         </div>
