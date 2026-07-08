@@ -1,0 +1,730 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>MASE · Scoring Version Studio</title>
+<style>
+  :root{
+    --bg:#0f1420; --panel:#161d2e; --panel2:#1d2740; --line:#2a3652;
+    --ink:#e7ecf6; --muted:#93a1bf; --accent:#4f8cff; --green:#2fbf71;
+    --amber:#f3b13b; --red:#ef5a6a; --chip:#233150;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:linear-gradient(180deg,#0d1220,#0f1524);color:var(--ink);
+    font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  header{padding:16px 22px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;
+    background:rgba(20,27,44,.6);backdrop-filter:blur(6px);position:sticky;top:0;z-index:5}
+  header .logo{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#4f8cff,#8a5cff);
+    display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff}
+  header h1{font-size:15px;margin:0;font-weight:700;letter-spacing:.2px}
+  header .sub{color:var(--muted);font-size:12px}
+  .wrap{max-width:1080px;margin:0 auto;padding:22px}
+  .tabs{display:flex;gap:8px;margin-bottom:16px}
+  .tab{padding:9px 16px;border:1px solid var(--line);background:var(--panel);border-radius:10px;cursor:pointer;
+    color:var(--muted);font-weight:600;font-size:13px}
+  .tab.active{color:#fff;border-color:var(--accent);background:#1c2946;box-shadow:inset 0 0 0 1px var(--accent)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px}
+  .row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .title{font-size:16px;font-weight:700}
+  .badge{display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:999px;font-size:12px;font-weight:700}
+  .badge.locked{background:rgba(47,191,113,.15);color:#5fe0a0;border:1px solid rgba(47,191,113,.4)}
+  .badge.draft{background:rgba(243,177,59,.14);color:#f6c96a;border:1px solid rgba(243,177,59,.4)}
+  .status{margin-top:12px;padding:11px 14px;border-radius:10px;font-size:13px;display:flex;align-items:center;gap:9px}
+  .status.ok{background:rgba(47,191,113,.10);border:1px solid rgba(47,191,113,.30);color:#9ff0c4}
+  .status.warn{background:rgba(243,177,59,.10);border:1px solid rgba(243,177,59,.35);color:#f7d08a}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
+  button{font:inherit;font-weight:600;border-radius:9px;padding:9px 15px;cursor:pointer;border:1px solid var(--line);
+    background:var(--panel2);color:var(--ink)}
+  button:hover{border-color:#3b4c74}
+  button.primary{background:linear-gradient(180deg,#4f8cff,#3f76e6);border-color:#4f8cff;color:#fff}
+  button.good{background:linear-gradient(180deg,#2fbf71,#26a862);border-color:#2fbf71;color:#04220f}
+  button.ghost{background:transparent}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  textarea{width:100%;min-height:440px;resize:vertical;background:#0c1220;border:1px solid var(--line);
+    border-radius:10px;color:#d7e0f2;padding:14px;font:12.5px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre}
+  textarea[readonly]{opacity:.92;background:#0b1018}
+  .grid{display:grid;grid-template-columns:1fr;gap:16px}
+  @media(min-width:900px){.grid{grid-template-columns:1.7fr .9fr}}
+  .trail{max-height:340px;overflow:auto}
+  .ver{border:1px solid var(--line);border-radius:10px;padding:11px 13px;margin-bottom:9px;background:var(--panel2)}
+  .ver .vh{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .ver .vn{font-weight:800;color:#cfe0ff}
+  .ver .vt{font-size:11px;color:var(--muted)}
+  .ver .note{font-size:12.5px;color:#c6d2ea;margin-top:6px}
+  .pill{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--chip);color:#9db6ee}
+  .pill.major{background:rgba(239,90,106,.16);color:#ff97a3}
+  .pill.minor{background:rgba(79,140,255,.16);color:#9dc0ff}
+  .pill.initial{background:rgba(47,191,113,.16);color:#7ee6b0}
+  .runline{font-size:12px;color:#9fb2d6;padding:6px 0;border-bottom:1px dashed var(--line)}
+  .muted{color:var(--muted)}
+  h3{margin:2px 0 12px;font-size:13px;text-transform:uppercase;letter-spacing:.7px;color:#9fb0d0}
+  /* modal */
+  .overlay{position:fixed;inset:0;background:rgba(4,8,16,.6);display:none;align-items:center;justify-content:center;z-index:20}
+  .overlay.on{display:flex}
+  .modal{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;width:min(520px,92vw)}
+  .modal h2{margin:0 0 6px;font-size:16px}
+  .seg{display:flex;gap:8px;margin:14px 0}
+  .seg button{flex:1}
+  .seg button.sel{border-color:var(--accent);background:#1c2946;color:#fff}
+  input[type=text]{width:100%;background:#0c1220;border:1px solid var(--line);border-radius:9px;color:var(--ink);padding:10px;font:inherit}
+  .verpick{font-size:22px;font-weight:800;color:#9dc0ff}
+  .footnote{font-size:11.5px;color:var(--muted);margin-top:10px}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">M</div>
+  <div>
+    <h1>MASE · Scoring Version Studio</h1>
+    <div class="sub">Author the scoring & to-do instructions · lock a version · then the engine runs on the locked version</div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="tabs" id="tabs"></div>
+  <div class="grid">
+    <div>
+      <div class="card">
+        <div class="row">
+          <div class="title" id="mName"></div>
+          <span class="badge" id="mBadge"></span>
+        </div>
+        <div class="status" id="mStatus"></div>
+        <div class="toolbar">
+          <button id="btnEdit" class="primary">✎ Edit instruction</button>
+          <button id="btnDiscard" class="ghost">Discard draft</button>
+          <button id="btnLock" class="good">🔒 Lock new version</button>
+          <button id="btnSweep">▶ Run scoring sweep</button>
+          <button id="btnReset" class="ghost" title="Restore the seeded v10.0">Reset to seed</button>
+        </div>
+        <textarea id="editor" readonly spellcheck="false"></textarea>
+        <div class="footnote" id="editNote"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <h3>Version trail — changes, additions, edits</h3>
+        <div class="trail" id="trail"></div>
+      </div>
+      <div class="card">
+        <h3>Run log (this metric)</h3>
+        <div id="runs"><div class="muted" style="font-size:12.5px">No sweeps run yet.</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Lock modal -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h2>Lock a new version</h2>
+    <div class="muted" style="font-size:12.5px">Locking freezes the instruction. Sweeps will calculate on this locked version until the next lock.</div>
+    <div style="margin:16px 0 6px" class="muted">New version</div>
+    <div class="seg" id="seg">
+      <button data-kind="minor" class="sel">Minor edit → <span id="minorV"></span></button>
+      <button data-kind="major">Major change → <span id="majorV"></span></button>
+    </div>
+    <div class="verpick" id="verPreview"></div>
+    <div style="margin:14px 0 6px" class="muted">What changed / added / edited (required)</div>
+    <input id="noteInput" type="text" placeholder="e.g. Raised POC engagement weight 10→12; added RFP cool-off"/>
+    <div class="toolbar" style="justify-content:flex-end;margin-top:16px">
+      <button id="cancelLock" class="ghost">Cancel</button>
+      <button id="confirmLock" class="good">🔒 Lock version</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SEED: WIN POSITION v10.0 ============ -->
+<script type="text/plain" id="seedWin">
+# ZYCUS WIN POSITION — SYSTEM INSTRUCTION · v10.0
+
+## 1. What this calculates
+A single 0–100 win-likelihood score: "how likely are we to win this deal, given where it is?" It is an INDEPENDENT score — not Deal Momentum ± anything. It shares signals with Momentum but is computed on its own. Output the number AND a top 5–6 rationale (§7).
+
+## 2. Sources to read (ALWAYS read all; stitch into one timeline)
+1. Next Step — Next_Step__c (+ trail Next_Step_History__c).
+2. Completed Tasks — Task where Status='Completed' (selective: real buyer sessions).
+3. Open/future Tasks — Task Status='Open' + future ActivityDate; Event future StartDateTime.
+4. MEDDPICC 2.0 — MEDDPICC_2_0__c (EB, champion, pain, metrics, decision process, competition). If its EB field is an org-chart dump, fall back to MEDDPICC__c for a clean EB name.
+5. Avoma — meetings by Account + attendees (not opp-id). Try full transcript; retry a few times; else fall back to summary/notes.
+Also read: StageName, ForecastCategory/ForecastCategoryName, CloseDate, Amount, and field history for stage/forecast/amount/close moves.
+Coverage: unavailable source → mark partial_low_evidence; an empty source is NOT "dark".
+
+## 3. Reading discipline
+- Physical evidence beats the rollup; the most recent real buyer event wins ties.
+- Dedupe & window: collapse repeated Next_Step_History__c snapshots to unique dated entries. For a durable fundamental you may reach back for a still-true fact but staleness-decay it (§4.4); never trawl >90 days of history text for engagement.
+- Context ≠ winning: story, plans, explanations calibrate the read; only buyer-voiced facts/actions raise fundamentals. A rep's plan ("will develop X into a champion") is not a champion.
+- Holistic, not a checklist; a signal that doesn't match a factor is scored by analogy. Recency-first: recent weighs most, old fades to neutral, unexplained absence turns negative.
+
+## 4. Scoring (exact rules)
+4.1 STAGE ANCHOR (StageName) baseline:
+Initial Interest 8 · Qualified 18 · Formal Evaluation 35 · Shortlisted 50 · Vendor Selected 72 · Contract/Negotiation 85 · Signed/Verbal 92 · PO Received 96.
+
+4.2 RUBRIC — fundamentals (± up to 30). Each factor −1.0…+1.0, weighted; missing/unknown = mild negative (−0.3). Weighted-avg of (strength × staleness) mapped to ±30.
+Differentiation 20 · Preference 20 · Champion 15 · Exec access 15 · Competitive 15 · Business case 10 · Commercial 5.
+  4.2a Preference — buyer-voiced only (rep "we're in the lead" = 0). Selection IS preference (vendor of choice / moved to Vendor Selected). Grade by standing: clearly leading → +1.0 (wt20); leading w/ real outside threat → +0.75 (~15); genuine top-two → +0.5 (~10); behind → ≤0.
+  4.2b Competitive — a named rival ≠ negative; negative only if a rival is genuinely ahead. Sole-source = positive.
+
+4.3 CRM TREND NUDGE (± ~8). Stage +/−; forecast upgrade (→Best Case→Commit) = strong signal, extra +4; downgrade −; amount +/−; close pulled-in +/pushed −. Recency-weight.
+
+4.4 RECENCY & STALENESS DECAY. Age-discount each factor by age of last REAL event: ≤30d ×1.0 · 31–90d ×0.6 · 91–180d ×0.3 · >180d ×0.1. Keyword-only starts discounted. Anchor erosion by time-in-stage: within dwell (≈2.5× stage cadence) 0; 1–2× dwell −8; >2× dwell −15. (Process-mode uses the process clock.)
+
+4.5 ENGAGEMENT PULSE (own read, ±15). Read live-vs-dark directly (do NOT import Momentum's number): recent (≤30d) two-way buyer engagement / high-value sessions / fresh advancing Next Step / deliverables landing → up to +15; dark past stalling window / one-way outreach / forecast downgrade → down to −15. Engagement enters Position ONLY here (no double-count with the rubric).
+
+## 5. Ceilings & guards (apply last; lower binds)
+5.1 Stage ceiling: Pre-RFP (Qualified & earlier) ≤35 · RFP round (Formal Eval, Shortlisted) ≤60 · Vendor Selected & above ≤85. Cross 85 ONLY if ForecastCategory=Commit AND stage ≥ Vendor Selected.
+5.2 Forecast-conviction ceiling: not Best Case/Commit (or upside/key) → cannot cross 80.
+5.3 Selection-override guard: fires ONLY on buyer-voiced selection (award/LOI/"you won"/signed order-of-preference/sole-source) — intent-to-bid, open-RFI participation, rep-claimed preference, a keyword are NOT selection — and NEVER breaches a ceiling (Formal-Eval/Shortlisted stays ≤60).
+5.4 Keep-alive vs decay: an EXPLAINED slowdown holds Position on intact fundamentals; UNEXPLAINED silence decays it.
+
+## 6. Bands
+≥85 Winning · 70–84 Strong · 45–69 In the fight · 25–44 Behind/early · <25 Weak.
+
+## 7. Output
+Score + band, plus the TOP 5–6 most significant drivers (never a laundry list), most-significant-first, a MIX of ✅ working and ⚠️ gaps — every gap carries a ► intervention — plus one focus_now line. CRO-readable (strip model internals; cite real evidence). Note coverage if partial. Persist version + driver breakdown as the provenance trail.
+
+## 8. Acceptance tests
+Qualified any signals ≤35 · Formal Eval/Shortlisted any signals ≤60 · open RFI + rep-claimed preference → override off, ≤60 · Vendor Selected+Best Case ≤85 · Vendor Selected+Commit may exceed 85 · any Pipeline ≤80 · Vendor Selected 105d dark + exco postponed ~30–35.
+</script>
+
+<!-- ============ SEED: DEAL MOMENTUM v10.0 ============ -->
+<script type="text/plain" id="seedMom">
+# ZYCUS DEAL MOMENTUM — SYSTEM INSTRUCTION · v10.0
+
+## 1. What this calculates
+A single 0–100 score: "is this deal actively moving right now?" — real, recent, two-way BUYER engagement + forward motion, weighted to the last 14 days. INDEPENDENT (not derived from Win Position). Not a hygiene/calendar score. Scoring STARTS at 35 — a launch point, not a resting floor: engagement builds up; negatives eat into it and drive it below. Output the number AND a top 5–6 rationale (§7).
+
+## 2. Sources to read (ALWAYS read all; stitch into one timeline)
+1. Next Step — Next_Step__c.
+2. Next Step History — Next_Step_History__c (snapshot trail — dedupe it).
+3. Completed Tasks — Task Status='Completed' (selective: real buyer sessions).
+4. Open/future Tasks — Task Status='Open' + future ActivityDate; Event future StartDateTime.
+5. Avoma — meetings by Account + attendees; try full transcript, retry a few times, else summary/notes.
+Also read StageName, ForecastCategory, CloseDate, Amount, and field history for forecast/close moves.
+Coverage: unavailable source → partial_low_evidence; an empty source is NOT proof of "dark" — check the others.
+
+## 3. Reading discipline (context ≠ engagement)
+- Only recent buyer ACTIONS fuel the score. Context (story, stage, stakeholders, explanations, plans) calibrates but is zero-weight. Strip the narrative: "what did the buyer do in the last 14–30 days?" = the pulse.
+- Buyer responses carry it, not rep sends. A rep emailing into silence is not momentum.
+- Dedupe & window: collapse history snapshots to unique dated entries. HARD 90-day cap for scoring; beyond 90d = context only. Focus 14d (primary)/30d (context)/60d (outer).
+- Multi-source stitch: a meeting may appear as Task + Next Step + Avoma — count once. An activity logged ONLY in Next_Step_History__c still counts.
+- Never engagement: AI text, recommended moves, rep plans, snapshot/field-edit cadence, one-way rep chasing.
+
+## 4. Scoring (exact rules) — start at 35, then:
+4.1 ENGAGEMENT (dominant, cap +50): Σ(type_weight × who_weight × recency_weight) over COMPLETED activity.
+  Type (read the NATURE, don't keyword-match): POC/sandbox 12 · workshop 10 · exec/ROI 8 · tech deep-dive/InfoSec/integration/reference 7 · first demo/F2F/RFP working session 6 · discovery/requirements 5 · meeting 4 · call 3 · two-way email (buyer replied) 2 · completed to-do 1.5.
+  Who: buyer responded/attended/initiated ×1.0 · rep-only send no response ×0.1 · partner ×0.6 · internal ×0.
+  Recency (default): 0–14d ×1.0 · 15–30d ×0.5 · 31–60d ×0 NEUTRAL · >60d ×0. Freshness floor: any buyer action ≤14d keeps engagement from reading cold.
+4.2 NEXT STEP freshness & advance (Next_Step__c, cap +10): fresh + advancing (dated forward milestone) → +10; stale/vague ~0.
+4.3 NEXT STEP HISTORY trajectory + logged activities (Next_Step_History__c, cap +10): frequent+forward = high; activities logged only here still count. Cross-channel: email silent but a call response in history = engagement (no one-way penalty).
+4.4 FUTURE MEETING (cap +5): dated future session (Avoma or open Task/Event), buyer-accepted = full.
+4.5 FORECAST MOVE (±6, ForecastCategory): forward +/downgrade −, recency-decayed.
+4.6 CLOSE-DATE (−10…+5, CloseDate): push ≤60d first move = 0; beyond tolerance/repeated = drag to −10; pull-in +5.
+4.7 ONE-WAY OUTREACH (0…−6): rep chasing, buyer silent on ALL channels. Suppressed if cross-channel buyer engagement exists.
+4.8 CUSTOMER PASSIVITY (0…−8): rep drives all cadence, customer never initiates.
+4.9 STALLING DRAG (0…−25): days with no genuine engagement/CRM advance: ≤30d 0 · 31–60d ramps 0→−12 · 61–90d ramps −12→−25 · >90d −25. Rep chasing doesn't reset the clock. Suspended in process-mode.
+
+## 5. Process-mode — RFP / tender / structured evaluation
+Enter when ALL: structured stage (Formal Eval/Shortlisted/Vendor-Selected-in-procurement) + a live, dated, FUTURE milestone + on-track (last deliverable on time, buyer not paused).
+While active:
+- Deliverables ARE engagement (×1.0): RFP/tender received 6 (buyer's skin in the game) · RFP/BAFO submitted 6 (our intent) · demo/orals 6 · InfoSec 6 · buyer clarification/Q&A 4 (credit each round) · SOW/redline 4 · doc/portal 3 · buyer-set future milestone 3.
+- Stalling drag suspended; ~45-day cool-off is normal (don't penalise).
+- Stretched recency ladder: 0–30d ×1.0 · 31–60d ×0.5 · 61–90d ×0.2.
+- On-track floor: 45.
+Don't blindly assume quiet = benign — verify RFP is live + deliverables landing. Anti-zombie guard → process-mode OFF, full drag returns when: no live future milestone / a deadline passed with silence / buyer paused-postponed / gap > ~2× deliverable spacing with nothing scheduled.
+Keep-alive lever: an EXPLAINED slowdown keeps the deal alive but momentum on the back burner (decay, don't kill). UNEXPLAINED silence decays toward stalled.
+
+## 6. Formula & bands
+momentum = clamp( 35 + engagement(cap+50) + next_step(cap+10) + history(cap+10) + future_meeting(cap+5) + forecast_move(±6) + close_date(−10..+5) − one_way(0..−6) − passivity(0..−8) − stalling_drag(0..−25, 0 in process-mode), 0, 100 )
+if process_mode_on_track: momentum = max(momentum, 45)
+Bands: ≥80 Accelerating · 60–79 Healthy/building · 45–59 Steady · 35–44 Flat · <35 Slowing/stalled.
+
+## 7. Output
+Score + band, plus the TOP 5–6 most significant drivers (never a laundry list), most-significant-first, a MIX of ✅ working and ⚠️ gaps — every gap carries a ► intervention to regain momentum — plus one focus_now line. Answer HOW it's moving (moving/stalling/cooling/reviving, off what). CRO-readable (strip model internals; cite real evidence). Note coverage if partial. Persist version + driver breakdown.
+
+## 8. Acceptance tests
+New deal, no activity, not stalled → ~35 · going dark 30/60/90d → below 35 · rep sent 5 emails, no replies → <35 · buyer call logged only in Next_Step_History__c → credited, no penalty · 90d+ dark, no RFP → <30 · live RFP, 40d quiet, deliverables landing → ≥45.
+</script>
+
+<!-- ============ SEED: TO-DO GENERATION v10.0 ============ -->
+<script type="text/plain" id="seedTodo">
+# ZYCUS TO-DO GENERATION — SYSTEM INSTRUCTION · v10.0
+
+## 1. What this generates
+Deal to-dos across FOUR dated sections. IN-APP ONLY — never auto-writes to Salesforce. FULLY SUPPRESSED for Initial-Interest deals and for dead / Closed-Lost deals. Every to-do is dated, ranked, workstream-clubbed, and deduped against what's already open.
+
+## 2. Inputs the engine reads
+Stage + exact position in the buying motion · Close Date (CloseDate, for back-planning) · Forecast tier (exception allowance) · open requirements/deliverables and their due dates · clearly-stated Zycus commitments · buyer-owed dependencies · Next Step (Next_Step__c) + Next Step History (Next_Step_History__c) · motion type (RFP-tender vs workshop/POC vs standard) · stakeholder coverage (single-threaded? contact power & warmth) · buyer-voiced doubts on execution vs competition · won-deal playbook for that stage/motion · existing open to-dos (to dedupe).
+
+## 3. The four sections (a CATALOG, not a rank driver)
+Every to-do belongs to exactly ONE section. Section is a catalog, NOT a rank driver — items are ranked on urgency and progression-impact, not on which section they came from.
+| # | Section | What it holds | Dating anchor |
+|---|---|---|---|
+| 1 | Prospect Requirement | Explicit buyer asks / requirements | The date the buyer asked for it; else back-planned so it doesn't block the next gate |
+| 2 | Commitments made by Zycus | ONLY clearly-stated Zycus commitments — never inferred or assumed | The date Zycus actually named; else back-planned |
+| 3 | Waiting on the Buyer | Inputs needed FROM the buyer to execute the next step | When we need it to keep the next milestone on track (back-planned from that milestone) |
+| 4 | Best Practices | Guiding playbook — the proven next moves to advance the deal | Back-planned from Close Date through the won-deal sequence |
+
+## 4. Rules inside every section (processed in this order)
+1. CLUB BY WORKSTREAM. All InfoSec artifacts → one item; all commercial items → one; all references → one; a single meeting's asks collapse toward their workstream. NEVER club across different action verbs or milestones (a demo and a pricing proposal stay separate).
+2. RANK by blocking-power × time-criticality — does this unblock forward motion or prevent the deal dying, and how soon must it happen. Ties broken by position in the proven won-deal sequence.
+3. CAP at 4 (see Forecast exception, §5).
+4. DEDUPE against already-open to-dos — never surface a duplicate of something already open.
+5. EMPTY section renders as a header with a positive / "nothing pending" state, so the rep knows it was checked, not missed.
+
+## 5. Cap & the Forecast exception
+- Baseline: 4 items per section.
+- Forecast deals (Commit / Best Case): the engine MAY add 1–2 extra action items per section when they clear a high-importance bar — an intelligent exception so genuinely critical work is never dropped just to honor the cap.
+- Pipeline deals: STRICT cap of 4.
+
+## 6. Best Practices — ranking detail (highest → baseline)
+1. Buyer doubt about Zycus' ability to execute vs competition — HIGHEST precedence. An active deal-killer, not hygiene; closing it (credibility building) LEADS.
+2. Single-threading — weighted UP only when the contact has gone cold, is not powerful, or is actively blocking. Otherwise stays low.
+3. Routine "no next step scheduled" — baseline hygiene.
+All Best-Practices items sequence as the genuine next moves in the buying motion (discovery → RFI/RFP → shortlist → shoefit → demos/workshops → commercials → ROI → EB/CFO → references → InfoSec → SOW/redline → close). Late-stage parallel workstreams (commercial, InfoSec, references, SOW) each surface as ONE workstream-clubbed item.
+
+## 7. Dating & the North Star
+- NORTH STAR = Close Date (CloseDate). All dating back-plans from it.
+- Nothing dated more than 60 days out.
+- Heavy steps (POC, security review, redline) are FLAGGED for lead time so they start early enough to land by close.
+- Realistic close-date adjustment: if the Close Date is more aggressive than the remaining required lead time (from today), the engine computes a realistic close INTERNALLY and dates the to-dos against it. It surfaces a "suggested realistic close: [date]" nudge to the rep — but does NOT write back to Salesforce.
+
+## 8. Priority of surfacing (across the whole engine)
+1. Overdue requirements / deliverables — a buyer ask past its due date.
+2. Next stage-gate blocker — the one action that unblocks the move to the next stage.
+3. Heavy steps needing lead time — must start now to land by close.
+4. Advancing steps — the next forward milestone.
+
+## 9. Suppression
+- No to-dos for Initial-Interest deals.
+- No to-dos for dead / Closed-Lost deals.
+- In-app only; automatic generation never writes to Salesforce.
+
+## 10. Output
+Four section headers, each with its ranked, workstream-clubbed, dated, deduped items (cap 4 + forecast exception), heavy-step flags where relevant, and a positive empty-state where nothing is pending — plus the "suggested realistic close" nudge if triggered. Rep-readable, RevOps-grade; every item names the action + who + the artifact.
+</script>
+
+<!-- ============ SEED: 24-HOUR SUMMARY v10.0 ============ -->
+<script type="text/plain" id="seed24">
+# ZYCUS 24-HOUR SUMMARY — SYSTEM INSTRUCTION · v10.0
+
+## 1. What this produces
+A 24-Hour Summary for a deal: a DELTA read that reports ONLY what changed since the last window, framed for the buyer-facing stakeholders who will read it. Standalone — it does NOT depend on any other engine.
+
+## 2. Governing principle — read the deal first
+These rules are the default discipline, NOT a straitjacket. Read the specific deal before applying them mechanically. If one or two changes are genuinely essential to do justice to that deal's brief, include them even if the output format would nominally exclude them. This is a RARE, high-bar exception justified by importance to this deal — not a license to pad every summary.
+
+## 3. What you produce
+- Report EXECUTED change only. Never surface a recommendation, a planned move, or an AI-suggested next step as if it had happened.
+- ONE headline line, plus up to 2 supporting lines when more than one qualifying change exists. If only one thing changed → produce only the headline. If nothing changed → say so plainly (§5).
+- Keep each line short and BUYER-FRAMED. Frame engagement events from the buyer's actions ("Buyer returned the security questionnaire"). For internal CRM field changes (forecast, amount, close date, stage, score) → translate into buyer-relevant language where you can, otherwise report the fact plainly.
+- When a window holds both a GAIN and a RISK, lead with the gain and note the risk as the tail — e.g. "Advanced to Demo, though a new competitor surfaced."
+- Selection is driven by IMPORTANCE, not by source or category. Two important deltas → report both; one clearly dominates → lead with it; equally important → report both — always within the headline + 2 supporting cap (subject to the §2 exception).
+
+## 4. What counts as change
+➕ REPORT AS FORWARD MOTION: stage moved up · forecast upgraded · close date pulled in · amount up · completed buyer meeting/call or a genuine two-way reply · deliverable landed (RFP submitted, demo delivered, security returned) · new senior stakeholder / champion surfaced · score crossed a band upward.
+➖ REPORT AS SLIP / RISK: stage regressed · forecast downgraded · close date pushed (NAME the new date) · amount cut · requirement went overdue · new competitor surfaced / competitor moved ahead · buyer postponed / paused · score crossed a band downward.
+⚪ DO NOT REPORT AS CHANGE: rep-only email into silence → "No change" · AI-recommended move not done · normal RFP-quiet between deliverables → report deliverable status instead · score wobble that didn't cross a band · nothing moved → "No change in the last 24h".
+
+## 5. Window logic
+- The base window is the LAST BUSINESS DAY, extended across weekends and holidays — i.e. "since the last day the deal could plausibly have moved." On a Monday, look back through Friday; the same rule absorbs public holidays.
+- 48-HOUR SAFETY-NET: if the 24h window is empty but a concrete step sits just behind it (24–48h range), add a side note — "In the last 48h: …" — so a quiet single day doesn't erase a real recent step.
+- HARD STOP at 48h. If both the 24h and 48h windows are empty → report "No change" and do NOT look back any further.
+
+## 6. Where you look (priority order)
+1. NEXT STEP (Next_Step__c) — your most important source. A change here, corroborated by other evidence, is the delta. The field states INTENT, not proof — don't report it as a change unless something actually moved.
+2. NEXT STEP HISTORY (Next_Step_History__c) — apply the same dedupe/window discipline to separate real signal from clutter in a long history.
+3. AVOMA meeting summary — sweep for any meeting in the window. Use the meeting SUMMARY, not the full transcript (this is a 24h read, not a deep review). Pull only the sharp, stakeholder-worthy notes that deserve to appear in a summary this brief.
+4. COMPLETED TASKS / MASE to-dos — there may be many completed items and much noise. Read through them and surface the single most important brief.
+
+## 7. Output
+A single headline line (buyer-framed), plus up to 2 supporting lines when qualifying changes exist; gain-then-risk order within a line where both are present. Or a plain "No change in the last 24h" — with an optional "In the last 48h: …" side note when the safety-net applies. Short, stakeholder-readable, executed-change only.
+</script>
+
+<!-- ============ SEED: SIGNAL EXTRACTION / DEAL-READING v10.0 ============ -->
+<script type="text/plain" id="seedExtract">
+# ZYCUS SIGNAL EXTRACTION / DEAL-READING — SYSTEM INSTRUCTION · v10.0
+
+## What this does
+Reads ONE opportunity from all its sources and produces the STRUCTURED SIGNAL SET that the four engines (Win Position, Deal Momentum, To-Do, 24-Hr Summary) consume. It computes NO score — it turns raw, cluttered deal data into clean, typed signals with evidence. Nothing downstream runs on an unlocked version of this.
+
+This instruction has two parts:
+• PART A — EDITABLE EXTRACTION INTELLIGENCE (versioned here; edit → lock → engine adopts on next run).
+• PART B — ENGINE CONTRACT (read-only; engine-owned code capabilities — shown for full transparency, DO NOT EDIT).
+
+═══════════ PART A — EDITABLE EXTRACTION INTELLIGENCE (versioned) ═══════════
+
+## A1. Governing law: context ≠ engagement
+Only recent BUYER ACTIONS fuel a score. Context (story, plans, explanations) calibrates the read but is zero-weight. Buyer responses carry weight; rep emails/calls SENT into silence do not. Never treat AI text, recommended moves, or rep plans as engagement.
+
+## A2. Multi-source stitch
+Gather ALL sources (Part B), place every event on ONE timeline, dedupe overlaps (a meeting may appear as a Task + Next Step + Avoma → count once). Absence in one source is NOT "dark" — check the others. If a source is unavailable, mark coverage = partial_low_evidence; distinguish "confirmed dark" (nothing anywhere) from "low evidence" (one source empty).
+
+## A3. Dedupe & window (kill the clutter)
+Next_Step_History__c is a snapshot trail that re-saves the WHOLE journal on every edit. FIRST collapse to the UNIQUE set of dated entries — never count the same entry N times. Then window: HARD 90-day cap for scoring; beyond 90d = context only, zero weight. Focus 14d (primary) / 30d / 60d. Pull toward the most focused area — more text is NOT more signal.
+
+## A4. Split into atomic dated events
+Parse each entry into {date, source, raw_text}. Work from the clean event list — never the raw wall of text.
+
+## A5. Name → role resolution (THE step that catches buried nuggets)
+Build a roster for THIS deal:
+- ZYCUS side = the opportunity OWNER + every Next_Step_History__c author + known team members.
+- BUYER side = the account's contacts (OpportunityContactRole / MEDDPICC / call attendees).
+For every event, resolve the actors to roles. So "Omar called Dan" decodes to buyer(Omar) → Zycus-rep(Dan), and Dan ≠ the current owner → a ROUTING flag, not a buried name. Unknown name → tag "unresolved," never guess.
+
+## A6. Golden-nugget detector checklist (run on EVERY atomic event)
+Sweep each event against this fixed checklist so a nugget in a run-on sentence is never missed. Each hit → a typed signal with evidence + date:
+- Buyer-INITIATED contact ("X called / reached out / emailed us / requested …")
+- Contact ROUTED TO A NON-OWNER or former rep (relationship-continuity signal)
+- Competitor named / competitive move / incumbent-displacement
+- EB / board / C-level / exec access (DIRECT or INDIRECT — e.g. CEO reviewed the POC internally)
+- Commercial ask or commitment (pricing, proposal, redline)
+- Dated deadline / milestone (RFP date, decision date, go-live)
+- Deliverable landed (RFP/BRD submitted, demo delivered, security returned)
+- Sentiment shift / risk word (delay, postponed, concern, budget freeze, war)
+- New stakeholder surfaced
+- Stage / forecast / close-date / amount move
+(This checklist is the editable heart — add a detector, bump the version.)
+
+## A7. Classify & tag each signal
+Assign: type (from the engine enum) · who (buyer / buyer_process / rep / internal / partner) · date · evidence (short verbatim) · confidence. Read the NATURE of an engagement — do NOT keyword-match a subject line.
+
+## A8. Rank & surface
+Rank nuggets by importance × recency. Surface the top signals to the engines and the top 5–6 to the rationale — never a laundry list.
+
+## A9. What to keep vs drop
+KEEP: buyer actions in-window · durable fundamentals (staleness-decayed) · explained-silence context · arc / reliability patterns (zero-weight). DROP from scoring: rep plans/intentions · superseded stale-tail lines · repeated snapshots · one-way rep chasing · anything >90d (keep at most a one-line pattern note).
+
+═══════════ PART B — ENGINE CONTRACT (READ-ONLY · engine-owned — DO NOT EDIT) ═══════════
+
+## B1. The 5 sources (fixed connectors)
+1. Next Step — Next_Step__c
+2. Next Step History — Next_Step_History__c
+3. Tasks / Events — Task (Status, Type, TaskSubtype, ActivityDate, Sub_Category__c, Avoma_Call_ID__c) + Event (StartDateTime); completed = Status 'Completed', future = Status 'Open' + future date
+4. MEDDPICC 2.0 — MEDDPICC_2_0__c (fallback MEDDPICC__c for a clean EB name)
+5. Avoma — meetings by Account + attendees (not opp-id); full transcript with a few retries, else fall back to the meeting summary/notes
+Also read: StageName, ForecastCategory / ForecastCategoryName, CloseDate, Amount, OpportunityFieldHistory, OpportunityContactRole.
+
+## B2. Deterministic mechanics (code — governed by Part A, but not free-text editable)
+Snapshot dedup · 90-day windowing · roster matching · date normalization · Avoma transcript→summary fallback + retry · the arithmetic. These execute in code. Part A's intelligence controls WHAT they look for; the mechanics themselves are engine-owned.
+
+## B3. Output contract
+Emits the structured signal JSON (typed signals + evidence + coverage) — NEVER a score. Coverage flag set to partial_low_evidence when any source is unavailable. The four scoring/generation engines consume this output.
+</script>
+
+<!-- ==== Signal Extraction v10.1 §A5 (fuzzy entity resolution) ==== -->
+<script type="text/plain" id="seedExtractA5v101">## A5. Entity resolution — fuzzy-match & DEDUPE every person to a canonical roster (v10.1)
+Speech-to-text and hand notes fragment ONE person into many: a misspelling ("Sham" for "Sam"), a surname-only mention ("Thomas"), or a bare title ("the AVP was on the call") each become separate phantom contacts. Resolve and DEDUPE every person mention against a canonical roster BEFORE scoring.
+
+STEP 1 — Build the canonical roster (ground truth), strongest key first:
+- Meeting ATTENDEE EMAILS from Avoma (email is a unique key; present on all but in-person onsites).
+- OpportunityContactRole (name / title / email).
+- Account contacts + Task/Event contacts + MEDDPICC named people.
+- ZYCUS side: opp owner + Next_Step_History__c authors + known team.
+Each roster person = { canonical_name, email(key), title, aliases[] }.
+
+STEP 2 — Resolve every Avoma/notes person-mention to a roster person, tiered (first hit wins):
+a. EXACT EMAIL match (strongest — the mention carries an email).
+b. EXACT normalized-name match.
+c. FUZZY name match — edit-distance (Levenshtein / Jaro-Winkler) AND phonetic (Soundex / Metaphone) to absorb speech-to-text spellings (Sham→Sam, Poelki→Pölki, Kaaki→Khaki). Disambiguate using the ATTENDEE LIST of THAT meeting — a mention on a call resolves preferentially to someone actually on that call.
+d. TITLE → PERSON — a bare title ("AVP", "CPO", "Head of P2P") maps to the roster person whose title matches, scoped to the meeting's org/attendees. Exactly one holder → attach the name; ambiguous → keep "unresolved (title: AVP)", do NOT mint a new contact.
+e. FIRST-or-LAST-name token match (MASE's existing method) — fallback only.
+
+STEP 3 — DEDUPE / MERGE: all mentions resolving to the same roster person (by email key) collapse into ONE canonical stakeholder; keep the variants as aliases for provenance ("Sham", "Thomas", "the AVP" → Sam Thomas).
+
+STEP 4 — GUARD (anti-fabrication + anti-phantom): a mention resolving to NOTHING (no email, no fuzzy/phonetic/title match to any roster person) is tagged "unverified/unresolved" — NEVER emitted as a confident new contact, and NEVER a title-only phantom. (Inherits MASE's fabrication gate, but resolves-before-rejecting so real people aren't lost.)
+
+STEP 5 — ONSITE / recording caveat: in-person onsites often lack attendee emails — fall back to contact-role + account roster + phonetic matching at LOWER confidence. NEVER infer a person was absent (a "no-show") from their absence in the recording: the recording is not the room.
+
+Worked outcomes: "Omar called Dan" → buyer(Omar Kaaki) → Zycus-rep(Dan Quinn ≠ owner) = routing flag; "the AVP joined" → resolves to the single AVP on the roster; "Sham" / "Thomas" / "Sam" → ONE canonical person, not three.</script>
+
+<!-- ==== Win Position v10.2 rule §5.5 (kept separate for clean quoting) ==== -->
+<script type="text/plain" id="seedWinRule102">## 5.5 Stage-reality & forecast-reality override (evidence-based — requires an EXCEPTION STATEMENT + a seller nudge)
+The recorded StageName / ForecastCategory ceilings (5.1, 5.2) are the DEFAULT and hold — UNLESS hard physical evidence shows the deal is genuinely at a different stage / conviction than the field records. When the field is wrong, in EITHER direction, correct the SCORE to the deal's true state — but ONLY with full transparency.
+
+A. Which direction:
+- Deal is AHEAD of its recorded stage (the field UNDER-positions it): hard evidence of a later stage — MSA / Order Form / draft SOW with the buyer's legal, active redlining, a signed order-of-preference, buyer-confirmed selection. → Score against the TRUE (higher) stage's anchor + ceiling, crossing the recorded-stage ceiling.
+- Deal is BEHIND its recorded stage / OVER-forecasted (the field OVER-positions it): hard evidence of a stall — no selection despite a "Vendor Selected" field, sustained dark (>60–90d), exco postponed, a competitor now ahead, a "Commit" with no supporting evidence. → Cap DOWN below what the recorded stage / forecast would grant.
+
+B. MANDATORY on ANY override (up or down) — no silent breach:
+1. EXCEPTION STATEMENT — state plainly WHY you crossed / adjusted, citing the physical evidence and the true stage. e.g. "Ceiling crossed: recorded Shortlisted (cap 60), but MSA/OF/SOW have been with the buyer's legal since 20 May and the buyer named us front-runner — scored against Vendor Selected." If you cannot write this statement from HARD evidence, the recorded-stage ceiling STANDS.
+2. SELLER NUDGE — urge the rep to fix the system of record: "► Advance the stage to Vendor Selected in Salesforce to reflect reality" (or "► Move the stage back to X / correct the forecast category to Y"). The score reflects reality; the nudge fixes the record.
+
+Bar & discipline: use HARD, physical evidence only (documents in legal, signed papers, sustained silence, a named front-runner) — NEVER rep optimism, a plan, or a hopeful next-step note. The default is always the recorded-stage ceiling; this override is the documented exception, not the norm. It is SYMMETRIC — apply it to catch OVER-positioning / over-forecasting (adjust DOWN) as readily as under-positioning (cross UP). This is the ONLY sanctioned way to cross a ceiling, and it supersedes the "never breaches a ceiling" clause in 5.3 ONLY when both the exception statement and the seller nudge are present.</script>
+
+<!-- ==== Signal Extraction v10.3: transcript deep-dive (Part A trigger + Part B fetch path) ==== -->
+<script type="text/plain" id="seedExtractEscalationA">## A10. Transcript deep-dive — SURGICAL, on-demand ONLY (default is the summary)
+Default to the meeting SUMMARY (the "-- Avoma Note Start --" note / Avoma notes). Escalate to the FULL TRANSCRIPT only as a human would — you read the summary, saw something worth chasing, and the summary can't answer it. Do NOT pull a transcript when the summary is adequate: transcripts are large (~1MB) and expensive, so this gate is STRICT.
+
+Escalate to the full transcript ONLY when ALL of these hold:
+1. A SPECIFIC, MATERIAL question is open — one whose answer would change a SCORE, a TO-DO, or the deal-direction read (e.g. exact competitive standing, how firm a commitment really was, an EB's true stance, the real severity of a pricing/scope objection, a contradiction between sources the summary can't settle).
+2. The SUMMARY CANNOT resolve it — it's thin / generic / "no notes captured", or it names the topic without the detail you need.
+3. The answer is DECISION-RELEVANT — the extra detail would actually move a number or an action. If it wouldn't, STAY on the summary.
+
+Then open ONLY the specific meeting(s) whose summary raised the question — never all transcripts. STOP the moment the question is answered; don't keep reading. Record which transcript was opened and why (provenance).</script>
+
+<script type="text/plain" id="seedExtractLakeB">## B1a. Full-transcript store & fetch order (used ONLY when §A10 triggers)
+Transcripts are NOT read by default. When §A10 fires, fetch the specific meeting's transcript in THIS order:
+1. MASE DATA LAKE — FIRST CHOICE. Supabase table `avoma_transcripts`, keyed by `meeting_uuid` (link via the completed Task's `Avoma_Call_ID__c` / the meeting UUID); read `transcript_text` (flattened) or `transcript`. Avoma transcripts are synced here in real time, so this is the default, cheapest source.
+2. AVOMA — FALLBACK, ONLY if the transcript is missing/empty in the data lake. get_meeting_transcript(uuid); retry a few times, then give up gracefully and stay on the summary.
+Whole transcript or not at all (never a sliced fragment for a fact); respect the per-deal transcript budget/caps.</script>
+
+<!-- ==== Shared: the three gold-mine sources rule ==== -->
+<script type="text/plain" id="seedGoldmine">## THE THREE GOLD-MINE SOURCES — read ALL THREE, IN FULL, EVERY TIME
+The concrete, direction-defining facts of a deal live in exactly three places. Read every one, in full, on every run — NEVER infer from LastActivityDate, a rollup, or metadata alone:
+1. NEXT STEP (Next_Step__c) — the rep's current dated plan.
+2. NEXT STEP HISTORY (Next_Step_History__c) — the dated trail (dedupe the snapshots, then window).
+3. COMPLETED TASKS (Task, Status='Completed') — INCLUDING each Task's DESCRIPTION, where Avoma meeting summaries are logged verbatim as "-- Avoma Note Start --" (participants, key takeaways, action items). A meeting can appear as a bare "Meeting" row while its full summary sits UNREAD in the Description.
+Missing any ONE of these three drops concrete information that defines the direction of the deal. This is MANDATORY, not best-effort.</script>
+
+<script type="text/plain" id="seedGoldmine24">## THE THREE GOLD-MINE SOURCES — read ALL THREE, IN FULL, EVERY TIME
+The concrete, direction-defining facts of a deal live in exactly three places. Read every one, in full, on every run — NEVER infer from LastActivityDate, a rollup, or metadata alone:
+1. NEXT STEP (Next_Step__c) — the rep's current dated plan.
+2. NEXT STEP HISTORY (Next_Step_History__c) — the dated trail (dedupe the snapshots, then window).
+3. COMPLETED TASKS (Task, Status='Completed') — INCLUDING each Task's DESCRIPTION, where Avoma meeting summaries are logged verbatim as "-- Avoma Note Start --" (participants, key takeaways, action items). A meeting can appear as a bare "Meeting" row while its full summary sits UNREAD in the Description.
+Missing any ONE of these three drops concrete information that defines the direction of the deal. This is MANDATORY, not best-effort.
+Also: NEVER dismiss a recent DETAILED, SUMMARIZED call as "no change." If a rich logged call (a Task Description carrying an "-- Avoma Note Start --" summary) sits just behind the strict window, SURFACE it — with an explicit "as of" note — under the §2 essential-change rule.</script>
+
+<!-- ==== Signal Extraction v10.4: §A5b vendor/competitor entity resolution (cites {{ref:vendor-dictionary}}) ==== -->
+<script type="text/plain" id="seedExtractA5bVendor">## A5b. Vendor / competitor entity resolution — canonicalize every company name
+Speech-to-text fragments VENDORS exactly as it fragments people: "Tonkin" / "Tronkeon" → Tonkean, "Areeba" → SAP Ariba, "Jaguar" / "Jagger" → JAGGAER, "Koopa" / "Kupa" → Coupa. Resolve every competitor / vendor / incumbent / ERP mention to ONE canonical name against the MASE VENDOR DICTIONARY — reference {{ref:vendor-dictionary}} — BEFORE it enters any signal, exactly as §A5 resolves people:
+STEP 1 — NORMALIZE the mention: lowercase, strip punctuation and spaces.
+STEP 2 — RESOLVE, first hit wins: (a) EXACT alias match against the dictionary; (b) FUZZY fallback — token_set_ratio ≥ 88 OR Levenshtein ≤ 2 on the normalized string.
+STEP 3 — EMIT the CANONICAL name (never the raw ASR spelling), carrying the dictionary's category + role.
+STEP 4 — DEDUPE: all mentions resolving to one canonical vendor collapse to a SINGLE competitor entity (keep the heard variants as aliases for provenance).
+STEP 5 — COLLISION GUARD: honor the dictionary's collision_warnings — require procurement/vendor context before matching an ambiguous token (Opstream vs "upstream", Arkestro vs "orchestra", Simfoni vs "symphony", Magnit vs "magnet", Certa vs "Serta", Malbek vs "Malbec", Fraxion vs "fraction", HICX vs "Hicks", Productiv vs "productive"); "tail spend" mis-heard as "tailspin" is a TERM, not a vendor. Apply the dictionary's terminology_normalization (S2P / S2C / P2P / CLM / orchestration-overlay variants).
+STEP 6 — SELF GUARD: never treat Zycus's own names (Zycus, Merlin, ANA, iSaaS, Certinal) as a competitor.
+STEP 7 — UNRESOLVED: a company mention matching no dictionary entry and no fuzzy candidate is tagged "unverified vendor" — surfaced, but never silently merged into a known competitor and never invented.
+The dictionary in {{ref:vendor-dictionary}} is the SINGLE SOURCE OF TRUTH for vendor names; when a new rival or a fresh ASR mishearing appears it is corrected THERE (locked), never patched into this prompt.</script>
+
+<script>
+const LS='mase_scoring_studio_v7';  // bump when seeded versions change → forces a fresh reseed
+const METRICS={
+  win:{name:'Zycus Win Position',seed:'seedWin',run:'Run scoring sweep',kind:'engine'},
+  mom:{name:'Deal Momentum',seed:'seedMom',run:'Run scoring sweep',kind:'engine'},
+  todo:{name:'To-Do Generation',seed:'seedTodo',run:'Run to-do generation',kind:'engine'},
+  sum:{name:'24-Hour Summary',seed:'seed24',run:'Run 24-hour summary',kind:'engine'},
+  extract:{name:'Signal Extraction',seed:'seedExtract',run:'Run signal extraction',kind:'engine'},
+  sweep:{name:'Deal Sweep (Deal Drawer)',seed:'seedSweep',run:'Run deal sweep',kind:'engine'},
+  vendordict:{name:'Vendor Dictionary',seed:'seedVendorDict',run:'',kind:'reference',ref:'vendor-dictionary'},
+  playbook:{name:'Deal Playbook',seed:'seedPlaybook',run:'',kind:'reference',ref:'deal-playbook'}
+};
+let active='win';
+const seed=id=>document.getElementById(id).textContent.replace(/^\n/,'').replace(/\s+$/,'');
+const now=()=>{const d=new Date();return d.toISOString().slice(0,16).replace('T',' ')+' UTC';};
+
+// One place that knows which metrics ship with a multi-version trail vs a single seed
+// Reference assets + the Deal Sweep engine load their canonical text from /refs (single source of truth)
+let EXTSEED={};
+function mkSeed(k){
+  if(k==='win')     return mkWinTrail();
+  if(k==='extract') return mkExtractTrail();
+  if(k==='mom')     return mkMomTrail();
+  if(k==='sum')     return mkSumTrail();
+  if(k==='todo')    return mkTodoTrail();
+  if(k==='sweep')      return mkMetric(EXTSEED.sweep||'(loading refs/deal-sweep-v3.md…)','10.0');
+  if(k==='vendordict') return mkMetric(EXTSEED.vendordict||'(loading refs/vendor-dictionary.json…)','1.0');
+  if(k==='playbook')   return mkMetric(EXTSEED.playbook||'(loading refs/deal-playbook.md…)','1.0');
+  return mkMetric(seed(METRICS[k].seed));
+}
+function fresh(){
+  const o={runs:{}};
+  Object.keys(METRICS).forEach(k=>{ o[k]=mkSeed(k); o.runs[k]=[]; });
+  return o;
+}
+function mkMetric(content,ver){ver=ver||'10.0';
+  return {locked:[{version:ver,kind:'initial',date:now(),note:'Initial release — v'+ver+'.',content}], draft:null};
+}
+// Win Position ships with a real change trail: v10.0 → v10.1 (indirect-EB partial credit)
+function mkWinTrail(){
+  const v100=seed('seedWin');
+  const rule101='\n  4.2c Exec access — DIRECT vs INDIRECT engagement. Direct EB face time = FULL credit. If the economic buyer (CEO / CIO / CFO) has NOT had direct Zycus face time but is demonstrably involved INDIRECTLY — they reviewed our solution / POC internally, sponsor or mandated the project, or receive our material through the champion — award PARTIAL credit (~+0.3 to +0.5), scaled by the seniority + seriousness of the involvement. A CEO/CIO reviewing the POC internally on a mandated project is meaningful executive reach even without a meeting. Reserve FULL credit for direct engagement. (added v10.1)';
+  const v101=v100.replace('Sole-source = positive.','Sole-source = positive.'+rule101);
+  const v102=v101.replace('## 6. Bands', seed('seedWinRule102')+'\n\n## 6. Bands');
+  const v103=v102.replace('## 3. Reading discipline', seed('seedGoldmine')+'\n\n## 3. Reading discipline');
+  return {locked:[
+    {version:'10.0',kind:'initial',date:now(),note:'Initial release — founding scoring instruction (v10.0).',content:v100},
+    {version:'10.1',kind:'minor',date:now(),note:'Exec access now credits INDIRECT economic-buyer engagement (e.g. CEO/CIO reviewing the POC internally on a mandated project) at partial strength (~+0.3 to +0.5) — previously a missing EB scored ~0/negative. Full credit still reserved for direct EB face time.',content:v101},
+    {version:'10.2',kind:'minor',date:now(),note:'Added §5.5 Stage-reality & forecast-reality override: the engine MAY cross a stage/forecast ceiling in EITHER direction when HARD physical evidence shows the recorded stage is wrong — but ONLY with (1) a written exception statement citing the evidence and the true stage, and (2) a nudge urging the seller to correct the stage/forecast in Salesforce. Symmetric: catches over-positioning/over-forecasting (adjust down) as well as under-positioning (cross up). Default remains the recorded-stage ceiling.',content:v102},
+    {version:'10.3',kind:'minor',date:now(),note:'GOLD-MINE SOURCES rule: Next Step + Next Step History + Completed Tasks (INCLUDING each Task Description, where Avoma summaries are logged as "-- Avoma Note Start --") must be read IN FULL every run — never inferred from LastActivityDate/metadata. Missing any one drops direction-defining facts.',content:v103}
+  ], draft:null};
+}
+// Signal Extraction ships with a change trail: v10.0 → v10.1 (fuzzy entity resolution)
+function mkExtractTrail(){
+  const v100=seed('seedExtract');
+  const v101=v100.replace(/## A5\.[\s\S]*?(?=## A6\.)/, seed('seedExtractA5v101')+'\n\n');
+  const v102=v101.replace('## A2. Multi-source stitch', seed('seedGoldmine')+'\n\n## A2. Multi-source stitch');
+  const v103=v102
+    .replace('(keep at most a one-line pattern note).', '(keep at most a one-line pattern note).\n\n'+seed('seedExtractEscalationA'))
+    .replace('## B2. Deterministic mechanics', seed('seedExtractLakeB')+'\n\n## B2. Deterministic mechanics');
+  const v104=v103.replace('## A6.', seed('seedExtractA5bVendor')+'\n\n## A6.');
+  return {locked:[
+    {version:'10.0',kind:'initial',date:now(),note:'Initial release — founding extraction instruction (v10.0).',content:v100},
+    {version:'10.1',kind:'minor',date:now(),note:'§A5 upgraded from name→role resolution to full FUZZY ENTITY RESOLUTION. Build a canonical roster (Avoma attendee emails + OpportunityContactRole + account/task contacts + MEDDPICC), then resolve every Avoma/notes mention via a tiered match — email → exact-name → fuzzy edit-distance + PHONETIC (Soundex/Metaphone) → title→person → first/last-token — DEDUPE all variants of one person into a single canonical stakeholder, attach names to bare titles ("the AVP"), and NEVER infer a no-show from recording absence. Inherits MASE roster-prefetch + email-domain attribution + anti-fabrication guard; adds the fuzzy/phonetic/title/dedup layer MASE lacks (its QI is exact-token fabrication filtering, not resolution).',content:v101},
+    {version:'10.2',kind:'minor',date:now(),note:'GOLD-MINE SOURCES promoted to a hard mandate at the head of the extraction pass: ALWAYS read Next Step + Next Step History + Completed Tasks IN FULL, including each Task Description where Avoma summaries are logged as "-- Avoma Note Start --". This is the upstream enforcement that feeds all four downstream engines.',content:v102},
+    {version:'10.3',kind:'minor',date:now(),note:'TRANSCRIPT DEEP-DIVE (surgical). §A10: default to the summary; escalate to the FULL TRANSCRIPT only when a specific, material question would change a score/to-do/direction AND the summary can\'t answer it AND it\'s decision-relevant — then open only that meeting, stop when answered. §B1a fetch order: MASE Data Lake FIRST (Supabase avoma_transcripts by meeting_uuid → transcript_text), Avoma ONLY as fallback if missing. Whole transcript or none; respect budgets.',content:v103},
+    {version:'10.4',kind:'minor',date:now(),note:'§A5b VENDOR / COMPETITOR ENTITY RESOLUTION — the §A5 people-resolution discipline extended to company names. Every competitor / vendor / incumbent / ERP mention is normalized then resolved against the canonical MASE Vendor Dictionary (cited as {{ref:vendor-dictionary}}): exact-alias → fuzzy (token_set_ratio ≥ 88 / Levenshtein ≤ 2) → canonical name + category + role, deduped, with the dictionary\'s collision guards (Opstream vs "upstream", Simfoni vs "symphony", etc.), terminology normalization, and a Zycus self-guard. Kills the "Tonkin/Tronkeon → three competitors" fragmentation. The dictionary is the single source of truth, corrected there (locked), never in-prompt.',content:v104}
+  ], draft:null};
+}
+// Deal Momentum & 24-Hr Summary gain the gold-mine rule (v10.0 → v10.1)
+function mkMomTrail(){
+  const v100=seed('seedMom');
+  const v101=v100.replace('## 3. Reading discipline', seed('seedGoldmine')+'\n\n## 3. Reading discipline');
+  return {locked:[
+    {version:'10.0',kind:'initial',date:now(),note:'Initial release — founding instruction (v10.0).',content:v100},
+    {version:'10.1',kind:'minor',date:now(),note:'GOLD-MINE SOURCES rule: Next Step + Next Step History + Completed Tasks (INCLUDING each Task Description, where Avoma summaries are logged as "-- Avoma Note Start --") must be read IN FULL every run — never inferred from LastActivityDate/metadata. Missing any one drops direction-defining engagement.',content:v101}
+  ], draft:null};
+}
+function mkSumTrail(){
+  const v100=seed('seed24');
+  const v101=v100.replace('## 7. Output', seed('seedGoldmine24')+'\n\n## 7. Output');
+  return {locked:[
+    {version:'10.0',kind:'initial',date:now(),note:'Initial release — founding instruction (v10.0).',content:v100},
+    {version:'10.1',kind:'minor',date:now(),note:'GOLD-MINE SOURCES rule + read Task Descriptions (Avoma "-- Avoma Note Start --" summaries), and NEVER dismiss a recent detailed/summarized call as "no change" — surface it under the §2 essential-change rule with an "as of" note. Fixes the Austrian Post miss where the 1-Jul onsite summary was logged in SF but reported as "no change".',content:v101}
+  ], draft:null};
+}
+function mkTodoTrail(){
+  const v100=seed('seedTodo');
+  const v101=v100.replace('## 3. The four sections', seed('seedGoldmine')+'\n\n## 3. The four sections');
+  return {locked:[
+    {version:'10.0',kind:'initial',date:now(),note:'Initial release — founding instruction (v10.0).',content:v100},
+    {version:'10.1',kind:'minor',date:now(),note:'GOLD-MINE SOURCES rule: read Next Step + Next Step History + Completed Tasks (INCLUDING each Task Description, where Avoma summaries are logged as "-- Avoma Note Start --") in full before generating to-dos — a call\'s action items, commitments and buyer asks live there.',content:v101}
+  ], draft:null};
+}
+function load(){
+  let s;try{s=JSON.parse(localStorage.getItem(LS))}catch(e){}
+  if(!s||!s.win){s=fresh();save(s);return s;}
+  // backfill any metric added after this store was created
+  if(!s.runs) s.runs={};
+  Object.keys(METRICS).forEach(k=>{ if(!s[k]) s[k]=mkSeed(k); if(!s.runs[k]) s.runs[k]=[]; });
+  save(s); return s;
+}
+function save(s){localStorage.setItem(LS,JSON.stringify(s));}
+let S=null;
+
+const M=()=>S[active];
+const cur=m=>m.locked[m.locked.length-1];
+const dirty=m=>m.draft!=null && m.draft.content!==cur(m).content;
+function bump(v,kind){let[a,b]=v.split('.').map(Number); return kind==='major'?`${a+1}.0`:`${a}.${b+1}`;}
+
+// ---- render ----
+function renderTabs(){
+  const t=document.getElementById('tabs'); t.innerHTML='';
+  Object.entries(METRICS).forEach(([k,v])=>{
+    const el=document.createElement('div'); el.className='tab'+(k===active?' active':'');
+    const d=dirty(S[k])?' •':''; el.textContent=v.name+' · v'+cur(S[k]).version+d;
+    el.onclick=()=>{active=k;render();}; t.appendChild(el);
+  });
+}
+function render(){
+  renderTabs();
+  const m=M(); const c=cur(m); const d=dirty(m);
+  document.getElementById('mName').textContent=METRICS[active].name;
+  const badge=document.getElementById('mBadge');
+  badge.className='badge '+(d?'draft':'locked');
+  badge.textContent=d?('DRAFT — based on v'+c.version):('🔒 LOCKED · v'+c.version);
+  const st=document.getElementById('mStatus');
+  if(d){st.className='status warn';st.innerHTML='⚠ Unlocked changes present. <b>The engine is blocked</b> — lock a new version before it can run.';}
+  else {st.className='status ok';st.innerHTML=METRICS[active].kind==='reference'?('✓ <b>v'+c.version+'</b> locked and live — engines cite it as <code>{{ref:'+METRICS[active].ref+'}}</code>.'):('✓ <b>v'+c.version+'</b> is locked and live — the engine calculates on this version.');}
+  // editor
+  const ed=document.getElementById('editor');
+  const editing=m.draft!=null;
+  ed.value=editing?m.draft.content:c.content;
+  ed.readOnly=!editing;
+  document.getElementById('editNote').textContent=editing?'Editing draft — changes are not usable by sweeps until you lock a version.':'Read-only. Click “Edit instruction” to make changes.';
+  document.getElementById('btnEdit').textContent=editing?'✎ Editing…':'✎ Edit instruction';
+  document.getElementById('btnEdit').disabled=editing;
+  document.getElementById('btnDiscard').disabled=!editing;
+  document.getElementById('btnLock').disabled=!d;
+  {const isRef=METRICS[active].kind==='reference'; const sw=document.getElementById('btnSweep');
+   sw.disabled=isRef?true:d;
+   sw.textContent=isRef?(d?'▶ Blocked — lock to publish':('✓ Published — cited as {{ref:'+METRICS[active].ref+'}}')):(d?'▶ Blocked — lock first':('▶ '+METRICS[active].run));}
+  // trail
+  const tr=document.getElementById('trail'); tr.innerHTML='';
+  [...m.locked].reverse().forEach(v=>{
+    const el=document.createElement('div');el.className='ver';
+    el.innerHTML=`<div class="vh"><span class="vn">v${v.version}</span><span class="pill ${v.kind}">${v.kind}</span></div>
+      <div class="vt">${v.date}</div><div class="note">${escapeHtml(v.note)}</div>`;
+    tr.appendChild(el);
+  });
+  // runs
+  const rl=document.getElementById('runs'); const runs=S.runs[active];
+  rl.innerHTML = runs.length? runs.slice().reverse().map(r=>`<div class="runline">▶ Ran on <b>v${r.version}</b> · ${r.date}</div>`).join('')
+    : '<div class="muted" style="font-size:12.5px">Nothing run yet.</div>';
+}
+function escapeHtml(s){return s.replace(/[&<>]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[x]));}
+
+// ---- actions ----
+document.getElementById('editor').addEventListener('input',e=>{
+  const m=M(); if(m.draft==null) return; m.draft.content=e.target.value; save(S);
+  // update badge/status/buttons live WITHOUT re-rendering the textarea (keep caret)
+  const d=dirty(m); const c=cur(m);
+  const badge=document.getElementById('mBadge');
+  badge.className='badge '+(d?'draft':'locked');
+  badge.textContent=d?('DRAFT — based on v'+c.version):('🔒 LOCKED · v'+c.version);
+  const st=document.getElementById('mStatus');
+  if(d){st.className='status warn';st.innerHTML='⚠ Unlocked changes present. <b>The engine is blocked</b> — lock a new version before it can run.';}
+  else {st.className='status ok';st.innerHTML=METRICS[active].kind==='reference'?('✓ <b>v'+c.version+'</b> locked and live — engines cite it as <code>{{ref:'+METRICS[active].ref+'}}</code>.'):('✓ <b>v'+c.version+'</b> is locked and live — the engine calculates on this version.');}
+  document.getElementById('btnLock').disabled=!d;
+  const isRef=METRICS[active].kind==='reference'; const sw=document.getElementById('btnSweep');
+  sw.disabled=isRef?true:d;
+  sw.textContent=isRef?(d?'▶ Blocked — lock to publish':('✓ Published — cited as {{ref:'+METRICS[active].ref+'}}')):(d?'▶ Blocked — lock first':('▶ '+METRICS[active].run));
+});
+document.getElementById('btnEdit').onclick=()=>{const m=M(); if(m.draft==null){m.draft={content:cur(m).content};save(S);} render(); document.getElementById('editor').focus();};
+document.getElementById('btnDiscard').onclick=()=>{const m=M(); m.draft=null; save(S); render();};
+document.getElementById('btnReset').onclick=()=>{ if(!confirm('Reset this metric to the seeded v10.0 and clear its version trail?'))return; S[active]=mkSeed(active); S.runs[active]=[]; save(S); render();};
+
+document.getElementById('btnSweep').onclick=()=>{
+  const m=M(); if(dirty(m)){alert('Sweep blocked: lock a new version first.');return;}
+  S.runs[active].push({version:cur(m).version,date:now()}); save(S); render();
+};
+
+// lock modal
+let lockKind='minor';
+function openLock(){
+  const m=M(); if(!dirty(m))return;
+  const v=cur(m).version; lockKind='minor';
+  document.getElementById('minorV').textContent='v'+bump(v,'minor');
+  document.getElementById('majorV').textContent='v'+bump(v,'major');
+  document.querySelectorAll('#seg button').forEach(b=>b.classList.toggle('sel',b.dataset.kind==='minor'));
+  document.getElementById('verPreview').textContent='v'+bump(v,'minor');
+  document.getElementById('noteInput').value='';
+  document.getElementById('overlay').classList.add('on');
+  setTimeout(()=>document.getElementById('noteInput').focus(),50);
+}
+document.getElementById('btnLock').onclick=openLock;
+document.querySelectorAll('#seg button').forEach(b=>b.onclick=()=>{
+  lockKind=b.dataset.kind;
+  document.querySelectorAll('#seg button').forEach(x=>x.classList.toggle('sel',x===b));
+  document.getElementById('verPreview').textContent='v'+bump(cur(M()).version,lockKind);
+});
+document.getElementById('cancelLock').onclick=()=>document.getElementById('overlay').classList.remove('on');
+document.getElementById('confirmLock').onclick=()=>{
+  const note=document.getElementById('noteInput').value.trim();
+  if(!note){alert('Add a note describing what changed — the version trail requires it.');return;}
+  const m=M(); const nv=bump(cur(m).version,lockKind);
+  m.locked.push({version:nv,kind:lockKind,date:now(),note,content:m.draft.content});
+  m.draft=null; save(S);
+  document.getElementById('overlay').classList.remove('on');
+  render();
+};
+document.getElementById('overlay').addEventListener('click',e=>{if(e.target.id==='overlay')e.target.classList.remove('on');});
+
+// Load the canonical reference files (single source of truth) from /refs, THEN seed + render.
+async function boot(){
+  const grab=(p)=>fetch(p+'?v='+Date.now()).then(r=>r.ok?r.text():Promise.reject()).catch(()=>'(could not load '+p+' — is the server serving the scoring-studio directory?)');
+  const [sweep,vendordict,playbook]=await Promise.all([
+    grab('refs/deal-sweep-v3.md'),
+    grab('refs/vendor-dictionary.json'),
+    grab('refs/deal-playbook.md')
+  ]);
+  EXTSEED={sweep,vendordict,playbook};
+  S=load();
+  render();
+}
+boot();
+</script>
+</body>
+</html>
