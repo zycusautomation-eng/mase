@@ -11,9 +11,10 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { ChevronDown, ChevronUp, X, Sparkles, ArrowUp, ArrowLeft } from "lucide-react";
+import { ChevronDown, ChevronUp, X, Sparkles, ArrowUp, ArrowLeft, Mic } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { setRunning, clearRunning } from "@/lib/engine/dealAiBus";
+import { useDictation } from "@/lib/engine/useDictation";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -370,6 +371,15 @@ export default function DealAgentPanel({ deal, onClose, onBack, convoKey, initia
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(!!effResume);
   const [error, setError] = useState<string | null>(null);
+
+  // Voice dictation: each finalised speech chunk is appended into the composer. The
+  // user still reviews the text and presses Enter to send — the send path is unchanged.
+  const dictation = useDictation({
+    onFinal: (t) => setInput((prev) => { const b = prev.replace(/\s+$/, ""); return (b ? b + " " : "") + t; }),
+  });
+  const stopDictation = dictation.stop;
+  // Any send flips busy → stop listening so the mic never keeps running mid-turn.
+  useEffect(() => { if (busy) stopDictation(); }, [busy, stopDictation]);
   const [activeChatId, setActiveChatId] = useState<string | null>(effResume || null);
   const [hasNew, setHasNew] = useState(false);
   const doneRef = useRef(false);
@@ -597,7 +607,7 @@ export default function DealAgentPanel({ deal, onClose, onBack, convoKey, initia
       ) : null}
       </div>
 
-      {/* Composer — same input as /chat */}
+      {/* Composer — same input as /chat, plus voice dictation (mic) */}
       <div className="px-5 py-4">
         <div className="rounded-2xl border border-border bg-muted/40 transition focus-within:border-indigo-400 focus-within:bg-card focus-within:ring-2 focus-within:ring-indigo-100">
           <Textarea
@@ -605,10 +615,36 @@ export default function DealAgentPanel({ deal, onClose, onBack, convoKey, initia
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={onKey}
             rows={2}
-            placeholder="Ask about this deal, its to-dos, or next steps…"
+            placeholder={dictation.listening ? "Listening… speak now" : "Ask about this deal, its to-dos, or next steps…"}
             className="min-h-[52px] resize-none border-0 bg-transparent px-4 py-3 text-[14px] shadow-none focus-visible:ring-0"
           />
-          <div className="flex items-center justify-end px-3 pb-2.5">
+          {dictation.listening ? (
+            <div className="flex items-center gap-1.5 px-4 pb-1 text-[12px] text-muted-foreground">
+              <span className="inline-block size-1.5 animate-pulse rounded-full bg-red-500" />
+              <span className="font-medium text-red-500">Listening…</span>
+              {dictation.interim
+                ? <span className="truncate italic opacity-80">{dictation.interim}</span>
+                : <span className="opacity-60">speak, then tap the mic to stop</span>}
+            </div>
+          ) : null}
+          <div className="flex items-center justify-between px-3 pb-2.5">
+            {dictation.supported ? (
+              <button
+                type="button"
+                onClick={dictation.toggle}
+                aria-pressed={dictation.listening}
+                title={dictation.listening ? "Stop dictation" : "Dictate (voice to text)"}
+                aria-label={dictation.listening ? "Stop dictation" : "Dictate with voice"}
+                className={cn(
+                  "flex size-9 items-center justify-center rounded-full border transition",
+                  dictation.listening
+                    ? "animate-pulse border-red-200 bg-red-50 text-red-600 ring-2 ring-red-100"
+                    : "border-border bg-card text-muted-foreground hover:border-indigo-300 hover:text-foreground",
+                )}
+              >
+                <Mic className="size-4" />
+              </button>
+            ) : <span />}
             <Button
               size="icon"
               className="size-9 rounded-full bg-gradient-to-br from-[#6E8BFF] to-[#5277F0] text-white hover:opacity-95 disabled:opacity-40"
