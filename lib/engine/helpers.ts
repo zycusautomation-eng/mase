@@ -527,11 +527,14 @@ export function isSuperAdminEmail(email: string | null | undefined): boolean {
 // Region admins: see ALL deals in a region (every VP team in it), LOCKED — but NOT the
 // whole book and NOT the admin agent-control surfaces. They resolve to a multi-VP
 // `scoped` role (not `admin`), so region-wide visibility falls out of the normal scope
-// filter. US = the four US VP books (West, East, US Strategic, US Mid-Markets); EMEA/
-// APAC VPs (Anthony Gray, John Woodcock, Carl Kimball) are excluded.
+// filter. US = the four US VP books (West, East, US Strategic, US Mid-Markets). Europe =
+// the two EMEA VP books (Anthony Gray — EU/UK, John Woodcock — Continental); Carl Kimball
+// (APAC/MEA) is NOT Europe and is excluded.
 export const US_VPS = ["Alexa Bradley", "VP East Open", "Arthur Raguette", "Michael McCarthy"];
+export const EUROPE_VPS = ["John Woodcock", "Anthony Gray"];
 export const REGION_ADMINS: Record<string, { name: string; vps: string[] }> = {
   "kasturi.talukdar@zycus.com": { name: "US Admin", vps: US_VPS },
+  "rashi.varma@zycus.com": { name: "Europe Admin", vps: EUROPE_VPS },
 };
 
 // Resolve the logged-in email into an access decision:
