@@ -3,7 +3,7 @@
 // property rows, stakeholders, MEDDIC) and falls back to clearly-structured
 // placeholders so the panel always renders a full layout.
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { fmtAmount, fmtDue, dealMeddpicc, type Rec } from "./helpers";
+import { fmtAmount, fmtDue, dealMeddpicc, sfLinkFor, type Rec } from "./helpers";
 
 export interface StakeholderView {
   name: string;
@@ -103,7 +103,9 @@ export function buildDealContext(record: Rec | null | undefined): DealContextVie
     accountName: account,
     industry: h.account_industry || "—",
     oppName: h.opp_name || account,
-    sfLink: h.sf_link || undefined,
+    // Derived, never the raw hard.sf_link — that field is sweep-hallucinated for ~1 in 6
+    // deals (other tenants' orgs / placeholders) and would hand the agent a wrong link.
+    sfLink: sfLinkFor(h, h.opp_id) || undefined,
     stage: h.stage || "—",
     amount: fmtAmount(h.amount),
     closeDate: h.close_date ? fmtDue(h.close_date) : "—",
