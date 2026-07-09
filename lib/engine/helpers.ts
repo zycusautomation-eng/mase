@@ -566,6 +566,29 @@ export function resolveAccess(email: string | null | undefined): Access {
 
 export function uniqSorted(arr: any[]): any[] { return [...new Set(arr.filter((v) => v != null && v !== ""))].sort(); }
 
+// --- Country canonicalisation (the Country facet) ---
+// Salesforce Account.BillingCountry is FREE TEXT: the same country arrives as both "US"
+// and "United States" (likewise UK / UAE). Left raw, the facet shows TWO options for one
+// country and each hides the other's deals. Canonicalise here and run BOTH the option
+// list (ScopeFilterBar) and the match test (DashboardContext) through it, so they can
+// never disagree. Unknown values pass through untouched (e.g. the region values "Europe"
+// / "APAC" that a few accounts carry) — we never invent or drop a country.
+const COUNTRY_ALIASES: Record<string, string> = {
+  "us": "United States", "usa": "United States", "u.s.": "United States", "u.s.a.": "United States",
+  "united states of america": "United States",
+  "uk": "United Kingdom", "u.k.": "United Kingdom", "gb": "United Kingdom",
+  "great britain": "United Kingdom", "england": "United Kingdom",
+  "uae": "United Arab Emirates", "u.a.e.": "United Arab Emirates",
+  "ksa": "Saudi Arabia",
+  "prc": "China",
+  "holland": "Netherlands", "the netherlands": "Netherlands",
+};
+export function normCountry(v: unknown): string {
+  const raw = String(v ?? "").trim();
+  if (!raw) return "";
+  return COUNTRY_ALIASES[raw.toLowerCase().replace(/\s+/g, " ")] || raw;
+}
+
 // --- dates ---
 export function refToday(records: Rec[]): string {
   // "Today" for back-planning to-do due dates. Use the latest sweep that is NOT

@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useRef, useState } from "react";
 import { useDashboard, type DealFilters } from "@/lib/engine/DashboardContext";
-import { vpsList, teamOwners, uniqSorted, fyq, STAGE_ORDER, SCORE_BANDS, type Rec } from "@/lib/engine/helpers";
+import { vpsList, teamOwners, uniqSorted, fyq, STAGE_ORDER, SCORE_BANDS, normCountry, type Rec } from "@/lib/engine/helpers";
 import MultiSelect, { type Opt } from "@/components/MultiSelect";
 
 const SIZE_OPTS: Opt[] = [
@@ -40,7 +40,8 @@ export default function ScopeFilterBar() {
 
   const hard = scoped.map((r: Rec) => r.hard || {});
   const fc: Opt[] = uniqSorted(hard.map((h) => h.forecast_category)).map((v) => ({ value: v as string, label: v as string }));
-  const co: Opt[] = uniqSorted(hard.map((h) => h.billing_country)).map((v) => ({ value: v as string, label: v as string }));
+  // Canonicalised so "US" and "United States" collapse into ONE option (see normCountry).
+  const co: Opt[] = uniqSorted(hard.map((h) => normCountry(h.billing_country))).map((v) => ({ value: v as string, label: v as string }));
   const cq: Opt[] = [...new Map(hard.map((h) => { const q = fyq(h.close_date); return [q.key, q.label]; })).entries()]
     .sort((a, b) => (a[0] as number) - (b[0] as number)).map((e) => ({ value: e[1] as string, label: e[1] as string }));
   // Stage facet — distinct stages present, ordered by the pipeline sequence (not alphabetical).
