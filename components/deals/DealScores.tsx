@@ -224,11 +224,29 @@ export function DealReasonsPanel({ ds }: { ds: any }) {
   const h = ds && ds.headline;
   if (!h) return <div className="ds-panel"><div className="ds-fc-sub">No scores computed for this deal yet.</div></div>;
   const comm = ds.commentary || {};
+  // WHO SCORED IT (2026-07-09, the Alghanim silent-swap): the backend stamps factor_source
+  // ("ai" = the Omnivision-governed analyst; anything else = deterministic keyword fallback)
+  // and scoring_degraded + fallback_reason on every fallback. Surface it at a glance so a
+  // degraded score can never again wear the analyst's badge unnoticed.
+  const degraded = !!(ds.scoring_degraded || (ds.factor_source && ds.factor_source !== "ai"));
+  const scoredBadge = ds.factor_source || ds.scoring_degraded ? (
+    <div
+      title={ds.fallback_reason || (degraded ? "Deterministic keyword scoring (AI analyst unavailable this sweep)" : "Scored by the Omnivision-governed AI analyst")}
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700,
+        borderRadius: 999, padding: "3px 10px", marginBottom: 10,
+        background: degraded ? "#fdf4e3" : "#f1f8f3",
+        border: degraded ? "1px solid #ecd9ad" : "1px solid #b5d4bd",
+        color: degraded ? "#8a5a00" : "#1b6e3a",
+      }}>
+      {degraded ? "⚠ keyword fallback — degraded score" : "✓ scored by AI analyst"}
+    </div>
+  ) : null;
   // Lost/closed (SF-dead OR a loss detected in the latest call) → terminal state + reason.
   const lost = !!(h.dead || h.decision === "lost" || /^lost/i.test(String(h.read || "")));
   // Prefer the CRO-readable narrative when present (and the deal isn't closed).
   if (ds.cro_panel && (ds.cro_panel.blocks || []).length && !lost) {
-    return <div className="ds-panel"><CroReasons panel={ds.cro_panel} headline={h} /></div>;
+    return <div className="ds-panel">{scoredBadge}<CroReasons panel={ds.cro_panel} headline={h} /></div>;
   }
   if (lost) {
     const label = h.dead_label || (h.decision === "lost" ? "Lost" : h.read || "Closed");
