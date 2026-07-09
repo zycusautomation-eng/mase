@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
 import { trackAppOpenOnce } from "@/lib/tracking/client";
-import { aiLabel, applyStageFix, ceoFilterLabel, fyq, healthLabel, inScope, isSuperAdminEmail, keepRecord, resolveAccess, scoreBand, sizeBand, type Rec } from "./helpers";
+import { aiLabel, applyStageFix, ceoFilterLabel, fyq, healthLabel, inScope, isSuperAdminEmail, keepRecord, normCountry, resolveAccess, scoreBand, sizeBand, type Rec } from "./helpers";
 import { createClient } from "@/lib/supabase/client";
 
 // Each filter is a multi-select: an empty array means "all".
@@ -308,7 +308,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       const h = r.hard || {};
       if (filters.forecast.length && !filters.forecast.includes(h.forecast_category)) return false;
       if (filters.stage.length && !filters.stage.includes(h.stage)) return false;
-      if (filters.country.length && !filters.country.includes(h.billing_country)) return false;
+      if (filters.country.length && !filters.country.includes(normCountry(h.billing_country))) return false;
       if (filters.size.length && !filters.size.includes(sizeBand(h.amount))) return false;
       if (filters.ai.length && !filters.ai.includes(aiLabel(h, (r.ai || {}).ai_fit_signal))) return false;
       if (filters.ceo.length && !filters.ceo.includes(ceoFilterLabel((r.ai || {}).ceo_intervention))) return false;
