@@ -697,6 +697,36 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
             <AddUpdateForm oppId={rec.opp_id} backend={backend} />
           </div>
 
+          {/* Recently logged to Salesforce — echoes updates logged from THIS drawer
+              (backend.manualForOpp, optimistic) so they show instantly. The deal's swept
+              activity (24h Summary / Intel) only refreshes on the next sweep, so without
+              this a just-logged update would appear to vanish. */}
+          {(() => {
+            const logged = backend.manualForOpp(rec.opp_id);
+            if (!logged.length) return null;
+            const destLabel = (d: any) => (d === "todo" ? "To-do" : d === "next_step" || d === "nextStep" ? "Next step" : "Completed task");
+            return (
+              <div className="card card-pad mb14">
+                <div className="ic-title" style={{ marginBottom: 4 }}>✓ Logged to Salesforce</div>
+                <div className="ic-body" style={{ color: "var(--ink-faint)", marginBottom: 8 }}>Updates you logged from here. They also write to the Salesforce opportunity; the deal&apos;s swept activity refreshes on the next sweep.</div>
+                {logged.map((u: any, i: number) => (
+                  <div key={u.sf_task_id || `${u.note}-${i}`} className="sum-row" style={{ padding: "11px 0" }}>
+                    <div className="sum-ic k-task" style={{ background: "var(--pos-bg)", color: "var(--pos)" }}>✓</div>
+                    <div className="sum-main">
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)", lineHeight: 1.5 }}>{u.note}</div>
+                      <div className="sum-meta" style={{ marginTop: 4 }}>
+                        {destLabel(u.destination)}{u.done_date ? ` · ${fmtDate(u.done_date)}` : ""}{u.created_by ? ` · ${u.created_by}` : ""}
+                        {u.sf_task_id
+                          ? <span style={{ marginLeft: 6, color: "var(--pos)", fontWeight: 700 }}>· Salesforce ✓</span>
+                          : <span style={{ marginLeft: 6, color: "var(--over)", fontWeight: 700 }}>· syncing…</span>}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+
           {/* Moves (Commitments made by Zycus) come from the record and render instantly;
               the other buckets come from the /todo fetch. While that's loading, show a
               skeleton BELOW the moves so it's clear the rest is still arriving. */}
