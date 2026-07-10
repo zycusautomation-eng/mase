@@ -265,6 +265,10 @@ export const OWNER_VP: Record<string, string> = {
   "Carl Kimball": "Carl Kimball", "Mohamad Alhakim": "Carl Kimball", "Dan Quinn": "Carl Kimball",
   "Adam Hasan": "Carl Kimball", "George John": "Carl Kimball", "Guillaume Pasquet": "Carl Kimball",
   "Luke Dougherty": "Carl Kimball", "Tanmay Srivastava": "Carl Kimball",
+  // Graeme Yates — new RSD (ANZ), rolls up to Carl Kimball. SFDC currently has his
+  // display name mistyped as "Graemz Yates"; map BOTH so his deals reconcile whether
+  // or not the SFDC typo is fixed.
+  "Graemz Yates": "Carl Kimball", "Graeme Yates": "Carl Kimball",
   // Alexa Bradley — VP (West)
   "Alexa Bradley": "Alexa Bradley", "Karson Keogh": "Alexa Bradley", "Mario Castro": "Alexa Bradley",
   "Rick Taranek": "Alexa Bradley", "Kevin Cipollaro": "Alexa Bradley",
@@ -445,6 +449,9 @@ export const EMAIL_TO_OWNER: Record<string, string> = {
   "pierre.meraud@zycus.com": "Pierre Meraud",
   // Carl Kimball — VP (APAC/MEA)
   "carl.kimball@zycus.com": "Carl Kimball",
+  // New RSD (ANZ). SFDC has his name mistyped as "Graemz Yates", so map the email to
+  // that exact display name (both spellings are in OWNER_VP, so a later SFDC fix keeps working).
+  "graeme.yates@zycus.com": "Graemz Yates",
   "mohamad.alhakim@zycus.com": "Mohamad Alhakim",
   "dan.quinn@zycus.com": "Dan Quinn",
   "adam.hasan@zycus.com": "Adam Hasan",
