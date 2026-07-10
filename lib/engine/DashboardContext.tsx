@@ -50,6 +50,11 @@ interface DashboardState {
   blocked: boolean;
   // display name the scope is locked to (e.g. "Alexa Bradley"), null if admin/blocked
   scopeName: string | null;
+  // for a REGIONAL ADMIN (locked to multiple VPs, e.g. Europe = Woodcock + Gray): their
+  // full assigned VP list = the max scope. Lets the filter bar offer a VP picker limited
+  // to the region (empty selection resets to the whole region, never the whole company).
+  // [] for a single-VP lock, an RSD, an admin, or a blocked user.
+  scopeVps: string[];
   // admin-only impersonation: true if the REAL logged-in user is an admin
   realIsAdmin: boolean;
   // email currently being simulated (null = the admin's own whole-book view)
@@ -103,6 +108,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [locked, setLocked] = useState(false);
   const [blocked, setBlocked] = useState(false);
   const [scopeName, setScopeName] = useState<string | null>(null);
+  const [scopeVps, setScopeVps] = useState<string[]>([]);   // regional-admin region (max scope)
   const [realIsAdmin, setRealIsAdmin] = useState(false);
   const [simEmail, setSimEmail] = useState<string | null>(null);
   const [canSeeScores, setCanSeeScores] = useState(false);
@@ -145,22 +151,22 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     setFilters(EMPTY_FILTERS);
     if (!email) {
       // back to the admin's own whole-book view
-      setVpsRaw([]); setRsds([]); setScopeName(null); setLocked(false); setBlocked(false);
+      setVpsRaw([]); setScopeVps([]); setRsds([]); setScopeName(null); setLocked(false); setBlocked(false);
       setCanSeeScores(true);
       return;
     }
     const a = resolveAccess(email);
     if (a.kind === "scoped") {
-      setVpsRaw(a.vps); setRsds(a.rsds); setScopeName(a.name); setLocked(true); setBlocked(false);
+      setVpsRaw(a.vps); setScopeVps(a.vps); setRsds(a.rsds); setScopeName(a.name); setLocked(true); setBlocked(false);
       // a VP is scoped to their own team (vps set); an RSD is scoped to their deals
       // (rsds set). Only the VP may see scores.
       setCanSeeScores(a.vps.length > 0);
     } else if (a.kind === "blocked") {
-      setVpsRaw([]); setRsds([]); setScopeName(email); setLocked(true); setBlocked(true);
+      setVpsRaw([]); setScopeVps([]); setRsds([]); setScopeName(email); setLocked(true); setBlocked(true);
       setCanSeeScores(false);
     } else {
       // simulating another admin = whole book
-      setVpsRaw([]); setRsds([]); setScopeName(null); setLocked(false); setBlocked(false);
+      setVpsRaw([]); setScopeVps([]); setRsds([]); setScopeName(null); setLocked(false); setBlocked(false);
       setCanSeeScores(true);
     }
   }, []);
@@ -216,6 +222,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         if (off) return;
         if (access.kind === "scoped") {
           setVpsRaw(access.vps);
+          setScopeVps(access.vps);
           setRsds(access.rsds);
           setScopeName(access.name);
           setLocked(true);
@@ -331,7 +338,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     vps, rsds, filters, query,
     setVps, setRsds, setFilter, clearFilters, setQuery,
     scoped, filtered,
-    locked, blocked, scopeName,
+    locked, blocked, scopeName, scopeVps,
     realIsAdmin, simEmail, isAdminView: realIsAdmin && !simEmail,
     isSuperAdminView: isSuperAdminEmail(realEmail) && !simEmail,
     canSeeScores, simulateAs,
