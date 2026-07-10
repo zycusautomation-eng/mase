@@ -102,6 +102,16 @@ export function fmtAmount(a: any): string {
   const n = Number(a);
   return isNaN(n) ? String(a) : "$" + n.toLocaleString();
 }
+// Account annual revenue as stored in Salesforce (AnnualRevenue, in MILLIONS of the
+// account currency — e.g. Greencore = 2066 → ~$2.1B). Compact display for the drawer
+// header; returns "" for missing/zero so the caller can omit the chip entirely.
+export function fmtRevenueM(v: any): string {
+  if (v == null || v === "") return "";
+  const m = Number(v);
+  if (isNaN(m) || m <= 0) return "";
+  if (m >= 1000) return "$" + (m / 1000).toFixed(m >= 10000 ? 0 : 1).replace(/\.0$/, "") + "B";
+  return "$" + Math.round(m).toLocaleString() + "M";
+}
 export function num(v: any): number { const n = Number(v); return isNaN(n) ? 0 : n; }
 export function cellStr(cell: any): string {
   if (!cell) return "";
