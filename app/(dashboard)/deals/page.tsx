@@ -34,7 +34,7 @@ const PAGE_SIZE = 20;
 // AI excitement is a computed tier (status OR score OR fit signal) the DB can't filter
 // without a dedicated column. The full per-deal record is fetched on drawer open.
 export default function DealsPage() {
-  const { filtered, records, playbook, loading, canSeeScores, realIsAdmin, isAdminView, isFav, toggleFav } = useDashboard();
+  const { filtered, records, playbook, loading, canSeeScores, realIsAdmin, isAdminView, isFav, toggleFav, statsOff, toggleStats } = useDashboard();
   const [sortKey, setSortKey] = useState("days_to_close");
   const [sortDir, setSortDir] = useState(1);
   const [selected, setSelected] = useState<Rec | null>(null);
@@ -121,6 +121,7 @@ export default function DealsPage() {
         <table>
           <thead>
             <tr>
+              <th aria-label="Count in totals" title="Each row's toggle includes/excludes that deal from the top pipeline totals (list stays; resets on reload)" style={{ width: 42, textAlign: "center" }} />
               <th aria-label="Favourite" style={{ width: 30, textAlign: "center" }} />
               {LEAD_COLS.map(([k, label]) => (
                 <th key={k} onClick={() => sortBy(k)}>{label}{arrow(k)}</th>
@@ -160,8 +161,29 @@ export default function DealsPage() {
                 return <td key={k} className={numeric ? "num" : undefined}>{v == null ? "—" : v}</td>;
               };
               const fav = isFav(r.opp_id);
+              const inTotals = !statsOff.has(r.opp_id);   // on by default; off = excluded from the top cards
               return (
                 <tr key={r.opp_id} onClick={() => setSelected(r)}>
+                  <td className="statscell" style={{ textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={inTotals}
+                      title={inTotals ? "Counted in the top pipeline totals — click to exclude this deal" : "Excluded from the top pipeline totals — click to include"}
+                      onClick={(e) => { e.stopPropagation(); toggleStats(r.opp_id); }}
+                      style={{
+                        width: 30, height: 17, borderRadius: 999, border: "none", cursor: "pointer",
+                        position: "relative", padding: 0, verticalAlign: "middle",
+                        background: inTotals ? "#5b5bf0" : "var(--line, #d7d7e2)", transition: "background .15s ease",
+                      }}
+                    >
+                      <span style={{
+                        position: "absolute", top: 2, left: inTotals ? 15 : 2, width: 13, height: 13,
+                        borderRadius: "50%", background: "#fff", transition: "left .15s ease",
+                        boxShadow: "0 1px 2px rgba(0,0,0,.25)",
+                      }} />
+                    </button>
+                  </td>
                   <td className="favcell" style={{ textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
                     <button
                       type="button"

@@ -242,7 +242,7 @@ function WeightedDrawer({ title, basisCol, base, weightOf, basisOf, onClose, onD
 }
 
 export default function DealsStats() {
-  const { filtered } = useDashboard();
+  const { filtered, statsOff } = useDashboard();
   const router = useRouter();
   const [open, setOpen] = useState<null | "forecast" | "pipeline">(null);
   const [drawer, setDrawer] = useState<null | "forecast" | "pipeline">(null);
@@ -257,7 +257,10 @@ export default function DealsStats() {
   // Dead deals (won / lost / qualified out / omitted) are already hidden from the lists
   // by keepRecord; this is the same canonical test as a safety net so no rollup can ever
   // count one even if it reaches here another way.
-  const recs = filtered.filter((r: any) => !isDeadDeal(r));
+  // Per-row toggle: deals switched OFF (in statsOff) are excluded from EVERY top card
+  // (pipeline / commit / at-risk / AI score / both weighted) — they stay in the list,
+  // they just don't count toward the totals. Everything below flows from `recs`.
+  const recs = filtered.filter((r: any) => !isDeadDeal(r) && !statsOff.has(r.opp_id));
   const amt = (r: any) => Number(r.hard?.amount) || 0;
   const isAtRisk = (r: any) => { const v = verdictTone(r.ai?.north_star_verdict?.verdict); return v === "v-slow" || v === "v-off"; };
   const pipeline = recs.reduce((n, r) => n + amt(r), 0);

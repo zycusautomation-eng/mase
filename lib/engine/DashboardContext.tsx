@@ -85,6 +85,11 @@ interface DashboardState {
   toggleFav: (oppId: string) => void;
   favsOnly: boolean;
   setFavsOnly: (b: boolean) => void;
+  // Per-row "count in the top pipeline totals" toggle. On by default (empty set = every
+  // deal counted); toggling a row OFF excludes ONLY it from the DealsStats cards (the row
+  // still shows in the list). Transient — resets to all-on on reload (never persisted).
+  statsOff: Set<string>;
+  toggleStats: (oppId: string) => void;
 }
 
 const Ctx = createContext<DashboardState | null>(null);
@@ -119,6 +124,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   // user, never the simulated one.
   const [favs, setFavs] = useState<Set<string>>(new Set());
   const [favsOnly, setFavsOnly] = useState(false);
+  // opp_ids toggled OUT of the top-pipeline stat rollups (transient, not persisted).
+  const [statsOff, setStatsOff] = useState<Set<string>>(new Set());
   const [realEmail, setRealEmail] = useState<string | null>(null);
   const [chatAllowed, setChatAllowed] = useState(false);
 
@@ -252,6 +259,10 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const setVps = useCallback((v: string[]) => { setVpsRaw(v); setRsds([]); }, []);
   const setFilter = useCallback((k: keyof DealFilters, v: string[]) => setFilters((f) => ({ ...f, [k]: v })), []);
   const clearFilters = useCallback(() => { setFilters(EMPTY_FILTERS); setFavsOnly(false); }, []);
+  // Toggle one deal in/out of the top pipeline stat totals (does NOT hide the row).
+  const toggleStats = useCallback((oppId: string) => {
+    setStatsOff((prev) => { const n = new Set(prev); if (n.has(oppId)) n.delete(oppId); else n.add(oppId); return n; });
+  }, []);
 
   // Load favourites: paint the cached set instantly, then reconcile with the DB (the
   // source of truth). One-time migration: if the DB has none for this user but this
@@ -343,7 +354,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     isSuperAdminView: isSuperAdminEmail(realEmail) && !simEmail,
     canSeeScores, simulateAs,
     chatAllowed,
-    favs, isFav, toggleFav, favsOnly, setFavsOnly,
+    favs, isFav, toggleFav, favsOnly, setFavsOnly, statsOff, toggleStats,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
