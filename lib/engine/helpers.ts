@@ -405,6 +405,15 @@ export function isDeadStage(stage: any): boolean {
   const k = String(stage || "").trim().toLowerCase();
   return DEAD_STAGES.some((d) => k.includes(d));
 }
+// Stages HIDDEN from the MASE UI entirely — pre-qualified deals we don't surface anywhere
+// (an "Initial Interest" pipeline is noise for the deal-intelligence views). Distinct from
+// DEAD_STAGES: these are EARLY, not terminal. Substring match catches the numbered SF form
+// ("1. Initial Interest") too.
+const HIDDEN_STAGES = ["initial interest"];
+export function isHiddenStage(stage: any): boolean {
+  const k = String(stage || "").trim().toLowerCase();
+  return HIDDEN_STAGES.some((d) => k.includes(d));
+}
 // Canonical "dead deal" test — terminal by STAGE or by forecast category (Omitted).
 // THE single source of truth: keepRecord hides these from every list and DealsStats
 // excludes them from every rollup, so the two can never drift. Mirrors the backend's
@@ -423,7 +432,7 @@ export function isDeadDeal(r: any): boolean {
   return isDeadStage(h.stage) || deadFc || headDead;
 }
 export function keepRecord(r: Rec): boolean {
-  return vpOf(r) != null && !isDeadDeal(r);
+  return vpOf(r) != null && !isDeadDeal(r) && !isHiddenStage((r.hard || {}).stage);
 }
 
 export function teamsMap(records: Rec[]): Record<string, string[]> {
