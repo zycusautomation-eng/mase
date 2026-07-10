@@ -121,7 +121,7 @@ export default function DealsPage() {
         <table>
           <thead>
             <tr>
-              <th aria-label="Count in totals" title="Each row's toggle includes/excludes that deal from the top pipeline totals (list stays; resets on reload)" style={{ width: 42, textAlign: "center" }} />
+              <th title="The toggle button includes or excludes a deal from the top pipeline totals" style={{ width: 64, textAlign: "center" }}>Toggle</th>
               <th aria-label="Favourite" style={{ width: 30, textAlign: "center" }} />
               {LEAD_COLS.map(([k, label]) => (
                 <th key={k} onClick={() => sortBy(k)}>{label}{arrow(k)}</th>
