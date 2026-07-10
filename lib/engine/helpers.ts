@@ -575,9 +575,12 @@ export function isSuperAdminEmail(email: string | null | undefined): boolean {
 // (APAC/MEA) is NOT Europe and is excluded.
 export const US_VPS = ["Alexa Bradley", "VP East Open", "Arthur Raguette", "Michael McCarthy"];
 export const EUROPE_VPS = ["John Woodcock", "Anthony Gray"];
+// APAC/MEA = Carl Kimball's book (his whole team rolls up to him in OWNER_VP).
+export const APAC_VPS = ["Carl Kimball"];
 export const REGION_ADMINS: Record<string, { name: string; vps: string[] }> = {
   "kasturi.talukdar@zycus.com": { name: "US Admin", vps: US_VPS },
   "rashi.varma@zycus.com": { name: "Europe Admin", vps: EUROPE_VPS },
+  "chiranjivi.padole@zycus.com": { name: "APAC Admin", vps: APAC_VPS },
 };
 
 // Resolve the logged-in email into an access decision:
