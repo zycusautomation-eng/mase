@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useRef, useState } from "react";
 import { useDashboard, type DealFilters } from "@/lib/engine/DashboardContext";
-import { vpsList, teamOwners, uniqSorted, fyq, STAGE_ORDER, SCORE_BANDS, normCountry, type Rec } from "@/lib/engine/helpers";
+import { vpsList, teamOwners, ownersForVpsStatic, uniqSorted, fyq, STAGE_ORDER, SCORE_BANDS, normCountry, type Rec } from "@/lib/engine/helpers";
 import MultiSelect, { type Opt } from "@/components/MultiSelect";
 
 const SIZE_OPTS: Opt[] = [
@@ -36,7 +36,10 @@ export default function ScopeFilterBar() {
   }
 
   const vpOpts: Opt[] = vpsList(records).map((v) => ({ value: v, label: v }));
-  const ownerOpts: Opt[] = teamOwners(records, vps).map((o) => ({ value: o, label: o }));
+  // Owners = those WITH deals in the book UNION the configured roster for the selected
+  // VPs, so a brand-new RSD with no deals yet (e.g. Graeme Yates) is still selectable.
+  const ownerOpts: Opt[] = (uniqSorted([...teamOwners(records, vps), ...ownersForVpsStatic(vps)]) as string[])
+    .map((o) => ({ value: o, label: o }));
 
   const hard = scoped.map((r: Rec) => r.hard || {});
   const fc: Opt[] = uniqSorted(hard.map((h) => h.forecast_category)).map((v) => ({ value: v as string, label: v as string }));
