@@ -14,7 +14,7 @@ const AI_OPTS: Opt[] = ["AI Hungry", "AI Curious", "AI Resistant"].map((v) => ({
 const stageRank = (s: string) => { const i = STAGE_ORDER.indexOf(s); return i < 0 ? 999 : i; };
 
 export default function ScopeFilterBar() {
-  const { records, vps, rsds, setVps, setRsds, scoped, filters, setFilter, clearFilters, filtered, locked, blocked, scopeName, canSeeScores, isAdminView, favsOnly, setFavsOnly, favs } = useDashboard();
+  const { records, vps, rsds, setVps, setRsds, scoped, filters, setFilter, clearFilters, filtered, locked, blocked, scopeName, scopeVps, canSeeScores, isAdminView, favsOnly, setFavsOnly, favs } = useDashboard();
 
   // Filters popover (progressive disclosure) — hooks must run before any early return.
   const [fopen, setFopen] = useState(false);
@@ -80,11 +80,23 @@ export default function ScopeFilterBar() {
           their own reps so they can drill into an individual; a single rep gets
           no picker (they only ever see their own deals). */}
       {locked ? (
-        vps.length > 0 ? (
+        scopeVps.length > 0 ? (
           <>
             <span className="scopelock" title="Your view is scoped to your team/region">
-              Viewing: <b>{scopeName}</b>{vps.length === 1 ? "’s team" : ""}
+              Viewing: <b>{scopeName}</b>{scopeVps.length === 1 ? "’s team" : ""}
             </span>
+            {/* Regional admin (locked to MULTIPLE VP books, e.g. Europe = Woodcock + Gray):
+                a VP picker LIMITED to their region so they can slice by VP. Empty selection
+                = the whole region (never the whole company). A single-VP lock has nothing
+                to pick, so no VP picker is shown there. */}
+            {scopeVps.length > 1 ? (
+              <MultiSelect
+                allLabel="All VPs"
+                options={scopeVps.map((v) => ({ value: v, label: v }))}
+                selected={vps.length === scopeVps.length ? [] : vps}
+                onChange={(sel) => setVps(sel.length ? sel : scopeVps)}
+              />
+            ) : null}
             <MultiSelect allLabel="All reps" options={ownerOpts} selected={rsds} onChange={setRsds} />
           </>
         ) : (
