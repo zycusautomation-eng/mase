@@ -6,7 +6,7 @@
 // All CSS is scoped under .ddw so it can never collide with the app's global styles.
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { fmtAmount, daysSince, healthLabel, verdictTone, clipWords, clipWordsClean, getEbOverride, sfLinkFor, ceoAreaLabel, type Rec } from "@/lib/engine/helpers";
+import { fmtAmount, fmtRevenueM, normCountry, daysSince, healthLabel, verdictTone, clipWords, clipWordsClean, getEbOverride, sfLinkFor, ceoAreaLabel, type Rec } from "@/lib/engine/helpers";
 import { useDealAi } from "@/components/deals/DealAiProvider";
 import { Monogram } from "@/components/ui/Monogram";
 import { useBackendTodos } from "@/lib/engine/useBackendTodos";
@@ -165,7 +165,7 @@ const CSS = `
 .ddw .pill.aes-hungry{background:#cdeede;color:#0f7a52;border-color:transparent}
 .ddw .pill.aes-curious{background:#eef9f2;color:#46916b;border-color:transparent}
 .ddw .pill.aes-resist{background:var(--red-bg);color:var(--red-ink);border-color:transparent}
-.ddw .foldmeta{font-size:12px;color:var(--ink-mute);margin:0 0 12px;display:flex;flex-wrap:wrap;gap:7px;align-items:baseline}
+.ddw .foldmeta{font-size:12px;color:var(--ink-mute);margin:5px 0 0;display:flex;flex-wrap:wrap;gap:7px;align-items:baseline}
 .ddw .foldmeta b{color:var(--ink);font-weight:700}
 .ddw .ceo-banner{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:15px 18px;margin-bottom:14px;box-shadow:var(--shadow-sm)}
 .ddw .ceo-banner-h{display:flex;align-items:center;gap:9px;font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--over);font-family:var(--mono);margin-bottom:9px}
@@ -490,25 +490,6 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
   // Latest motion = the decisive live event (the top move's trigger / verdict math), NOT
   // Salesforce field churn (amount/stage/forecast moves are visible to everyone).
   const motionText = topMove.trigger || nsv.math || (lastMove || {}).change || "";
-  // Product scope → grouped module chips (keeps the header uncrowded).
-  const PROD_GROUP: [RegExp, string][] = [
-    [/agentic|\bana\b|autonomous negot/i, "ANA"],
-    [/merlin intake|\bintake\b|irequest/i, "Intake"],
-    [/icontract|\bclm\b|contract/i, "CLM"],
-    [/isupplier|irisk|\bsrm\b|supplier/i, "SRM"],
-    [/isource|sourcing|\bs2c\b/i, "Sourcing"],
-    [/ianaly|spend/i, "Analytics"],
-    [/einvoic/i, "eInvoicing"],
-    [/eproc|procure|\bp2p\b/i, "eProc"],
-    [/merlin/i, "AI"],
-    [/certinal|esign/i, "eSign"],
-  ];
-  const prodGroups: string[] = [];
-  String(((ai.product_scope || {}) as any).scope || "").split(/[;,]/).map((s) => s.trim()).filter(Boolean).forEach((t) => {
-    const m = PROD_GROUP.find(([re]) => re.test(t));
-    const g = m ? m[1] : t;
-    if (g && !prodGroups.includes(g)) prodGroups.push(g);
-  });
   // Prefer the backend's structured `critical_signals` (CRO-written) when present; else derive.
   const structured = Array.isArray((ai as any).critical_signals)
     ? (ai as any).critical_signals.map((c: any) => ({ lens: c.lens || c.label || "Signal", text: cro(String(c.text || c.summary || "")), tone: c.tone || "neu" })).filter((c: any) => c.text)
@@ -562,26 +543,31 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
               <span className="t">{h.account_name || rec.opp_id}</span>
               {h.stage ? <span className="pill stage">{h.stage}</span> : null}
             </div>
-            <div className="dh-sub">{prodGroups.length ? prodGroups.map((g, i) => <span className="scopechip" key={i}>{g}</span>) : (h.opp_name || "")}</div>
+            {/* Deal facts inline under the account name (replaces the old product-scope
+                chips): amount · country · sector · revenue · owner · close · activity · forecast.
+                Each firmographic renders only when present — billing_country is swept today;
+                account_industry / annual_revenue light up once backfilled from Salesforce. */}
+            <div className="foldmeta">
+              <span><b>{fmtAmount(h.amount)}</b></span>
+              {h.billing_country ? <span>· {normCountry(h.billing_country)}</span> : null}
+              {h.account_industry ? <span>· {h.account_industry}</span> : null}
+              {fmtRevenueM(h.annual_revenue) ? <span>· {fmtRevenueM(h.annual_revenue)} rev</span> : null}
+              {h.owner_name ? <span>· {h.owner_name}</span> : null}
+              {h.close_date ? <span>· closes {fmtDate(h.close_date)}{pulse.days_to_close != null ? ` · ${pulse.days_to_close}d to close` : ""}</span> : null}
+              {lastAct != null ? <span>· last activity {Math.abs(lastAct)}d ago</span> : null}
+              {/* ONE SOURCE OF TRUTH: "Forecast" is ALWAYS the Salesforce fact (same value the
+                  deals list shows). The AI's differing view renders as a clearly-labelled
+                  suggestion — never in the fact's place (the ACEN "Best Case vs Pipeline" bug). */}
+              <span>· Forecast <b style={{ color: "var(--ink)" }}>{h.forecast_category || "—"}</b></span>
+              {nsv.recommended_forecast && h.forecast_category && String(nsv.recommended_forecast).toLowerCase().indexOf(String(h.forecast_category).toLowerCase()) === -1
+                ? <span style={{ color: "var(--over)" }}>· AI suggests: {nsv.recommended_forecast}{nsv.forecast_defensible === false ? " (current not yet earned)" : ""}</span>
+                : (nsv.forecast_defensible === false ? <span style={{ color: "var(--over)" }}>· not yet earned</span> : null)}
+            </div>
           </div>
         </div>
       </div>
 
       <div className="body">
-        {/* META LINE — value · close · ONE honest recency number (fixes the -26d/1d bug) */}
-        <div className="foldmeta">
-          <span><b>{fmtAmount(h.amount)}</b></span>
-          {h.owner_name ? <span>· {h.owner_name}</span> : null}
-          {h.close_date ? <span>· closes {fmtDate(h.close_date)}{pulse.days_to_close != null ? ` · ${pulse.days_to_close}d to close` : ""}</span> : null}
-          {lastAct != null ? <span>· last activity {Math.abs(lastAct)}d ago</span> : null}
-          {/* ONE SOURCE OF TRUTH: "Forecast" is ALWAYS the Salesforce fact (same value the
-              deals list shows). The AI's differing view renders as a clearly-labelled
-              suggestion — never in the fact's place (the ACEN "Best Case vs Pipeline" bug). */}
-          <span>· Forecast <b style={{ color: "var(--ink)" }}>{h.forecast_category || "—"}</b></span>
-          {nsv.recommended_forecast && h.forecast_category && String(nsv.recommended_forecast).toLowerCase().indexOf(String(h.forecast_category).toLowerCase()) === -1
-            ? <span style={{ color: "var(--over)" }}>· AI suggests: {nsv.recommended_forecast}{nsv.forecast_defensible === false ? " (current not yet earned)" : ""}</span>
-            : (nsv.forecast_defensible === false ? <span style={{ color: "var(--over)" }}>· not yet earned</span> : null)}
-        </div>
 
         {/* CEO Monitor — ONE watchlist banner. Support (CEO must ACT) is just one
             reason TYPE inside it, auto-included. Reads ceo_intervention.reasons[];
