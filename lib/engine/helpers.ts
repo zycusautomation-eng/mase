@@ -595,10 +595,17 @@ export const US_VPS = ["Alexa Bradley", "VP East Open", "Arthur Raguette", "Mich
 export const EUROPE_VPS = ["John Woodcock", "Anthony Gray"];
 // APAC/MEA = Carl Kimball's book (his whole team rolls up to him in OWNER_VP).
 export const APAC_VPS = ["Carl Kimball"];
+// East Admin = Alexa Bradley's three books: her own West team, the VP East Open book she
+// manages (see OWNER_VP), and Michael McCarthy (US Mid-Markets). A SUBSET of US_VPS — it
+// excludes Arthur Raguette (US Strategic), so she sees these three books, not all of US.
+export const EAST_VPS = ["Alexa Bradley", "VP East Open", "Michael McCarthy"];
 export const REGION_ADMINS: Record<string, { name: string; vps: string[] }> = {
   "kasturi.talukdar@zycus.com": { name: "US Admin", vps: US_VPS },
   "rashi.varma@zycus.com": { name: "Europe Admin", vps: EUROPE_VPS },
   "chiranjivi.padole@zycus.com": { name: "APAC Admin", vps: APAC_VPS },
+  // Alexa Bradley is herself a VP; this region-admin entry overrides her single-team scope
+  // so she ALSO sees the VP East Open book she manages + Michael McCarthy's Mid-Markets.
+  "alexa.bradley@zycus.com": { name: "East Admin", vps: EAST_VPS },
 };
 
 // Resolve the logged-in email into an access decision:
