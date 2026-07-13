@@ -345,7 +345,7 @@ function ClampMore({ text, words = 16, cls = "donow-more" }: { text: string; wor
 
 export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: () => void }) {
   const { openNewDeal } = useDealAi();
-  const { canSeeScores, isAdminView } = useDashboard();
+  const { canSeeScores, isAdminView, isSuperAdminView } = useDashboard();
   const backend = useBackendTodos();
   const { done: doneSet, toggle } = useTodoDone();
   const sync = useTodoSync();
@@ -547,7 +547,7 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
           <div className="dh-actions">
             {analysed ? <span className="analysed" title={`Last analysed ${rec.swept_at}`}>✦ Analysed {analysed.label}{analysed.rel ? ` · ${analysed.rel}` : ""}</span> : null}
             {(() => { const sf = sfLinkFor(h, rec.opp_id); return sf ? <a className="btn" href={sf} target="_blank" rel="noreferrer">Salesforce ↗</a> : null; })()}
-            {isAdminView ? (
+            {isSuperAdminView ? (
               <button className="btn" onClick={runOmnivision} disabled={running}
                 title="Re-run the Omnivision analysis for this deal — score, 24h summary and to-dos refresh in place">
                 {running ? "⏳ Running…" : "✦ Run Omnivision"}
