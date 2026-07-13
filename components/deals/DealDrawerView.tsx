@@ -354,6 +354,21 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
   // the "Scores & Reasons" tab). Portaled to <body> at render so the drawer's transform
   // can't trap the overlay. Gated exactly like the tab: canSeeScores && ai.deal_scores.
   const [scoresOpen, setScoresOpen] = useState(false);
+  // Per-deal Omnivision run: fires an async re-sweep (rerun) for THIS deal; the ~20s
+  // book poll then surfaces the fresh score / 24h summary / to-dos IN PLACE — no reload,
+  // no "run it to see it". Held ~45s so the affordance stays while the sweep completes.
+  const [running, setRunning] = useState(false);
+  const runOmnivision = async () => {
+    if (running) return;
+    setRunning(true);
+    try {
+      await fetch("/api/deal-engine/sweep/rerun", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ opp_id: rec.opp_id }),
+      });
+    } catch { /* the background poll still catches the update when it lands */ }
+    setTimeout(() => setRunning(false), 45000);
+  };
 
   const h = rec.hard || {}, ai = rec.ai || {}, pulse = rec.pulse || {};
   const nsv = ai.north_star_verdict || {};
@@ -532,6 +547,12 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
           <div className="dh-actions">
             {analysed ? <span className="analysed" title={`Last analysed ${rec.swept_at}`}>✦ Analysed {analysed.label}{analysed.rel ? ` · ${analysed.rel}` : ""}</span> : null}
             {(() => { const sf = sfLinkFor(h, rec.opp_id); return sf ? <a className="btn" href={sf} target="_blank" rel="noreferrer">Salesforce ↗</a> : null; })()}
+            {isAdminView ? (
+              <button className="btn" onClick={runOmnivision} disabled={running}
+                title="Re-run the Omnivision analysis for this deal — score, 24h summary and to-dos refresh in place">
+                {running ? "⏳ Running…" : "✦ Run Omnivision"}
+              </button>
+            ) : null}
             <button className="btn ai" onClick={() => openNewDeal(dealForAi)}>✦ Ask AI</button>
             <div className="iconbtn" onClick={onClose}>✕</div>
           </div>

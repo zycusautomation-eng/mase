@@ -242,6 +242,20 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     };
   }, [loadBook]);
 
+  // Near-realtime updates: silently re-pull the book on a fixed cadence while the tab
+  // is visible, so a sweep / hard-refresh / CDC-trigger change surfaces on its own —
+  // NO manual reload, no "run the deal to see it". Paused while the tab is hidden (no
+  // background churn), and throttled against the focus self-heal above so the two never
+  // double-fetch. `silent` keeps it flash-free (updates the list in place).
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      if (Date.now() - lastLoadRef.current < 15000) return;
+      loadBook(true);
+    }, 20000);
+    return () => clearInterval(id);
+  }, [loadBook]);
+
   // Lock the scope to the logged-in user. Admins stay unlocked (whole book); a
   // VP is locked to their team, an RSD to their own deals, and anyone unknown is
   // blocked (sees nothing). Runs once on mount.
