@@ -1,6 +1,6 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { trackAppOpenOnce } from "@/lib/tracking/client";
 import { aiLabel, applyStageFix, ceoFilterLabel, fyq, healthLabel, inScope, isSuperAdminEmail, keepRecord, normCountry, resolveAccess, scoreBand, sizeBand, type Rec } from "./helpers";
 import { createClient } from "@/lib/supabase/client";
@@ -178,43 +178,69 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  useEffect(() => {
-    let off = false;
-    (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        // Load the book SLIM (hard + verdict + ai-fit + pulse) — ~10-25x smaller than
-        // the full records, so first paint is fast. Every deal is still loaded, so the
-        // top search and the VP/RSD/filter facets cover the WHOLE book. The heavy ai
-        // detail (MEDDPICC, moves, competitors, …) is fetched per-deal when its drawer
-        // opens (DealDrawer → GET /opportunities/{opp_id}).
-        const r = await fetch("/api/deal-engine/opportunities?slim=1", { cache: "no-store" });
-        const j = await r.json();
-        if (!r.ok) throw new Error(j?.error || `Request failed (${r.status})`);
-        // Defensive de-dupe: the book can contain the same opp_id more than once.
-        // keepRecord drops BD / cross-sell / delivery owners (see helpers.OWNER_VP).
-        const seen = new Set<string>();
-        const recs = (j.records || []).filter((rec: Rec) => {
-          const id = rec?.opp_id;
-          if (id == null || seen.has(id)) return false;
-          seen.add(id);
-          return true;
-        }).filter(keepRecord).map(applyStageFix);
-        if (!off) setRecords(recs);
-      } catch (e: any) {
-        if (!off) setError(e?.message || String(e));
-      }
+  // Track mount + the last successful book load, so the focus/visibility self-heal
+  // (below) can avoid setState after unmount and avoid re-fetching on every tab flip.
+  const mountedRef = useRef(true);
+  const lastLoadRef = useRef(0);
+  useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
+
+  // Load the book SLIM (hard + verdict + ai-fit + pulse) — ~10-25x smaller than the
+  // full records, so first paint is fast. Every deal is still loaded, so the top search
+  // and the VP/RSD/filter facets cover the WHOLE book. The heavy ai detail (MEDDPICC,
+  // moves, competitors, …) is fetched per-deal when its drawer opens.
+  // `silent` re-fetches in the background (no loading flash) — used by the self-heal so
+  // the list updates in place when the book changes under an open tab.
+  const loadBook = useCallback(async (silent = false) => {
+    if (!silent) { setLoading(true); setError(null); }
+    try {
+      const r = await fetch("/api/deal-engine/opportunities?slim=1", { cache: "no-store" });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j?.error || `Request failed (${r.status})`);
+      // Defensive de-dupe: the book can contain the same opp_id more than once.
+      // keepRecord drops BD / cross-sell / delivery owners (see helpers.OWNER_VP).
+      const seen = new Set<string>();
+      const recs = (j.records || []).filter((rec: Rec) => {
+        const id = rec?.opp_id;
+        if (id == null || seen.has(id)) return false;
+        seen.add(id);
+        return true;
+      }).filter(keepRecord).map(applyStageFix);
+      if (mountedRef.current) setRecords(recs);
+      lastLoadRef.current = Date.now();
+    } catch (e: any) {
+      if (mountedRef.current && !silent) setError(e?.message || String(e));
+    }
+    if (!silent) {
       try {
         const p = await (await fetch("/playbook.json", { cache: "no-store" })).json();
-        if (!off) setPlaybook(p);
+        if (mountedRef.current) setPlaybook(p);
       } catch {
         /* plays optional */
       }
-      if (!off) setLoading(false);
-    })();
-    return () => { off = true; };
+      if (mountedRef.current) setLoading(false);
+    }
   }, []);
+
+  // Initial load on mount.
+  useEffect(() => { loadBook(false); }, [loadBook]);
+
+  // Self-heal a stale book: re-fetch when the tab regains focus / becomes visible, so a
+  // dashboard left open through a nightly sweep or an outage→restore refreshes on its own
+  // instead of showing frozen numbers (e.g. the "$0 pipeline" you'd see after the amounts
+  // were wiped and later restored). Guarded to at most one refetch per 15s of tab-flipping.
+  useEffect(() => {
+    const maybeReload = () => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      if (Date.now() - lastLoadRef.current < 15000) return;
+      loadBook(true);
+    };
+    window.addEventListener("focus", maybeReload);
+    document.addEventListener("visibilitychange", maybeReload);
+    return () => {
+      window.removeEventListener("focus", maybeReload);
+      document.removeEventListener("visibilitychange", maybeReload);
+    };
+  }, [loadBook]);
 
   // Lock the scope to the logged-in user. Admins stay unlocked (whole book); a
   // VP is locked to their team, an RSD to their own deals, and anyone unknown is
