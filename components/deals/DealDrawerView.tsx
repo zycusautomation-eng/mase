@@ -880,7 +880,9 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
           .ds-/.cro- reason styles (global in dashboard.css) render identically to the tab. */}
       {scoresClickable ? (
         <Dialog open={scoresOpen} onOpenChange={setScoresOpen}>
-          <DialogContent className="flex max-h-[86vh] max-w-xl flex-col gap-0 overflow-hidden rounded-2xl border-[var(--line)] bg-[var(--surface)] p-0 shadow-2xl">
+          {/* z-[200] on BOTH overlay and content so the modal sits above the deal drawer
+              (z-91) it's opened from — matches the old sfm-overlay modal's z-index. */}
+          <DialogContent overlayClassName="z-[200]" className="z-[200] flex max-h-[86vh] max-w-xl flex-col gap-0 overflow-hidden rounded-2xl border-[var(--line)] bg-[var(--surface)] p-0 shadow-2xl">
             <DialogHeader className="shrink-0 space-y-1.5 border-b border-[var(--line)] px-6 pb-4 pt-6 text-left">
               <DialogTitle className="text-[17px] font-bold tracking-[-0.01em] text-[var(--ink)]">
                 Scores &amp; reasons — <span className="text-[var(--accent)]">{h.account_name || rec.opp_id}</span>
