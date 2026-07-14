@@ -166,8 +166,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     if (a.kind === "scoped") {
       setVpsRaw(a.vps); setScopeVps(a.vps); setRsds(a.rsds); setScopeName(a.name); setLocked(true); setBlocked(false);
       // a VP is scoped to their own team (vps set); an RSD is scoped to their deals
-      // (rsds set). Only the VP may see scores.
-      setCanSeeScores(a.vps.length > 0);
+      // (rsds set). Any authorised scoped user — VP or RSD — may see scores + reasons.
+      setCanSeeScores(true);
     } else if (a.kind === "blocked") {
       setVpsRaw([]); setScopeVps([]); setRsds([]); setScopeName(email); setLocked(true); setBlocked(true);
       setCanSeeScores(false);
@@ -259,8 +259,9 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
           setRsds(access.rsds);
           setScopeName(access.name);
           setLocked(true);
-          // VP (team scope) sees scores; an RSD (own-deals scope) does not.
-          setCanSeeScores(access.vps.length > 0);
+          // Any authorised scoped user — VP (team scope) OR RSD (own-deals scope) —
+          // sees scores + reasons. (Blocked/unknown users still see nothing.)
+          setCanSeeScores(true);
         } else if (access.kind === "blocked") {
           setBlocked(true);
           setLocked(true);
