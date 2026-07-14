@@ -5,10 +5,10 @@
 // keeps the original DealDetailView, so this is drawer-only and reversible.
 // All CSS is scoped under .ddw so it can never collide with the app's global styles.
 import { useMemo, useState } from "react";
-import { createPortal } from "react-dom";
 import { fmtAmount, fmtRevenueM, normCountry, daysSince, healthLabel, verdictTone, clipWords, clipWordsClean, getEbOverride, sfLinkFor, ceoAreaLabel, type Rec } from "@/lib/engine/helpers";
 import { useDealAi } from "@/components/deals/DealAiProvider";
 import { Monogram } from "@/components/ui/Monogram";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useBackendTodos } from "@/lib/engine/useBackendTodos";
 import { AddUpdateForm } from "@/components/deals/DealDetailView";
 import { useTodoDone } from "@/lib/engine/useTodoDone";
@@ -873,41 +873,28 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
 
       </div>
 
-      {/* SCORES & REASONS — modal, opened by clicking any score card above. Portaled to
-          the document body because the drawer uses a CSS transform (making it the
-          containing block for fixed descendants), which would otherwise trap this overlay
-          inside the panel — the same reason the Salesforce-push confirm modal portals.
-          Reuses the global sfm modal chrome plus the ds- and cro- reason styles (all in
-          dashboard.css), so it reads identically to the tab. */}
-      {scoresOpen && scoresClickable && typeof document !== "undefined"
-        ? createPortal(
-          <div className="sfm-overlay" onClick={() => setScoresOpen(false)}>
-            <div
-              className="sfm-card"
-              role="dialog"
-              aria-modal="true"
-              aria-label="Scores and reasons"
-              style={{ width: "min(560px, 100%)", maxHeight: "85vh", overflowY: "auto" }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="sfm-h" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-                <span>Scores &amp; reasons — {h.account_name || rec.opp_id}</span>
-                <button
-                  type="button"
-                  onClick={() => setScoresOpen(false)}
-                  aria-label="Close"
-                  style={{ border: "none", background: "none", cursor: "pointer", fontSize: 18, lineHeight: 1, color: "var(--muted,#7c8198)", padding: 2 }}
-                >✕</button>
-              </div>
-              <div style={{ marginTop: 8, marginBottom: 14, fontSize: 12.5, color: "var(--muted,#7c8198)", lineHeight: 1.5 }}>
+      {/* SCORES & REASONS — modal, opened by clicking any score card above. Official shadcn
+          Dialog: it portals to <body> itself (so the drawer's CSS transform can't trap the
+          overlay), traps focus, locks scroll, closes on Escape / backdrop / ✕, and fades +
+          zooms in. Header (title + intro) stays fixed while the reasons body scrolls; the
+          .ds-/.cro- reason styles (global in dashboard.css) render identically to the tab. */}
+      {scoresClickable ? (
+        <Dialog open={scoresOpen} onOpenChange={setScoresOpen}>
+          <DialogContent className="flex max-h-[86vh] max-w-xl flex-col gap-0 overflow-hidden rounded-2xl border-[var(--line)] bg-[var(--surface)] p-0 shadow-2xl">
+            <DialogHeader className="shrink-0 space-y-1.5 border-b border-[var(--line)] px-6 pb-4 pt-6 text-left">
+              <DialogTitle className="text-[17px] font-bold tracking-[-0.01em] text-[var(--ink)]">
+                Scores &amp; reasons — <span className="text-[var(--accent)]">{h.account_name || rec.opp_id}</span>
+              </DialogTitle>
+              <DialogDescription className="text-[12.5px] leading-relaxed text-[var(--muted)]">
                 A plain-English read on each score, the honest downside, and what moves the deal — grounded in the latest Salesforce and call evidence.
-              </div>
+              </DialogDescription>
+            </DialogHeader>
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
               <DealReasonsPanel ds={ai.deal_scores} />
             </div>
-          </div>,
-          document.body,
-        )
-        : null}
+          </DialogContent>
+        </Dialog>
+      ) : null}
     </div>
   );
 }
