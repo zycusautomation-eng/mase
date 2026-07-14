@@ -377,21 +377,22 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
   // Negative tone = amber/red (Slowing or Off Track). On Track + Close-date risk
   // are POSITIVE (green / light green), so they must NOT read as risk.
   const vRisk = ((t) => t === "v-slow" || t === "v-off")(verdictTone(nsv.verdict));
-  // "Last activity" is sourced from the 24h Summary's view of REAL recent activity — its
-  // as_of + most-recent item (calls / meetings / emails / movements, incl. Avoma events that
-  // Salesforce's LastActivityDate rollup misses) — with Salesforce's LastActivityDate as a
-  // fallback. We take the MOST RECENT across all of them, so a fresh activity the summary
-  // caught (that SF lagged on) is what the header shows, not a stale 33-days-ago rollup.
+  // "Last activity" is the 24h Summary's real most-recent activity date (its as_of + the newest
+  // of its items — the actual calls / meetings / emails / movements). Salesforce's LastActivityDate
+  // is a rollup that gets touched by trivial/system activity (Sabic: SFDC said Jul 15 "0d ago"
+  // while the real last meeting was Jul 14), so it is ONLY a fallback when the summary has no dated
+  // activity at all — it must NEVER override the summary. (This is what the 24h tab shows.)
   const lastActDate = (() => {
-    const cands: string[] = [];
+    const sum: string[] = [];
     const dsum = (ai as any).day_summary;
     if (dsum && typeof dsum === "object") {
-      if (dsum.as_of) cands.push(String(dsum.as_of).slice(0, 10));
-      if (Array.isArray(dsum.items)) for (const it of dsum.items) if (it && it.at) cands.push(String(it.at).slice(0, 10));
+      if (dsum.as_of) sum.push(String(dsum.as_of).slice(0, 10));
+      if (Array.isArray(dsum.items)) for (const it of dsum.items) if (it && it.at) sum.push(String(it.at).slice(0, 10));
     }
-    if (h.last_activity_date) cands.push(String(h.last_activity_date).slice(0, 10));
-    if (pulse.last_activity_date) cands.push(String(pulse.last_activity_date).slice(0, 10));
-    return cands.length ? cands.sort().slice(-1)[0] : null; // YYYY-MM-DD sorts chronologically
+    if (sum.length) return sum.sort().slice(-1)[0]; // summary wins (YYYY-MM-DD sorts chronologically)
+    if (h.last_activity_date) return String(h.last_activity_date).slice(0, 10);
+    if (pulse.last_activity_date) return String(pulse.last_activity_date).slice(0, 10);
+    return null;
   })();
   const lastAct = daysSince(lastActDate);
   const analysed = (() => {
