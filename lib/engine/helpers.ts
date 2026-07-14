@@ -47,18 +47,54 @@ export const HARD_LABELS: Record<string, string> = {
   primary_competitor: "Primary competitor", sf_link: "Salesforce",
 };
 
-// Salesforce Lightning base for the Zycus org. The backend stamps `hard.sf_link` on
-// swept records, but the single-opp endpoint the drawer re-fetches on open can serve a
-// headline WITHOUT it (built from the opportunity_cache) — which is why the drawer's
-// "Salesforce ↗" button vanished/broke once the full record loaded. Derive a stable
-// link from the opp_id (the same 15/18-char key espresso keys deals off) as a fallback,
-// so the button always resolves to the right opportunity.
+// Salesforce Lightning base for the Zycus org — the ONLY correct host for our records.
+//
+// DO NOT trust `hard.sf_link`. The sweep stamps that field, and for ~1 in 6 records it is
+// HALLUCINATED: it points at the customer's own org (abm./squarespace./bausch.lightning
+// .force.com), at placeholders (`your-instance.`, `na1.`, `na.`), or at a malformed path
+// (`/lightning/r/<id>/view` with no object, `/r/Opportunity/...` with no `/lightning`).
+// Those links silently took people to a DIFFERENT company's Salesforce. The opp_id we
+// already hold is authoritative, so the URL is derived from it and is always correct.
+// A stored link is used only as a last resort, and only when it is genuinely a Zycus URL.
 const SF_LIGHTNING_BASE = "https://zycus.lightning.force.com/lightning/r/Opportunity";
+const SF_ID_15_RE = /^[a-zA-Z0-9]{15}$/;
+const SF_ID_18_RE = /^[a-zA-Z0-9]{18}$/;
+// Hosts that actually belong to the Zycus org. Anything else is somebody else's tenant.
+const SF_ZYCUS_HOSTS = new Set(["zycus.lightning.force.com", "zycus.my.salesforce.com"]);
+
+// Salesforce's own 15 -> 18 character id checksum. Each 5-char chunk yields one suffix
+// char encoding WHICH of its 5 positions are uppercase (bit i = position i is A-Z),
+// indexed into A-Z0-5. Deterministic — no network, no lookup. We store 15-char opp_ids
+// but Salesforce links canonically carry the 18-char form, so derive it exactly.
+const SF_B32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ012345";
+export function sfId18(id: string): string {
+  if (SF_ID_18_RE.test(id)) return id;      // already 18
+  if (!SF_ID_15_RE.test(id)) return id;     // not an id — leave alone
+  let suffix = "";
+  for (let chunk = 0; chunk < 3; chunk++) {
+    let bits = 0;
+    for (let i = 0; i < 5; i++) {
+      const ch = id[chunk * 5 + i];
+      if (ch >= "A" && ch <= "Z") bits |= 1 << i;
+    }
+    suffix += SF_B32[bits];
+  }
+  return id + suffix;
+}
+
 export function sfLinkFor(hard: any, oppId?: unknown): string | null {
-  const direct = hard?.sf_link;
-  if (typeof direct === "string" && direct.trim()) return direct.trim();
+  // 1. Build from the opportunity id — deterministic, and right for every record.
   const id = String(oppId ?? hard?.opp_id ?? "").trim();
-  return id ? `${SF_LIGHTNING_BASE}/${id}/view` : null;
+  if (id.startsWith("006") && (SF_ID_15_RE.test(id) || SF_ID_18_RE.test(id))) {
+    return `${SF_LIGHTNING_BASE}/${sfId18(id)}/view`;
+  }
+  // 2. No usable id (e.g. a non-opportunity row): accept a stored link ONLY if it really
+  //    is a Zycus URL. Never surface another tenant's domain or a placeholder.
+  const direct = String(hard?.sf_link ?? "").trim();
+  if (direct) {
+    try { if (SF_ZYCUS_HOSTS.has(new URL(direct).host)) return direct; } catch { /* not a URL */ }
+  }
+  return null;
 }
 
 export function fmtAmount(a: any): string {
