@@ -82,6 +82,16 @@
   .mase-shell.deals-shell{display:flex;flex-direction:column;height:100dvh}
   .mase-shell.deals-shell>.wrap.deals-scroll{flex:1 1 auto;min-height:0}
   .wrap.deals-scroll{display:block;overflow:auto;padding:0 28px 28px}
+  /* Chrome/Firefox make overflow:auto regions keyboard-focusable and paint a dark focus
+     ring around the whole scroll area (the deal table) when it receives focus — e.g. after
+     clicking a row (rows aren't focusable, so focus falls to this scroller) or when the
+     drawer restores focus on close. That black border isn't a real control affordance, so
+     clear it. Actual interactive controls keep their own focus styles. */
+  .wrap.deals-scroll:focus,.wrap.deals-scroll:focus-visible,#grid:focus,#grid:focus-visible{outline:none}
+  /* Row toggle / star buttons: no black UA outline on mouse click; keyboard users still get
+     a clean accent ring on focus-visible. */
+  #grid tbody button:focus:not(:focus-visible){outline:none}
+  #grid tbody button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .wrap.deals-scroll #grid{overflow:visible}
   .wrap.deals-scroll>.dl-head{margin-top:18px}
   /* z-index 30: this sticky-left bar creates its own stacking context, so its open
