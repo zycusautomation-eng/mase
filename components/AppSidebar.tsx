@@ -8,7 +8,7 @@
 // (Matcha) via the .mase-side.theme-* rules in dashboard.css, and the active-link tint +
 // the brand mark follow it with no extra code. The `.mase-side` wrapper is kept so the
 // layout width/offset + themed background/border + logo-gradient vars still apply.
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -19,7 +19,7 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import {
   Handshake, Coffee, Leaf, MessageSquare, RefreshCw, ListChecks,
-  GraduationCap, Bot, Users, Eye, type LucideIcon,
+  GraduationCap, Bot, Users, Eye, Loader2, type LucideIcon,
 } from "lucide-react";
 
 type NavItem = { href: string; label: string; icon: LucideIcon; adminOnly?: boolean; superOnly?: boolean };
@@ -46,6 +46,15 @@ function initials(s: string | null | undefined): string {
   const a = parts[0][0] || "";
   const b = parts.length > 1 ? parts[parts.length - 1][0] : (parts[0][1] || "");
   return (a + b).toUpperCase().slice(0, 2) || "MA";
+}
+
+// Descendant of <Link> — reads the pending navigation state so a clicked nav item shows a
+// spinner the instant it's clicked while its route loads, instead of dead air that makes the
+// app feel stuck. Icon ↔ spinner swap keeps the row from shifting.
+function NavIcon({ Icon, active }: { Icon: LucideIcon; active: boolean }) {
+  const { pending } = useLinkStatus();
+  if (pending) return <Loader2 className="size-[17px] shrink-0 animate-spin text-[var(--accent)]" />;
+  return <Icon className={cn("size-[17px] shrink-0 transition-colors", !active && "text-[var(--muted)] group-hover:text-[var(--ink)]")} />;
 }
 
 export default function AppSidebar() {
@@ -99,7 +108,7 @@ export default function AppSidebar() {
             active ? "w-[3px] opacity-100" : "w-0 opacity-0"
           )}
         />
-        <Icon className={cn("size-[17px] shrink-0 transition-colors", !active && "text-[var(--muted)] group-hover:text-[var(--ink)]")} />
+        <NavIcon Icon={Icon} active={active} />
         <span className="truncate">{n.label}</span>
       </Link>
     );
