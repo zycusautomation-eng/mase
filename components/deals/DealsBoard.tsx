@@ -7,6 +7,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useDashboard } from "@/lib/engine/DashboardContext";
+import { useDealDrawer } from "@/components/deals/DrawerController";
 import { ceoAreaLabel, fmtAmount } from "@/lib/engine/helpers";
 import { prefetchDeal } from "@/lib/engine/dealCache";
 import { ScoreCell } from "@/components/deals/DealScores";
@@ -64,13 +65,14 @@ const PAGE_SIZE = 20;
 
 export default function DealsBoard() {
   const router = useRouter();
+  const { open: openDeal } = useDealDrawer();
   const { filtered, loading, canSeeScores, realIsAdmin, isAdminView, isFav, toggleFav, statsOff, toggleStats } = useDashboard();
   const [sortKey, setSortKey] = useState("days_to_close");
   const [sortDir, setSortDir] = useState(1);
   const [page, setPage] = useState(1);
 
-  // Open a deal = navigate to its shareable URL; the layout's URL-driven drawer renders it.
-  const openDeal = (oid: string) => { if (oid) router.push(`/deals/${encodeURIComponent(oid)}`); };
+  // Open a deal = the layout's drawer controller opens it INSTANTLY from the in-memory slim
+  // record (openDeal above), and updates the /deals/<id> URL in the background for sharing.
 
   const rows = useMemo(() => {
     const getv = (r: any) => SCORE_KEYS.has(sortKey)
@@ -190,7 +192,19 @@ export default function DealsBoard() {
               const fav = isFav(r.opp_id);
               const inTotals = !statsOff.has(r.opp_id);
               return (
-                <tr key={r.opp_id} onClick={() => openDeal(r.opp_id)} onMouseEnter={() => prefetchDeal(r.opp_id)} style={{ cursor: "pointer" }}>
+                <tr
+                  key={r.opp_id}
+                  onClick={() => openDeal(r.opp_id)}
+                  onMouseEnter={() => {
+                    // Warm BOTH on hover so the click is instant: the full record (data) AND
+                    // the /deals/<id> route (RSC payload). These rows are onClick handlers, not
+                    // <Link>s, so Next never auto-prefetches the route — without this every open
+                    // pays a cold navigation, which is the main "drawer opens slowly" cause.
+                    prefetchDeal(r.opp_id);
+                    router.prefetch(`/deals/${encodeURIComponent(r.opp_id)}`);
+                  }}
+                  style={{ cursor: "pointer" }}
+                >
                   <td className="statscell" style={{ textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
                     <button
                       type="button"
