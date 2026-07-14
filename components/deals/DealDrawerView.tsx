@@ -199,6 +199,8 @@ const CSS = `
 .ddw .wm-lens{flex:0 0 118px;font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;font-family:var(--mono);padding-top:2px;line-height:1.4}
 .ddw .wm-lens.t-pos{color:var(--pos)} .ddw .wm-lens.t-warn{color:var(--over)} .ddw .wm-lens.t-neu{color:var(--ink-mute)} .ddw .wm-lens.t-crit{color:var(--crit)}
 .ddw .wm-text{flex:1;font-size:12.5px;color:var(--ink-soft);line-height:1.55}
+.ddw .wm-prose{font-size:13px;color:var(--ink);line-height:1.6;margin-bottom:10px}
+.ddw .wm-verdict{font-size:11.5px;color:var(--ink-faint);font-style:italic;margin-bottom:8px}
 .ddw .donow{background:var(--indigo-soft);border:1px solid #dcdcfb;border-radius:var(--radius);padding:15px 18px;margin-bottom:14px}
 .ddw .donow-h{display:flex;align-items:center;font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--indigo);font-family:var(--mono);margin-bottom:8px}
 .ddw .donow-ic{margin-right:5px;font-size:13px}
@@ -536,6 +538,7 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
   ].filter(Boolean) as any[]);
   const signals = (structured && structured.length ? structured : derivedSignals).slice(0, 4);
   const doNow = (gates[0] || null) as any;
+  const whatMatters = String((ai as any).what_matters || "").trim();
 
   const isLate = /vendor selected|negotiat|contract|signed|po received|closing/i.test(String(h.stage || ""));
 
@@ -679,10 +682,15 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
           </div>
         </div>
 
-        {/* WHAT MATTERS — top signals across the lenses */}
-        {signals.length ? (
+        {/* WHAT MATTERS — strategic prose (from scoring pass) + signal rows (from sweep) */}
+        {(signals.length || whatMatters) ? (
           <div className="card whatmatters">
             <div className="wm-h">⚠ What matters on this deal</div>
+            {whatMatters ? (
+              <div className="wm-prose">{whatMatters}</div>
+            ) : nsv.headline ? (
+              <div className="wm-verdict">{nsv.headline}</div>
+            ) : null}
             {signals.map((s: any, i: number) => (
               <div className="wm-row" key={i}>
                 <span className={`wm-lens t-${s.tone}`}>{s.lens}</span>

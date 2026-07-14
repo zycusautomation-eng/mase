@@ -1,0 +1,2956 @@
+{
+ "006P700000XPnPB": {
+  "amount": 100000,
+  "stage": "Qualified Out",
+  "close_date": "2026-10-14",
+  "is_closed": true,
+  "cache_updated": "2026-07-10T00:04:41.436461+00:00"
+ },
+ "006P700000YnXX7": {
+  "amount": 100000,
+  "stage": "Qualified",
+  "close_date": "2026-10-13",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:05:53.0416+00:00"
+ },
+ "006P700000Uxmk7": {
+  "amount": 150000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-08-19",
+  "is_closed": false,
+  "cache_updated": "2026-07-03T00:04:48.595437+00:00"
+ },
+ "006P700000WWNtY": {
+  "amount": 110000,
+  "stage": "Qualified",
+  "close_date": "2027-04-01",
+  "is_closed": false,
+  "cache_updated": "2026-07-09T00:06:23.213348+00:00"
+ },
+ "006P700000a17yn": {
+  "amount": 200000,
+  "stage": "Qualified",
+  "close_date": "2027-02-28",
+  "is_closed": false,
+  "cache_updated": "2026-07-02T00:05:09.767604+00:00"
+ },
+ "006P700000QvP7Z": {
+  "amount": 175000,
+  "stage": "Shortlisted",
+  "close_date": "2026-10-01",
+  "is_closed": false,
+  "cache_updated": "2026-07-01T00:03:39.170421+00:00"
+ },
+ "006P700000aAKSD": {
+  "amount": 150000,
+  "stage": "Qualified",
+  "close_date": "2027-01-26",
+  "is_closed": false,
+  "cache_updated": "2026-07-07T00:04:27.771796+00:00"
+ },
+ "006P700000XThud": {
+  "amount": 320000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-09-25",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:05:33.514473+00:00"
+ },
+ "006P700000Nh2xS": {
+  "amount": 200000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-11-25",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:04:20.941911+00:00"
+ },
+ "006P700000H55TV": {
+  "amount": 150000,
+  "stage": "Shortlisted",
+  "close_date": "2026-07-08",
+  "is_closed": false,
+  "cache_updated": "2026-07-09T00:07:00.306615+00:00"
+ },
+ "006P700000YC92N": {
+  "amount": 100000,
+  "stage": "Qualified",
+  "close_date": "2026-12-18",
+  "is_closed": false,
+  "cache_updated": "2026-06-03T00:04:17.171575+00:00"
+ },
+ "006P700000aIwvF": {
+  "amount": 175000,
+  "stage": "Qualified",
+  "close_date": "2026-10-08",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:05:18.782629+00:00"
+ },
+ "006P700000a0fGB": {
+  "amount": 200000,
+  "stage": "Qualified",
+  "close_date": "2027-06-30",
+  "is_closed": false,
+  "cache_updated": "2026-06-26T00:05:10.805131+00:00"
+ },
+ "006P700000J71MD": {
+  "amount": 448680,
+  "stage": "Shortlisted",
+  "close_date": "2026-07-23",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:02:39.295463+00:00"
+ },
+ "006P700000Zfkab": {
+  "amount": 100000,
+  "stage": "Qualified",
+  "close_date": "2027-06-24",
+  "is_closed": false,
+  "cache_updated": "2026-07-03T00:04:27.819416+00:00"
+ },
+ "006P700000aJWM1": {
+  "amount": 125000,
+  "stage": "Qualified",
+  "close_date": "2026-12-15",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:05:17.764408+00:00"
+ },
+ "006P700000QqTmw": {
+  "amount": 120000,
+  "stage": "Shortlisted",
+  "close_date": "2026-07-28",
+  "is_closed": false,
+  "cache_updated": "2026-07-01T00:04:00.447783+00:00"
+ },
+ "006P700000ZUCcH": {
+  "amount": 200000,
+  "stage": "Formal Evaluation",
+  "close_date": "2027-12-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-02T00:04:46.67504+00:00"
+ },
+ "006P700000Zc18e": {
+  "amount": 150000,
+  "stage": "Qualified",
+  "close_date": "2027-03-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-02T00:05:06.58308+00:00"
+ },
+ "006P700000Zu2z6": {
+  "amount": 250000,
+  "stage": "Qualified",
+  "close_date": "2026-11-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-06T00:00:11.344138+00:00"
+ },
+ "006P700000XU3Gs": {
+  "amount": 150000,
+  "stage": "Qualified",
+  "close_date": "2026-09-24",
+  "is_closed": false,
+  "cache_updated": "2026-06-23T00:04:24.414942+00:00"
+ },
+ "006P700000Zskw9": {
+  "amount": 100000,
+  "stage": "Qualified",
+  "close_date": "2027-06-25",
+  "is_closed": false,
+  "cache_updated": "2026-06-25T00:04:38.70703+00:00"
+ },
+ "006P700000RNs6k": {
+  "amount": 500000,
+  "stage": "Formal Evaluation",
+  "close_date": "2027-02-15",
+  "is_closed": false,
+  "cache_updated": "2026-06-18T00:06:19.071462+00:00"
+ },
+ "006P700000Z0n1N": {
+  "amount": 823000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-12-07",
+  "is_closed": false,
+  "cache_updated": "2026-07-09T00:06:30.178235+00:00"
+ },
+ "006P700000aBTrg": {
+  "amount": 150000,
+  "stage": "Qualified",
+  "close_date": "2027-02-23",
+  "is_closed": false,
+  "cache_updated": "2026-07-02T00:04:31.235683+00:00"
+ },
+ "006P700000YWhiz": {
+  "amount": 200000,
+  "stage": "Qualified",
+  "close_date": "2027-02-01",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:06:04.309651+00:00"
+ },
+ "006P700000YfKor": {
+  "amount": 0,
+  "stage": "Qualified",
+  "close_date": "2026-11-30",
+  "is_closed": false,
+  "cache_updated": "2026-06-05T00:02:05.455875+00:00"
+ },
+ "006P700000ZIaFN": {
+  "amount": 250000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-12-10",
+  "is_closed": false,
+  "cache_updated": "2026-07-09T00:06:50.102463+00:00"
+ },
+ "006P700000ZLKFk": {
+  "amount": 350000,
+  "stage": "Qualified",
+  "close_date": "2026-12-30",
+  "is_closed": false,
+  "cache_updated": "2026-06-27T00:04:31.406751+00:00"
+ },
+ "006P700000ZFRa1": {
+  "amount": 450000,
+  "stage": "Qualified",
+  "close_date": "2027-01-01",
+  "is_closed": false,
+  "cache_updated": "2026-06-26T00:05:28.259743+00:00"
+ },
+ "006P700000WWQGH": {
+  "amount": 250000,
+  "stage": "Qualified",
+  "close_date": "2026-11-17",
+  "is_closed": false,
+  "cache_updated": "2026-07-03T00:04:54.590675+00:00"
+ },
+ "006P700000XDJ9t": {
+  "amount": 100000,
+  "stage": "No Decision",
+  "close_date": "2026-11-24",
+  "is_closed": true,
+  "cache_updated": "2026-07-08T00:05:59.13901+00:00"
+ },
+ "006P700000Zb0eQ": {
+  "amount": 125000,
+  "stage": "Qualified",
+  "close_date": "2027-03-17",
+  "is_closed": false,
+  "cache_updated": "2026-07-02T00:04:17.793062+00:00"
+ },
+ "006P700000VJCA5": {
+  "amount": 100000,
+  "stage": "Qualified",
+  "close_date": "2026-12-01",
+  "is_closed": false,
+  "cache_updated": "2026-07-02T00:04:20.572728+00:00"
+ },
+ "006P700000Sy8SP": {
+  "amount": 110000,
+  "stage": "Qualified",
+  "close_date": "2026-10-23",
+  "is_closed": null,
+  "cache_updated": "2026-05-28T10:55:49.560728+00:00"
+ },
+ "006P700000KlsBE": {
+  "amount": 150000,
+  "stage": "Vendor Selected",
+  "close_date": "2027-03-17",
+  "is_closed": false,
+  "cache_updated": "2026-06-16T00:04:40.620393+00:00"
+ },
+ "006P700000XVrGL": {
+  "amount": 100000,
+  "stage": "Qualified",
+  "close_date": "2026-09-01",
+  "is_closed": null,
+  "cache_updated": "2026-05-28T10:55:49.560309+00:00"
+ },
+ "006P700000NiRAX": {
+  "amount": 130000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-10-28",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:04:25.984742+00:00"
+ },
+ "006P700000aBFv4": {
+  "amount": 150000,
+  "stage": "Qualified",
+  "close_date": "2027-06-29",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:05:30.169902+00:00"
+ },
+ "006P700000ORaxm": {
+  "amount": 280000,
+  "stage": "Closed Lost",
+  "close_date": "2027-02-24",
+  "is_closed": true,
+  "cache_updated": "2026-07-08T00:05:33.028537+00:00"
+ },
+ "006P700000Xztas": {
+  "amount": 50000,
+  "stage": "Qualified",
+  "close_date": "2027-03-31",
+  "is_closed": false,
+  "cache_updated": "2026-06-26T00:01:25.955935+00:00"
+ },
+ "006P700000W1Y21": {
+  "amount": 300000,
+  "stage": "Qualified",
+  "close_date": "2027-03-19",
+  "is_closed": false,
+  "cache_updated": "2026-06-26T00:05:20.095928+00:00"
+ },
+ "006P700000LmMrl": {
+  "amount": 185000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-08-27",
+  "is_closed": false,
+  "cache_updated": "2026-06-30T00:04:05.150344+00:00"
+ },
+ "006P700000Zeh26": {
+  "amount": 200000,
+  "stage": "Qualified",
+  "close_date": "2026-12-31",
+  "is_closed": false,
+  "cache_updated": "2026-06-26T00:05:15.473225+00:00"
+ },
+ "006P700000Q9Z62": {
+  "amount": 100000,
+  "stage": "Qualified",
+  "close_date": "2026-10-28",
+  "is_closed": false,
+  "cache_updated": "2026-07-07T00:04:15.390666+00:00"
+ },
+ "006P700000VAIGP": {
+  "amount": 150000,
+  "stage": "Formal Evaluation",
+  "close_date": "2027-03-12",
+  "is_closed": false,
+  "cache_updated": "2026-07-01T00:04:38.916132+00:00"
+ },
+ "006P700000WWBva": {
+  "amount": 150000,
+  "stage": "Initial Interest",
+  "close_date": "2026-12-15",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:04:22.735237+00:00"
+ },
+ "006P700000X9bgU": {
+  "amount": 110000,
+  "stage": "Qualified",
+  "close_date": "2027-03-26",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:05:42.022073+00:00"
+ },
+ "006P700000a2YYj": {
+  "amount": 100000,
+  "stage": "Qualified",
+  "close_date": "2027-06-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-01T00:04:04.942587+00:00"
+ },
+ "006P700000XNoAq": {
+  "amount": 200000,
+  "stage": "Qualified",
+  "close_date": "2026-12-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-02T00:05:45.926712+00:00"
+ },
+ "006P700000YpEBq": {
+  "amount": 200000,
+  "stage": "Qualified",
+  "close_date": "2027-03-31",
+  "is_closed": false,
+  "cache_updated": "2026-06-03T00:04:23.179883+00:00"
+ },
+ "006P700000Y2TfC": {
+  "amount": 130000,
+  "stage": "Qualified",
+  "close_date": "2026-09-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:05:56.476211+00:00"
+ },
+ "006P700000TfKyA": {
+  "amount": 400000,
+  "stage": "Qualified",
+  "close_date": "2026-10-12",
+  "is_closed": false,
+  "cache_updated": "2026-07-07T00:04:38.510791+00:00"
+ },
+ "006P700000PIlWk": {
+  "amount": 265000,
+  "stage": "Qualified",
+  "close_date": "2026-12-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-03T00:05:01.59607+00:00"
+ },
+ "006P700000UhuvK": {
+  "amount": 200000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-12-15",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:04:29.652308+00:00"
+ },
+ "006P700000NwbBd": {
+  "amount": 450000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-10-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-09T00:06:33.148298+00:00"
+ },
+ "006P700000ZUcri": {
+  "amount": 250000,
+  "stage": "Qualified Out",
+  "close_date": "2026-11-24",
+  "is_closed": true,
+  "cache_updated": "2026-07-09T00:06:47.583433+00:00"
+ },
+ "006P700000XTgwv": {
+  "amount": 100000,
+  "stage": "Qualified",
+  "close_date": "2027-04-22",
+  "is_closed": false,
+  "cache_updated": "2026-07-04T00:03:20.291273+00:00"
+ },
+ "006P700000KTTO5": {
+  "amount": 260000,
+  "stage": "Shortlisted",
+  "close_date": "2026-10-18",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:05:13.172948+00:00"
+ },
+ "006P700000WjU9D": {
+  "amount": 150000,
+  "stage": "Qualified",
+  "close_date": "2026-12-31",
+  "is_closed": false,
+  "cache_updated": "2026-06-27T00:04:32.779398+00:00"
+ },
+ "006P700000ZLnJJ": {
+  "amount": 300000,
+  "stage": "Qualified",
+  "close_date": "2027-02-28",
+  "is_closed": false,
+  "cache_updated": "2026-07-09T00:06:29.687444+00:00"
+ },
+ "006P700000Xl06R": {
+  "amount": 250000,
+  "stage": "Vendor Selected",
+  "close_date": "2026-07-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:04:08.347977+00:00"
+ },
+ "006P700000XjHg3": {
+  "amount": 518000,
+  "stage": "Shortlisted",
+  "close_date": "2026-11-01",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:04:28.733872+00:00"
+ },
+ "006P700000OIJw1": {
+  "amount": 200000,
+  "stage": "Qualified",
+  "close_date": "2027-01-29",
+  "is_closed": false,
+  "cache_updated": "2026-07-07T00:04:43.903012+00:00"
+ },
+ "006P700000LR3st": {
+  "amount": 200000,
+  "stage": "Qualified",
+  "close_date": "2027-02-26",
+  "is_closed": false,
+  "cache_updated": "2026-07-02T00:04:21.04232+00:00"
+ },
+ "006P700000GmoPW": {
+  "amount": 357898,
+  "stage": "Shortlisted",
+  "close_date": "2026-09-04",
+  "is_closed": false,
+  "cache_updated": "2026-07-09T00:06:29.179997+00:00"
+ },
+ "006P700000TTJeV": {
+  "amount": 200000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-12-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-07T00:04:47.794542+00:00"
+ },
+ "006P70000084vuT": {
+  "amount": 500000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-11-14",
+  "is_closed": false,
+  "cache_updated": "2026-06-07T00:00:22.709666+00:00"
+ },
+ "006P700000OX2hz": {
+  "amount": 110000,
+  "stage": "Qualified",
+  "close_date": "2026-12-01",
+  "is_closed": null,
+  "cache_updated": "2026-05-28T10:55:49.561037+00:00"
+ },
+ "006P700000WnFxy": {
+  "amount": 120000,
+  "stage": "Qualified",
+  "close_date": "2027-03-18",
+  "is_closed": false,
+  "cache_updated": "2026-07-07T00:04:12.770595+00:00"
+ },
+ "0066700000wdNe1": {
+  "amount": 300000,
+  "stage": "Shortlisted",
+  "close_date": "2026-07-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:04:36.113003+00:00"
+ },
+ "006P700000aAxBp": {
+  "amount": 150000,
+  "stage": "Qualified",
+  "close_date": "2027-01-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-01T00:04:32.069691+00:00"
+ },
+ "006P700000X3d9t": {
+  "amount": 200000,
+  "stage": "Qualified",
+  "close_date": "2027-04-21",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:05:48.94457+00:00"
+ },
+ "006P700000IR002": {
+  "amount": 250000,
+  "stage": "Omitted",
+  "close_date": "2027-01-29",
+  "is_closed": true,
+  "cache_updated": "2026-07-09T00:06:53.562219+00:00"
+ },
+ "006P700000ZPL1t": {
+  "amount": 150000,
+  "stage": "Qualified",
+  "close_date": "2026-12-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-01T00:04:24.97464+00:00"
+ },
+ "006P700000MKdlU": {
+  "amount": 400000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-12-31",
+  "is_closed": false,
+  "cache_updated": "2026-06-17T00:04:56.529643+00:00"
+ },
+ "006P700000ThKsQ": {
+  "amount": 150000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-08-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:04:09.257179+00:00"
+ },
+ "006P700000Tbxqb": {
+  "amount": 125000,
+  "stage": "Qualified",
+  "close_date": "2026-08-27",
+  "is_closed": false,
+  "cache_updated": "2026-07-01T00:04:57.876915+00:00"
+ },
+ "006P700000Syn49": {
+  "amount": 130000,
+  "stage": "Qualified",
+  "close_date": "2027-03-17",
+  "is_closed": null,
+  "cache_updated": "2026-05-28T10:55:49.561286+00:00"
+ },
+ "006P700000O2kk5": {
+  "amount": 200000,
+  "stage": "Qualified",
+  "close_date": "2027-02-28",
+  "is_closed": null,
+  "cache_updated": "2026-05-28T10:55:49.561041+00:00"
+ },
+ "0066700000ztGNF": {
+  "amount": 340000,
+  "stage": "Shortlisted",
+  "close_date": "2026-07-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:04:17.55203+00:00"
+ },
+ "006P700000X9ihz": {
+  "amount": 75000,
+  "stage": "Qualified Out",
+  "close_date": "2026-12-15",
+  "is_closed": true,
+  "cache_updated": "2026-07-08T00:05:16.337286+00:00"
+ },
+ "006P700000X0TlP": {
+  "amount": 150000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-09-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:04:11.497218+00:00"
+ },
+ "006P700000Oi7xi": {
+  "amount": 500000,
+  "stage": "Formal Evaluation",
+  "close_date": "2027-02-28",
+  "is_closed": false,
+  "cache_updated": "2026-06-19T00:00:47.49832+00:00"
+ },
+ "006P700000Zw9Rl": {
+  "amount": 250000,
+  "stage": "Qualified",
+  "close_date": "2026-12-01",
+  "is_closed": false,
+  "cache_updated": "2026-07-09T00:06:19.745069+00:00"
+ },
+ "006P700000ZhUQ6": {
+  "amount": 100000,
+  "stage": "Qualified",
+  "close_date": "2027-06-17",
+  "is_closed": false,
+  "cache_updated": "2026-07-01T00:04:33.045175+00:00"
+ },
+ "006P700000VTin3": {
+  "amount": 250000,
+  "stage": "Qualified",
+  "close_date": "2026-10-28",
+  "is_closed": false,
+  "cache_updated": "2026-06-23T00:04:40.007844+00:00"
+ },
+ "006P700000WN7j7": {
+  "amount": 150000,
+  "stage": "Qualified",
+  "close_date": "2026-10-30",
+  "is_closed": false,
+  "cache_updated": "2026-06-02T00:03:04.876546+00:00"
+ },
+ "006P700000PlMpu": {
+  "amount": 1200000,
+  "stage": "Shortlisted",
+  "close_date": "2026-07-31",
+  "is_closed": false,
+  "cache_updated": "2026-06-30T00:04:29.261952+00:00"
+ },
+ "006P700000ZjjRR": {
+  "amount": 350000,
+  "stage": "Qualified",
+  "close_date": "2026-12-18",
+  "is_closed": false,
+  "cache_updated": "2026-06-25T00:01:04.355712+00:00"
+ },
+ "006P700000WWRku": {
+  "amount": 180000,
+  "stage": "Shortlisted",
+  "close_date": "2026-08-12",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:05:36.010512+00:00"
+ },
+ "006P700000UuvSA": {
+  "amount": 397440,
+  "stage": "Closed Lost",
+  "close_date": "2026-12-31",
+  "is_closed": true,
+  "cache_updated": "2026-07-09T00:06:36.05013+00:00"
+ },
+ "006P700000WWdyH": {
+  "amount": 100000,
+  "stage": "Qualified",
+  "close_date": "2026-12-23",
+  "is_closed": false,
+  "cache_updated": "2026-07-03T00:04:51.386489+00:00"
+ },
+ "006P700000Z98IL": {
+  "amount": 300000,
+  "stage": "Formal Evaluation",
+  "close_date": "2027-03-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-02T00:04:51.156204+00:00"
+ },
+ "006P700000WPGK6": {
+  "amount": 250000,
+  "stage": "Formal Evaluation",
+  "close_date": "2027-03-31",
+  "is_closed": null,
+  "cache_updated": "2026-05-28T10:55:49.560077+00:00"
+ },
+ "006P700000aLyin": {
+  "amount": 250000,
+  "stage": "Qualified",
+  "close_date": "2027-07-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-03T00:04:56.399829+00:00"
+ },
+ "006P700000SKAcb": {
+  "amount": 350000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-12-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-01T00:04:15.999892+00:00"
+ },
+ "006P700000ZxAjy": {
+  "amount": 130000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-10-24",
+  "is_closed": false,
+  "cache_updated": "2026-07-07T00:04:34.067596+00:00"
+ },
+ "006P700000Z82Ez": {
+  "amount": 120000,
+  "stage": "Qualified",
+  "close_date": "2027-06-17",
+  "is_closed": false,
+  "cache_updated": "2026-07-01T00:04:45.060453+00:00"
+ },
+ "006P700000a5NvJ": {
+  "amount": 250000,
+  "stage": "Formal Evaluation",
+  "close_date": "2027-07-06",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:05:22.805291+00:00"
+ },
+ "006P700000VkJFV": {
+  "amount": 250000,
+  "stage": "Qualified",
+  "close_date": "2027-03-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-02T00:04:15.897449+00:00"
+ },
+ "006P700000IDIeH": {
+  "amount": 784550,
+  "stage": "Qualified",
+  "close_date": "2026-11-20",
+  "is_closed": false,
+  "cache_updated": "2026-07-09T00:06:53.012811+00:00"
+ },
+ "006P700000WSprZ": {
+  "amount": 125000,
+  "stage": "Qualified",
+  "close_date": "2027-02-25",
+  "is_closed": false,
+  "cache_updated": "2026-06-23T00:04:44.512015+00:00"
+ },
+ "006P700000FF6Np": {
+  "amount": 150000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-09-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-04T00:03:30.937846+00:00"
+ },
+ "006P700000LmUm5": {
+  "amount": 165000,
+  "stage": "Shortlisted",
+  "close_date": "2026-07-31",
+  "is_closed": false,
+  "cache_updated": "2026-06-30T00:04:14.848346+00:00"
+ },
+ "006P700000Uaopq": {
+  "amount": 110000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-11-19",
+  "is_closed": false,
+  "cache_updated": "2026-06-26T00:05:17.499614+00:00"
+ },
+ "006P700000aX2mH": {
+  "amount": 234000,
+  "stage": "Vendor Selected",
+  "close_date": "2031-07-01",
+  "is_closed": false,
+  "cache_updated": "2026-07-07T00:04:37.075407+00:00"
+ },
+ "006P700000RD9Ir": {
+  "amount": 2200000,
+  "stage": "Shortlisted",
+  "close_date": "2026-08-29",
+  "is_closed": false,
+  "cache_updated": "2026-07-04T00:03:24.743887+00:00"
+ },
+ "006P700000ZlQxP": {
+  "amount": 350000,
+  "stage": "Qualified",
+  "close_date": "2027-03-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-02T00:06:03.592734+00:00"
+ },
+ "006P700000GWfrf": {
+  "amount": 220000,
+  "stage": "Shortlisted",
+  "close_date": "2026-07-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:05:40.561911+00:00"
+ },
+ "006P700000WWePh": {
+  "amount": 100000,
+  "stage": "Qualified",
+  "close_date": "2027-04-13",
+  "is_closed": false,
+  "cache_updated": "2026-07-04T00:03:24.214641+00:00"
+ },
+ "006P700000ZgO6b": {
+  "amount": 50000,
+  "stage": "Qualified",
+  "close_date": "2027-02-18",
+  "is_closed": false,
+  "cache_updated": "2026-07-04T00:03:29.508476+00:00"
+ },
+ "006P700000a2ibg": {
+  "amount": 400000,
+  "stage": "Qualified",
+  "close_date": "2026-12-11",
+  "is_closed": false,
+  "cache_updated": "2026-07-09T00:06:56.455576+00:00"
+ },
+ "006P700000ZTx3o": {
+  "amount": 120000,
+  "stage": "Qualified",
+  "close_date": "2026-11-13",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:05:20.814734+00:00"
+ },
+ "006P700000UOMxN": {
+  "amount": 100000,
+  "stage": "Formal Evaluation",
+  "close_date": "2027-02-24",
+  "is_closed": false,
+  "cache_updated": "2026-06-23T00:04:56.881133+00:00"
+ },
+ "006P700000Wn0sT": {
+  "amount": 250000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-09-25",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:00:20.809601+00:00"
+ },
+ "006P700000KHd9V": {
+  "amount": 450000,
+  "stage": "Shortlisted",
+  "close_date": "2027-02-22",
+  "is_closed": null,
+  "cache_updated": "2026-05-28T10:55:49.559972+00:00"
+ },
+ "006P700000UuasL": {
+  "amount": 250000,
+  "stage": "Formal Evaluation",
+  "close_date": "2027-03-31",
+  "is_closed": false,
+  "cache_updated": "2026-06-17T00:04:41.544835+00:00"
+ },
+ "006P700000Y1Ont": {
+  "amount": 175000000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-08-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:04:19.387491+00:00"
+ },
+ "006P700000LwCxZ": {
+  "amount": 100000,
+  "stage": "Qualified",
+  "close_date": "2027-07-16",
+  "is_closed": false,
+  "cache_updated": "2026-07-02T00:04:32.176433+00:00"
+ },
+ "006P700000VYm1x": {
+  "amount": 51150,
+  "stage": "Qualified",
+  "close_date": "2027-03-19",
+  "is_closed": null,
+  "cache_updated": "2026-05-28T10:55:49.560373+00:00"
+ },
+ "006P700000ZOe1m": {
+  "amount": 150000,
+  "stage": "Qualified",
+  "close_date": "2027-06-30",
+  "is_closed": false,
+  "cache_updated": "2026-06-27T00:04:12.683818+00:00"
+ },
+ "006P700000Qvj9Y": {
+  "amount": 300000,
+  "stage": "Qualified",
+  "close_date": "2026-12-18",
+  "is_closed": false,
+  "cache_updated": "2026-07-02T00:04:35.058797+00:00"
+ },
+ "006P700000XClzS": {
+  "amount": 70000,
+  "stage": "Qualified",
+  "close_date": "2027-04-16",
+  "is_closed": null,
+  "cache_updated": "2026-05-28T10:55:49.561179+00:00"
+ },
+ "006P700000Nz9lt": {
+  "amount": 200000,
+  "stage": "Initial Interest",
+  "close_date": "2026-12-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:05:25.188827+00:00"
+ },
+ "006P700000aED8o": {
+  "amount": 100000,
+  "stage": "Qualified",
+  "close_date": "2027-06-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-03T00:02:32.472161+00:00"
+ },
+ "006P700000aG3d9": {
+  "amount": 100000,
+  "stage": "Qualified",
+  "close_date": "2027-07-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-02T00:06:00.13277+00:00"
+ },
+ "006P700000WWS3a": {
+  "amount": 250000,
+  "stage": "Qualified",
+  "close_date": "2027-01-31",
+  "is_closed": false,
+  "cache_updated": "2026-06-03T00:04:13.343219+00:00"
+ },
+ "006P700000Vjyau": {
+  "amount": 260000,
+  "stage": "Qualified",
+  "close_date": "2027-03-25",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:05:52.556445+00:00"
+ },
+ "006P700000OTSnu": {
+  "amount": 300000,
+  "stage": "Qualified",
+  "close_date": "2026-12-31",
+  "is_closed": false,
+  "cache_updated": "2026-06-17T00:05:08.355862+00:00"
+ },
+ "006P700000PBvSn": {
+  "amount": 300000,
+  "stage": "Formal Evaluation",
+  "close_date": "2027-01-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-01T00:04:56.938157+00:00"
+ },
+ "006P700000Ygw5g": {
+  "amount": 50000,
+  "stage": "Qualified",
+  "close_date": "2027-02-17",
+  "is_closed": false,
+  "cache_updated": "2026-07-09T00:06:56.951054+00:00"
+ },
+ "006P700000R3E0T": {
+  "amount": 300000,
+  "stage": "Qualified",
+  "close_date": "2026-12-16",
+  "is_closed": false,
+  "cache_updated": "2026-06-26T00:05:12.886293+00:00"
+ },
+ "006P700000a0pZS": {
+  "amount": 200000,
+  "stage": "Qualified",
+  "close_date": "2026-12-31",
+  "is_closed": false,
+  "cache_updated": "2026-06-30T00:04:18.966419+00:00"
+ },
+ "006P700000PQo2n": {
+  "amount": 150000,
+  "stage": "Qualified",
+  "close_date": "2026-10-08",
+  "is_closed": false,
+  "cache_updated": "2026-07-09T00:06:38.049477+00:00"
+ },
+ "006P700000PeaG5": {
+  "amount": 250000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-10-22",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:05:28.22783+00:00"
+ },
+ "006P700000ROeSz": {
+  "amount": 100000,
+  "stage": "Qualified",
+  "close_date": "2026-12-31",
+  "is_closed": false,
+  "cache_updated": "2026-06-17T00:05:06.207908+00:00"
+ },
+ "006P700000Xx851": {
+  "amount": 120000,
+  "stage": "Qualified",
+  "close_date": "2026-12-29",
+  "is_closed": false,
+  "cache_updated": "2026-07-04T00:03:19.808501+00:00"
+ },
+ "006P700000Y1iMn": {
+  "amount": 200000,
+  "stage": "Qualified",
+  "close_date": "2026-12-30",
+  "is_closed": null,
+  "cache_updated": "2026-05-28T10:55:49.559714+00:00"
+ },
+ "006P700000U6WAQ": {
+  "amount": 182696,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-07-17",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:05:47.504693+00:00"
+ },
+ "006P700000WicVN": {
+  "amount": 180000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-08-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-01T00:04:54.810924+00:00"
+ },
+ "006P700000Xy4O1": {
+  "amount": 100000,
+  "stage": "Qualified",
+  "close_date": "2026-12-01",
+  "is_closed": false,
+  "cache_updated": "2026-07-02T00:04:52.07342+00:00"
+ },
+ "006P700000aDZcj": {
+  "amount": 100000,
+  "stage": "Qualified",
+  "close_date": "2027-06-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-07T00:04:47.330286+00:00"
+ },
+ "006P700000ZhKtm": {
+  "amount": 200000,
+  "stage": "Qualified",
+  "close_date": "2026-12-31",
+  "is_closed": false,
+  "cache_updated": "2026-06-24T00:04:16.853354+00:00"
+ },
+ "006P700000Z92Mb": {
+  "amount": 200000,
+  "stage": "Qualified",
+  "close_date": "2026-09-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-07T00:04:26.760674+00:00"
+ },
+ "006P700000YkKL8": {
+  "amount": 100000,
+  "stage": "Qualified",
+  "close_date": "2026-10-31",
+  "is_closed": false,
+  "cache_updated": "2026-05-29T12:59:11.030744+00:00"
+ },
+ "006P700000Yoxqz": {
+  "amount": 150000,
+  "stage": "Qualified",
+  "close_date": "2027-01-31",
+  "is_closed": false,
+  "cache_updated": "2026-06-16T00:04:23.393247+00:00"
+ },
+ "006P700000MhR3V": {
+  "amount": 150000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-10-15",
+  "is_closed": null,
+  "cache_updated": "2026-05-28T10:55:49.560277+00:00"
+ },
+ "006P700000YMTFt": {
+  "amount": 120000,
+  "stage": "Qualified",
+  "close_date": "2027-05-19",
+  "is_closed": false,
+  "cache_updated": "2026-06-23T00:05:06.775045+00:00"
+ },
+ "006P700000Rwszl": {
+  "amount": 130000,
+  "stage": "Shortlisted",
+  "close_date": "2026-07-29",
+  "is_closed": false,
+  "cache_updated": "2026-07-07T00:04:35.590666+00:00"
+ },
+ "006P700000ZdMkT": {
+  "amount": 200000,
+  "stage": "Qualified",
+  "close_date": "2027-06-09",
+  "is_closed": false,
+  "cache_updated": "2026-07-02T00:06:06.614314+00:00"
+ },
+ "006P700000TVIUf": {
+  "amount": 100000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-09-22",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:05:54.504914+00:00"
+ },
+ "006P700000ZUWcb": {
+  "amount": 200000,
+  "stage": "Qualified",
+  "close_date": "2027-06-01",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:05:15.830063+00:00"
+ },
+ "006P700000NJsx7": {
+  "amount": 734920,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-09-30",
+  "is_closed": false,
+  "cache_updated": "2026-06-30T00:04:13.308546+00:00"
+ },
+ "006P700000Qr3Ll": {
+  "amount": 500000,
+  "stage": "Qualified",
+  "close_date": "2027-01-29",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:05:41.525806+00:00"
+ },
+ "006P700000V0sBW": {
+  "amount": 350000,
+  "stage": "Qualified",
+  "close_date": "2026-12-05",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:05:24.711756+00:00"
+ },
+ "006P700000WnpTZ": {
+  "amount": 550000,
+  "stage": "Formal Evaluation",
+  "close_date": "2027-03-12",
+  "is_closed": false,
+  "cache_updated": "2026-07-09T00:06:33.629832+00:00"
+ },
+ "006P700000U5ssv": {
+  "amount": 110000,
+  "stage": "Qualified",
+  "close_date": "2027-02-06",
+  "is_closed": null,
+  "cache_updated": "2026-05-28T10:55:49.560923+00:00"
+ },
+ "006P700000Xmqu9": {
+  "amount": 130000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-09-29",
+  "is_closed": false,
+  "cache_updated": "2026-07-09T00:00:27.509601+00:00"
+ },
+ "006P700000VP0cV": {
+  "amount": 100000,
+  "stage": "Qualified",
+  "close_date": "2027-03-26",
+  "is_closed": null,
+  "cache_updated": "2026-05-28T10:55:49.561316+00:00"
+ },
+ "006P700000VX0Vd": {
+  "amount": 250000,
+  "stage": "Qualified",
+  "close_date": "2027-03-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:04:13.441697+00:00"
+ },
+ "006P700000YK7xp": {
+  "amount": 150000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-12-31",
+  "is_closed": false,
+  "cache_updated": "2026-06-06T00:04:22.300543+00:00"
+ },
+ "006P700000aElYc": {
+  "amount": 150000,
+  "stage": "Qualified",
+  "close_date": "2027-06-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:05:20.260066+00:00"
+ },
+ "006P700000YhH6r": {
+  "amount": 110000,
+  "stage": "Qualified",
+  "close_date": "2027-05-01",
+  "is_closed": false,
+  "cache_updated": "2026-07-09T00:06:16.632398+00:00"
+ },
+ "006P700000UGA6z": {
+  "amount": 7500,
+  "stage": "6. Contract Negotiation",
+  "close_date": "2026-07-31",
+  "is_closed": false,
+  "cache_updated": "2026-06-30T00:04:25.730894+00:00"
+ },
+ "006P700000WuJTn": {
+  "amount": 150000,
+  "stage": "Qualified",
+  "close_date": "2027-04-01",
+  "is_closed": null,
+  "cache_updated": "2026-05-28T10:55:49.561269+00:00"
+ },
+ "006P700000XqQGL": {
+  "amount": 110000,
+  "stage": "Qualified",
+  "close_date": "2026-11-13",
+  "is_closed": false,
+  "cache_updated": "2026-07-09T00:06:55.028993+00:00"
+ },
+ "006P700000Q0UvB": {
+  "amount": 300000,
+  "stage": "Qualified",
+  "close_date": "2026-11-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-01T00:04:32.540534+00:00"
+ },
+ "006P700000FEVJR": {
+  "amount": 550000,
+  "stage": "Qualified",
+  "close_date": "2026-10-25",
+  "is_closed": false,
+  "cache_updated": "2026-07-09T00:06:44.536548+00:00"
+ },
+ "006P700000P3DdT": {
+  "amount": 150000,
+  "stage": "Qualified",
+  "close_date": "2027-03-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:04:33.126434+00:00"
+ },
+ "006P700000K0d7V": {
+  "amount": 250000,
+  "stage": "Qualified",
+  "close_date": "2026-12-22",
+  "is_closed": false,
+  "cache_updated": "2026-06-16T00:04:13.421824+00:00"
+ },
+ "006P700000aAw61": {
+  "amount": 150000,
+  "stage": "Qualified",
+  "close_date": "2027-02-28",
+  "is_closed": false,
+  "cache_updated": "2026-07-01T00:04:34.973356+00:00"
+ },
+ "006P700000aDy03": {
+  "amount": 200000,
+  "stage": "Qualified",
+  "close_date": "2027-06-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-02T00:04:51.614584+00:00"
+ },
+ "006P700000Xh9Y6": {
+  "amount": 250000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-12-01",
+  "is_closed": false,
+  "cache_updated": "2026-07-02T00:04:25.259142+00:00"
+ },
+ "006P700000aEbPZ": {
+  "amount": 150000,
+  "stage": "Qualified",
+  "close_date": "2027-06-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-02T00:06:04.624206+00:00"
+ },
+ "006P700000YplAz": {
+  "amount": 150000,
+  "stage": "Qualified",
+  "close_date": "2026-12-29",
+  "is_closed": false,
+  "cache_updated": "2026-05-29T12:58:46.743151+00:00"
+ },
+ "006P700000Z88gz": {
+  "amount": 100000,
+  "stage": "Qualified",
+  "close_date": "2026-10-31",
+  "is_closed": false,
+  "cache_updated": "2026-06-23T00:04:54.37439+00:00"
+ },
+ "006P700000aBj5A": {
+  "amount": 150000,
+  "stage": "Qualified",
+  "close_date": "2027-02-28",
+  "is_closed": false,
+  "cache_updated": "2026-07-01T00:04:43.951092+00:00"
+ },
+ "006P700000ZRNxH": {
+  "amount": 120000,
+  "stage": "Qualified",
+  "close_date": "2027-06-11",
+  "is_closed": false,
+  "cache_updated": "2026-07-03T00:04:24.582814+00:00"
+ },
+ "006P700000YjeQk": {
+  "amount": 110000,
+  "stage": "Qualified",
+  "close_date": "2027-05-15",
+  "is_closed": false,
+  "cache_updated": "2026-07-04T00:03:29.032983+00:00"
+ },
+ "006P700000WXFfO": {
+  "amount": 250000,
+  "stage": "Qualified",
+  "close_date": "2026-11-27",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:04:18.000987+00:00"
+ },
+ "006P700000Z2yom": {
+  "amount": 320000,
+  "stage": "Formal Evaluation",
+  "close_date": "2027-01-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-09T00:06:42.543468+00:00"
+ },
+ "006P700000WZXoH": {
+  "amount": 250000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-09-18",
+  "is_closed": false,
+  "cache_updated": "2026-07-09T00:06:31.66062+00:00"
+ },
+ "006P700000aAHu5": {
+  "amount": 100000,
+  "stage": "Qualified",
+  "close_date": "2027-06-22",
+  "is_closed": false,
+  "cache_updated": "2026-07-01T00:05:02.212477+00:00"
+ },
+ "006P700000OrblC": {
+  "amount": 200000,
+  "stage": "No Decision",
+  "close_date": "2026-11-12",
+  "is_closed": true,
+  "cache_updated": "2026-07-09T00:06:38.55254+00:00"
+ },
+ "006P700000NSazO": {
+  "amount": 250000,
+  "stage": "Qualified",
+  "close_date": "2026-10-16",
+  "is_closed": false,
+  "cache_updated": "2026-06-03T00:04:18.662523+00:00"
+ },
+ "006P700000YO8aM": {
+  "amount": 250000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-10-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-07T00:04:20.934189+00:00"
+ },
+ "006P700000UNIw7": {
+  "amount": 150000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-07-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:05:29.678458+00:00"
+ },
+ "006P700000TYaun": {
+  "amount": 450000,
+  "stage": "Shortlisted",
+  "close_date": "2026-10-28",
+  "is_closed": false,
+  "cache_updated": "2026-07-09T00:06:20.243563+00:00"
+ },
+ "006P700000a4lJl": {
+  "amount": 150000,
+  "stage": "Qualified",
+  "close_date": "2026-11-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-02T00:00:07.698406+00:00"
+ },
+ "006P700000QyBpe": {
+  "amount": 500000,
+  "stage": "Qualified",
+  "close_date": "2026-11-27",
+  "is_closed": false,
+  "cache_updated": "2026-07-09T00:06:17.654916+00:00"
+ },
+ "006P700000TWaHP": {
+  "amount": 150000,
+  "stage": "Qualified",
+  "close_date": "2027-05-31",
+  "is_closed": false,
+  "cache_updated": "2026-06-09T08:02:39.618624+00:00"
+ },
+ "006P700000KgxjK": {
+  "amount": 250000,
+  "stage": "Qualified",
+  "close_date": "2026-12-07",
+  "is_closed": false,
+  "cache_updated": "2026-07-07T00:04:08.305037+00:00"
+ },
+ "006P700000aB9Pq": {
+  "amount": 250000,
+  "stage": "Qualified",
+  "close_date": "2027-03-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-02T00:04:27.060688+00:00"
+ },
+ "006P700000a5fH7": {
+  "amount": 100000,
+  "stage": "Qualified",
+  "close_date": "2027-06-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-01T00:03:49.356085+00:00"
+ },
+ "006P700000RxBPh": {
+  "amount": 150000,
+  "stage": "Qualified",
+  "close_date": "2026-11-27",
+  "is_closed": false,
+  "cache_updated": "2026-06-18T00:06:12.593082+00:00"
+ },
+ "006P700000UDok7": {
+  "amount": 150000,
+  "stage": "Qualified",
+  "close_date": "2026-12-18",
+  "is_closed": null,
+  "cache_updated": "2026-05-28T10:55:49.560954+00:00"
+ },
+ "006P7000008n5Bd": {
+  "amount": 218000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-12-31",
+  "is_closed": false,
+  "cache_updated": "2026-06-27T00:04:16.526899+00:00"
+ },
+ "006P700000RvMHF": {
+  "amount": 200000,
+  "stage": "Qualified",
+  "close_date": "2026-08-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-04T00:03:19.294381+00:00"
+ },
+ "006P700000VnWhf": {
+  "amount": 550000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-12-26",
+  "is_closed": false,
+  "cache_updated": "2026-07-09T00:06:49.110381+00:00"
+ },
+ "006P700000Yo41d": {
+  "amount": 150000,
+  "stage": "Qualified",
+  "close_date": "2026-10-31",
+  "is_closed": false,
+  "cache_updated": "2026-06-23T00:04:16.417179+00:00"
+ },
+ "006P700000aX2mI": {
+  "amount": 234000,
+  "stage": "Vendor Selected",
+  "close_date": "2027-07-02",
+  "is_closed": false,
+  "cache_updated": "2026-07-07T00:04:21.411093+00:00"
+ },
+ "006P700000YQBqg": {
+  "amount": 613360,
+  "stage": "Formal Evaluation",
+  "close_date": "2027-01-21",
+  "is_closed": false,
+  "cache_updated": "2026-06-19T00:00:58.08169+00:00"
+ },
+ "006P700000PQgrd": {
+  "amount": 100000,
+  "stage": "No Decision",
+  "close_date": "2026-12-31",
+  "is_closed": true,
+  "cache_updated": "2026-07-08T00:06:05.811113+00:00"
+ },
+ "006P700000YOXs5": {
+  "amount": 100000,
+  "stage": "Qualified",
+  "close_date": "2027-05-20",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:06:02.835099+00:00"
+ },
+ "006P700000Yr59F": {
+  "amount": 100000,
+  "stage": "Qualified",
+  "close_date": "2026-12-01",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:05:45.059646+00:00"
+ },
+ "006P700000UOFW7": {
+  "amount": 1578840,
+  "stage": "Qualified",
+  "close_date": "2027-02-24",
+  "is_closed": false,
+  "cache_updated": "2026-06-23T00:04:43.058048+00:00"
+ },
+ "006P700000XVbGQ": {
+  "amount": 300000,
+  "stage": "Formal Evaluation",
+  "close_date": "2027-05-31",
+  "is_closed": null,
+  "cache_updated": "2026-05-28T10:55:49.561335+00:00"
+ },
+ "006P700000WgdDq": {
+  "amount": 150000,
+  "stage": "Qualified",
+  "close_date": "2026-12-18",
+  "is_closed": false,
+  "cache_updated": "2026-07-09T00:06:50.583626+00:00"
+ },
+ "006P700000Q9ZSb": {
+  "amount": 200000,
+  "stage": "Qualified",
+  "close_date": "2027-06-10",
+  "is_closed": false,
+  "cache_updated": "2026-06-10T13:11:21.237827+00:00"
+ },
+ "006P700000aAeM5": {
+  "amount": 150000,
+  "stage": "Qualified",
+  "close_date": "2027-01-20",
+  "is_closed": false,
+  "cache_updated": "2026-07-02T00:05:25.462303+00:00"
+ },
+ "0066700000yP7lZ": {
+  "amount": 400000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-11-20",
+  "is_closed": false,
+  "cache_updated": "2026-06-02T00:02:42.523545+00:00"
+ },
+ "006P700000TcHTl": {
+  "amount": 150000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-10-22",
+  "is_closed": null,
+  "cache_updated": "2026-05-28T10:55:49.560166+00:00"
+ },
+ "006P700000Eo6QN": {
+  "amount": 400000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-10-29",
+  "is_closed": false,
+  "cache_updated": "2026-07-03T00:04:46.275328+00:00"
+ },
+ "006P700000SgxwQ": {
+  "amount": 500000,
+  "stage": "Qualified",
+  "close_date": "2026-11-30",
+  "is_closed": false,
+  "cache_updated": "2026-06-17T00:05:02.812128+00:00"
+ },
+ "006P700000QFJwD": {
+  "amount": 650000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-08-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-03T00:04:51.8415+00:00"
+ },
+ "006P700000Vs3Wv": {
+  "amount": 150000,
+  "stage": "Qualified",
+  "close_date": "2026-12-31",
+  "is_closed": false,
+  "cache_updated": "2026-05-29T12:58:59.002756+00:00"
+ },
+ "006P700000VshxP": {
+  "amount": 200000,
+  "stage": "Qualified",
+  "close_date": "2026-12-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-03T00:04:33.856175+00:00"
+ },
+ "006P700000XU8ht": {
+  "amount": 250000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-12-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-09T00:06:52.506067+00:00"
+ },
+ "006P700000PONMr": {
+  "amount": 45000,
+  "stage": "Vendor Selected",
+  "close_date": "2026-09-15",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:04:40.007827+00:00"
+ },
+ "006P700000WVivH": {
+  "amount": 110000,
+  "stage": "Qualified",
+  "close_date": "2027-03-16",
+  "is_closed": false,
+  "cache_updated": "2026-06-04T00:04:05.87745+00:00"
+ },
+ "006P700000WXMP7": {
+  "amount": 150000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-09-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:04:06.050759+00:00"
+ },
+ "006P700000QRO0r": {
+  "amount": 150000,
+  "stage": "Qualified",
+  "close_date": "2026-11-30",
+  "is_closed": false,
+  "cache_updated": "2026-06-12T00:04:04.493934+00:00"
+ },
+ "006P700000V10lj": {
+  "amount": 150000,
+  "stage": "Qualified",
+  "close_date": "2027-09-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-07T00:04:49.277533+00:00"
+ },
+ "006P700000MB1SN": {
+  "amount": 110000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-12-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-07T00:04:39.568173+00:00"
+ },
+ "006P700000Na0Vh": {
+  "amount": 345000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-07-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-03T00:05:03.415643+00:00"
+ },
+ "006P700000UAGyH": {
+  "amount": 120000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-10-30",
+  "is_closed": false,
+  "cache_updated": "2026-06-30T00:04:33.349253+00:00"
+ },
+ "006P700000XNms9": {
+  "amount": 65000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-07-31",
+  "is_closed": false,
+  "cache_updated": "2026-06-17T00:04:59.399189+00:00"
+ },
+ "006P700000TC0eh": {
+  "amount": 250000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-12-18",
+  "is_closed": null,
+  "cache_updated": "2026-05-28T10:55:49.560083+00:00"
+ },
+ "006P700000JwvB3": {
+  "amount": 250945.49,
+  "stage": "Shortlisted",
+  "close_date": "2026-07-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-02T00:05:11.586649+00:00"
+ },
+ "006P700000Xm8LP": {
+  "amount": 250000,
+  "stage": "Qualified",
+  "close_date": "2027-03-31",
+  "is_closed": false,
+  "cache_updated": "2026-06-03T00:04:06.924214+00:00"
+ },
+ "006P700000Vo3iP": {
+  "amount": 360000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-12-18",
+  "is_closed": false,
+  "cache_updated": "2026-06-07T00:00:26.226448+00:00"
+ },
+ "006P700000XKkwd": {
+  "amount": 150000,
+  "stage": "Qualified",
+  "close_date": "2026-11-28",
+  "is_closed": false,
+  "cache_updated": "2026-06-26T00:05:14.480237+00:00"
+ },
+ "006P700000XpTBS": {
+  "amount": 110000,
+  "stage": "Qualified",
+  "close_date": "2027-05-01",
+  "is_closed": false,
+  "cache_updated": "2026-07-09T00:06:19.143718+00:00"
+ },
+ "006P700000VM8BZ": {
+  "amount": 225000,
+  "stage": "Shortlisted",
+  "close_date": "2026-07-29",
+  "is_closed": false,
+  "cache_updated": "2026-07-07T00:04:42.446418+00:00"
+ },
+ "006P700000OzowY": {
+  "amount": 300000,
+  "stage": "Formal Evaluation",
+  "close_date": "2028-03-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:04:23.221832+00:00"
+ },
+ "006P700000XMZwz": {
+  "amount": 250000,
+  "stage": "Qualified Out",
+  "close_date": "2026-09-25",
+  "is_closed": true,
+  "cache_updated": "2026-07-09T00:06:54.546897+00:00"
+ },
+ "006P700000NSeID": {
+  "amount": 100000,
+  "stage": "Qualified",
+  "close_date": "2027-01-08",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:05:55.002311+00:00"
+ },
+ "0066700000wcFd7": {
+  "amount": 2000000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-12-31",
+  "is_closed": false,
+  "cache_updated": "2026-06-17T00:04:59.940262+00:00"
+ },
+ "006P700000X6hvK": {
+  "amount": 450000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-08-28",
+  "is_closed": false,
+  "cache_updated": "2026-07-07T00:04:34.619355+00:00"
+ },
+ "006P7000001j0JR": {
+  "amount": 1000000,
+  "stage": "Qualified",
+  "close_date": "2027-03-23",
+  "is_closed": false,
+  "cache_updated": "2026-07-07T00:04:08.812061+00:00"
+ },
+ "006P700000YkUty": {
+  "amount": 100000,
+  "stage": "Qualified Out",
+  "close_date": "2027-05-13",
+  "is_closed": true,
+  "cache_updated": "2026-07-10T00:04:16.207466+00:00"
+ },
+ "006P700000VmJw9": {
+  "amount": 100000,
+  "stage": "Formal Evaluation",
+  "close_date": "2027-03-25",
+  "is_closed": false,
+  "cache_updated": "2026-07-09T00:04:21.292265+00:00"
+ },
+ "006P700000VFXEl": {
+  "amount": 130000,
+  "stage": "Shortlisted",
+  "close_date": "2026-08-31",
+  "is_closed": false,
+  "cache_updated": "2026-06-30T00:04:47.259814+00:00"
+ },
+ "006P700000UEmI2": {
+  "amount": 350000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-12-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:02:32.64416+00:00"
+ },
+ "006P700000GnpY2": {
+  "amount": 225000,
+  "stage": "Closed Lost",
+  "close_date": "2026-10-14",
+  "is_closed": true,
+  "cache_updated": "2026-07-08T00:05:46.528629+00:00"
+ },
+ "006P700000YmIwC": {
+  "amount": 150000,
+  "stage": "Qualified",
+  "close_date": "2027-03-31",
+  "is_closed": false,
+  "cache_updated": "2026-06-16T00:04:05.429829+00:00"
+ },
+ "006P700000OcxpH": {
+  "amount": 191000,
+  "stage": "Shortlisted",
+  "close_date": "2026-07-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:04:36.662131+00:00"
+ },
+ "006P700000QeKM2": {
+  "amount": 400000,
+  "stage": "Qualified",
+  "close_date": "2027-01-15",
+  "is_closed": false,
+  "cache_updated": "2026-06-18T00:05:42.034357+00:00"
+ },
+ "006P700000Z4up4": {
+  "amount": 300000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-10-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-09T00:06:51.083477+00:00"
+ },
+ "006P700000QKfzN": {
+  "amount": 110000,
+  "stage": "Shortlisted",
+  "close_date": "2026-08-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:04:07.386897+00:00"
+ },
+ "006P700000XmQAe": {
+  "amount": 200000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-09-30",
+  "is_closed": false,
+  "cache_updated": "2026-06-27T00:04:17.050244+00:00"
+ },
+ "006P700000a2XJJ": {
+  "amount": 75000,
+  "stage": "Qualified",
+  "close_date": "2027-02-17",
+  "is_closed": false,
+  "cache_updated": "2026-06-30T00:03:49.515605+00:00"
+ },
+ "006P700000Xy7Bh": {
+  "amount": 150000,
+  "stage": "Qualified",
+  "close_date": "2027-03-19",
+  "is_closed": false,
+  "cache_updated": "2026-07-02T00:05:34.194428+00:00"
+ },
+ "006P700000aAex9": {
+  "amount": 150000,
+  "stage": "Qualified",
+  "close_date": "2027-02-28",
+  "is_closed": false,
+  "cache_updated": "2026-06-30T00:04:43.622531+00:00"
+ },
+ "006P700000MJHTV": {
+  "amount": 180000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-09-15",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:04:12.913009+00:00"
+ },
+ "006P700000QcBt7": {
+  "amount": 115000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-07-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:05:30.70214+00:00"
+ },
+ "006P700000YVZyo": {
+  "amount": 100000,
+  "stage": "Qualified",
+  "close_date": "2027-05-05",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:04:07.691266+00:00"
+ },
+ "0066700000yP1Px": {
+  "amount": 350000,
+  "stage": "Qualified",
+  "close_date": "2026-12-12",
+  "is_closed": false,
+  "cache_updated": "2026-07-02T00:03:00.910447+00:00"
+ },
+ "006P700000QG3ZG": {
+  "amount": 50000,
+  "stage": "Qualified",
+  "close_date": "2026-09-24",
+  "is_closed": false,
+  "cache_updated": "2026-06-20T00:00:53.350015+00:00"
+ },
+ "006P700000PCIij": {
+  "amount": 100000,
+  "stage": "Qualified",
+  "close_date": "2027-01-01",
+  "is_closed": false,
+  "cache_updated": "2026-06-20T00:00:57.3674+00:00"
+ },
+ "006P700000YqEmT": {
+  "amount": 150000,
+  "stage": "Qualified",
+  "close_date": "2027-02-28",
+  "is_closed": false,
+  "cache_updated": "2026-07-01T00:04:43.450913+00:00"
+ },
+ "006P700000PWx3N": {
+  "amount": 135000,
+  "stage": "Closed Lost",
+  "close_date": "2026-08-12",
+  "is_closed": true,
+  "cache_updated": "2026-07-08T00:05:34.482929+00:00"
+ },
+ "006P700000Y0p3m": {
+  "amount": 110000,
+  "stage": "Qualified",
+  "close_date": "2027-05-12",
+  "is_closed": false,
+  "cache_updated": "2026-06-23T00:05:00.83277+00:00"
+ },
+ "006P700000XDCWe": {
+  "amount": 100000,
+  "stage": "Qualified",
+  "close_date": "2026-12-29",
+  "is_closed": null,
+  "cache_updated": "2026-05-28T10:55:49.560798+00:00"
+ },
+ "006P700000YjiED": {
+  "amount": 950000,
+  "stage": "Formal Evaluation",
+  "close_date": "2027-05-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-09T00:06:43.523983+00:00"
+ },
+ "006P700000YH9L3": {
+  "amount": 400000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-12-24",
+  "is_closed": false,
+  "cache_updated": "2026-06-26T00:05:23.615488+00:00"
+ },
+ "006P700000ShX3q": {
+  "amount": 210000,
+  "stage": "Shortlisted",
+  "close_date": "2026-07-10",
+  "is_closed": false,
+  "cache_updated": "2026-07-01T00:04:49.27824+00:00"
+ },
+ "006P700000YjU3D": {
+  "amount": 150000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-09-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:04:35.124191+00:00"
+ },
+ "006P700000Rx8Bh": {
+  "amount": 250000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-12-16",
+  "is_closed": false,
+  "cache_updated": "2026-07-09T00:06:32.17722+00:00"
+ },
+ "006P700000Ppeea": {
+  "amount": 250000,
+  "stage": "Qualified",
+  "close_date": "2027-02-26",
+  "is_closed": null,
+  "cache_updated": "2026-05-28T10:55:49.560961+00:00"
+ },
+ "006P700000a1ptN": {
+  "amount": 150000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-09-17",
+  "is_closed": false,
+  "cache_updated": "2026-07-01T00:04:20.945252+00:00"
+ },
+ "006P700000QyOq5": {
+  "amount": 150000,
+  "stage": "Shortlisted",
+  "close_date": "2026-09-16",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:04:16.646723+00:00"
+ },
+ "006P700000YQCl9": {
+  "amount": 250000,
+  "stage": "Qualified",
+  "close_date": "2026-09-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:00:48.036956+00:00"
+ },
+ "006P700000OPKQl": {
+  "amount": 200000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-07-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-03T00:04:41.263436+00:00"
+ },
+ "006P700000NAivW": {
+  "amount": 250000,
+  "stage": "Qualified",
+  "close_date": "2027-02-15",
+  "is_closed": false,
+  "cache_updated": "2026-06-18T00:06:29.069189+00:00"
+ },
+ "006P700000Yk5cG": {
+  "amount": 100000,
+  "stage": "Qualified",
+  "close_date": "2026-10-01",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:05:31.69117+00:00"
+ },
+ "006P700000YPgtw": {
+  "amount": 100000,
+  "stage": "Qualified",
+  "close_date": "2026-12-30",
+  "is_closed": null,
+  "cache_updated": "2026-05-28T10:55:49.56008+00:00"
+ },
+ "006P700000T0trq": {
+  "amount": 135000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-07-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:04:23.679307+00:00"
+ },
+ "006P700000ZB4KH": {
+  "amount": 150000,
+  "stage": "Qualified",
+  "close_date": "2026-12-31",
+  "is_closed": false,
+  "cache_updated": "2026-06-23T00:04:34.565639+00:00"
+ },
+ "006P700000Url2j": {
+  "amount": 200000,
+  "stage": "Qualified",
+  "close_date": "2026-12-18",
+  "is_closed": false,
+  "cache_updated": "2026-06-18T00:05:50.22626+00:00"
+ },
+ "006P700000XgoYU": {
+  "amount": 60000,
+  "stage": "Shortlisted",
+  "close_date": "2027-05-27",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:05:28.725295+00:00"
+ },
+ "006P700000YlMxa": {
+  "amount": 200000,
+  "stage": "Qualified",
+  "close_date": "2027-02-02",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:04:30.164383+00:00"
+ },
+ "006P700000aBRzW": {
+  "amount": 150000,
+  "stage": "Qualified",
+  "close_date": "2026-12-29",
+  "is_closed": false,
+  "cache_updated": "2026-07-01T00:04:21.370297+00:00"
+ },
+ "006P700000UNHh5": {
+  "amount": 75000,
+  "stage": "Shortlisted",
+  "close_date": "2026-08-27",
+  "is_closed": false,
+  "cache_updated": "2026-07-09T00:06:34.098394+00:00"
+ },
+ "006P700000QHQK5": {
+  "amount": 150000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-08-19",
+  "is_closed": false,
+  "cache_updated": "2026-07-01T00:04:48.415227+00:00"
+ },
+ "006P700000O1Os6": {
+  "amount": 350000,
+  "stage": "Qualified",
+  "close_date": "2026-12-15",
+  "is_closed": false,
+  "cache_updated": "2026-06-20T00:01:02.139588+00:00"
+ },
+ "006P700000XRn05": {
+  "amount": 150000,
+  "stage": "Qualified",
+  "close_date": "2026-12-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-07T00:04:44.4028+00:00"
+ },
+ "006P700000Ld0O5": {
+  "amount": 250000,
+  "stage": "Qualified",
+  "close_date": "2027-03-30",
+  "is_closed": false,
+  "cache_updated": "2026-06-20T00:00:47.85309+00:00"
+ },
+ "006P700000Ny9WD": {
+  "amount": 81000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-09-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:04:15.325113+00:00"
+ },
+ "006P700000YkO71": {
+  "amount": 75000,
+  "stage": "Qualified",
+  "close_date": "2027-04-01",
+  "is_closed": false,
+  "cache_updated": "2026-05-29T12:59:14.110108+00:00"
+ },
+ "006P700000Ly6Mb": {
+  "amount": 550000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-10-28",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:04:06.944249+00:00"
+ },
+ "006P700000XPtCn": {
+  "amount": 300000,
+  "stage": "Qualified",
+  "close_date": "2027-03-31",
+  "is_closed": null,
+  "cache_updated": "2026-05-28T10:55:49.560981+00:00"
+ },
+ "006P700000VkJXF": {
+  "amount": 150000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-09-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-04T00:03:16.944961+00:00"
+ },
+ "006P700000F4T4P": {
+  "amount": 300000,
+  "stage": "Qualified",
+  "close_date": "2027-03-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:04:10.610304+00:00"
+ },
+ "006P700000X51uv": {
+  "amount": 300000,
+  "stage": "Qualified",
+  "close_date": "2027-01-25",
+  "is_closed": false,
+  "cache_updated": "2026-07-02T00:05:28.071253+00:00"
+ },
+ "006P700000Xpq4n": {
+  "amount": 250000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-12-31",
+  "is_closed": null,
+  "cache_updated": "2026-05-28T10:55:49.559946+00:00"
+ },
+ "006P700000Y0Ep0": {
+  "amount": 120000,
+  "stage": "Qualified",
+  "close_date": "2026-11-20",
+  "is_closed": false,
+  "cache_updated": "2026-06-12T13:04:40.805468+00:00"
+ },
+ "006P700000SKCA6": {
+  "amount": 90000,
+  "stage": "Qualified",
+  "close_date": "2026-08-27",
+  "is_closed": false,
+  "cache_updated": "2026-07-02T00:04:45.769493+00:00"
+ },
+ "006P700000URsB7": {
+  "amount": 250000,
+  "stage": "Qualified",
+  "close_date": "2026-11-30",
+  "is_closed": false,
+  "cache_updated": "2026-06-02T00:02:53.543798+00:00"
+ },
+ "006P7000006uKrq": {
+  "amount": 1500000,
+  "stage": "Shortlisted",
+  "close_date": "2026-07-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-01T00:04:05.45961+00:00"
+ },
+ "006P700000KCwMV": {
+  "amount": 550000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-11-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-07T00:04:26.294396+00:00"
+ },
+ "006P700000YX3jX": {
+  "amount": 100000,
+  "stage": "Qualified",
+  "close_date": "2026-09-16",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:05:56.986506+00:00"
+ },
+ "006P700000VLl6w": {
+  "amount": 160000,
+  "stage": "Qualified",
+  "close_date": "2027-02-19",
+  "is_closed": null,
+  "cache_updated": "2026-05-28T10:55:49.561275+00:00"
+ },
+ "006P700000aFyTm": {
+  "amount": 100000,
+  "stage": "Qualified",
+  "close_date": "2027-08-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-02T00:04:10.800585+00:00"
+ },
+ "006P700000YN6Nh": {
+  "amount": 500000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-11-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:04:10.152778+00:00"
+ },
+ "006P700000TJa8k": {
+  "amount": 250000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-09-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:04:40.980701+00:00"
+ },
+ "006P700000Q15OU": {
+  "amount": 300000,
+  "stage": "Shortlisted",
+  "close_date": "2026-11-30",
+  "is_closed": false,
+  "cache_updated": "2026-06-02T00:03:09.205428+00:00"
+ },
+ "006P700000VmtGT": {
+  "amount": 225000,
+  "stage": "Qualified",
+  "close_date": "2026-12-31",
+  "is_closed": null,
+  "cache_updated": "2026-05-28T10:55:49.561193+00:00"
+ },
+ "006P700000Y3hxi": {
+  "amount": 100000,
+  "stage": "Qualified",
+  "close_date": "2026-09-17",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:05:23.324619+00:00"
+ },
+ "006P700000U6XUf": {
+  "amount": 250000,
+  "stage": "Qualified",
+  "close_date": "2027-03-26",
+  "is_closed": false,
+  "cache_updated": "2026-06-13T00:02:58.631769+00:00"
+ },
+ "006P700000XjBcE": {
+  "amount": 127400,
+  "stage": "Shortlisted",
+  "close_date": "2027-08-06",
+  "is_closed": false,
+  "cache_updated": "2026-06-20T00:00:54.925294+00:00"
+ },
+ "006P700000UZv8c": {
+  "amount": 500000,
+  "stage": "Shortlisted",
+  "close_date": "2027-02-28",
+  "is_closed": false,
+  "cache_updated": "2026-07-02T00:04:47.143711+00:00"
+ },
+ "006P700000Zj63W": {
+  "amount": 300000,
+  "stage": "Qualified",
+  "close_date": "2027-03-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-09T00:06:27.205363+00:00"
+ },
+ "006P700000TINFB": {
+  "amount": 250000,
+  "stage": "Initial Interest",
+  "close_date": "2026-12-01",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:05:34.950763+00:00"
+ },
+ "006P700000KmkeX": {
+  "amount": 280000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-09-17",
+  "is_closed": false,
+  "cache_updated": "2026-07-01T00:03:48.354243+00:00"
+ },
+ "006P700000YrpX3": {
+  "amount": 250000,
+  "stage": "Formal Evaluation",
+  "close_date": "2027-05-28",
+  "is_closed": false,
+  "cache_updated": "2026-07-09T00:06:58.922137+00:00"
+ },
+ "006P700000Y98PN": {
+  "amount": 100000,
+  "stage": "Qualified",
+  "close_date": "2026-11-26",
+  "is_closed": false,
+  "cache_updated": "2026-06-02T00:03:01.098735+00:00"
+ },
+ "006P700000I1x25": {
+  "amount": 195000,
+  "stage": "Qualified",
+  "close_date": "2026-07-22",
+  "is_closed": false,
+  "cache_updated": "2026-06-13T00:02:50.546442+00:00"
+ },
+ "006P700000UGPE5": {
+  "amount": 200000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-12-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:04:31.611632+00:00"
+ },
+ "006P7000008hZHF": {
+  "amount": 350000,
+  "stage": "Shortlisted",
+  "close_date": "2026-12-31",
+  "is_closed": false,
+  "cache_updated": "2026-06-07T00:00:21.811953+00:00"
+ },
+ "006P700000QOnIL": {
+  "amount": 110000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-11-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-02T00:06:07.670092+00:00"
+ },
+ "006P700000UuxCD": {
+  "amount": 110000,
+  "stage": "Formal Evaluation",
+  "close_date": "2027-03-07",
+  "is_closed": false,
+  "cache_updated": "2026-07-01T00:04:52.317202+00:00"
+ },
+ "006P700000QFXJH": {
+  "amount": 350000,
+  "stage": "Formal Evaluation",
+  "close_date": "2027-02-15",
+  "is_closed": false,
+  "cache_updated": "2026-06-17T00:05:02.330042+00:00"
+ },
+ "006P700000Qqws9": {
+  "amount": 100000,
+  "stage": "Qualified",
+  "close_date": "2027-02-15",
+  "is_closed": false,
+  "cache_updated": "2026-07-03T00:04:40.325411+00:00"
+ },
+ "006P700000Ypcqr": {
+  "amount": 150000,
+  "stage": "Qualified",
+  "close_date": "2027-01-22",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:04:14.871701+00:00"
+ },
+ "006P700000LTSkn": {
+  "amount": 100000,
+  "stage": "Qualified",
+  "close_date": "2027-02-15",
+  "is_closed": false,
+  "cache_updated": "2026-06-18T00:06:32.002427+00:00"
+ },
+ "006P700000PRFG1": {
+  "amount": 500000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-11-26",
+  "is_closed": false,
+  "cache_updated": "2026-06-30T00:04:56.522342+00:00"
+ },
+ "006P700000OkmyJ": {
+  "amount": 250000,
+  "stage": "Qualified",
+  "close_date": "2027-03-26",
+  "is_closed": null,
+  "cache_updated": "2026-05-28T10:55:49.561001+00:00"
+ },
+ "006P700000Gnimf": {
+  "amount": 550000,
+  "stage": "Qualified",
+  "close_date": "2026-11-04",
+  "is_closed": null,
+  "cache_updated": "2026-05-28T10:55:49.560977+00:00"
+ },
+ "006P700000WeRX8": {
+  "amount": 450000,
+  "stage": "Qualified",
+  "close_date": "2026-04-12",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:05:38.031033+00:00"
+ },
+ "006P700000VspyB": {
+  "amount": 250000,
+  "stage": "Qualified",
+  "close_date": "2027-03-31",
+  "is_closed": null,
+  "cache_updated": "2026-05-28T10:55:49.561329+00:00"
+ },
+ "006P700000R7uh3": {
+  "amount": 200000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-12-31",
+  "is_closed": false,
+  "cache_updated": "2026-06-26T00:01:54.041513+00:00"
+ },
+ "006P700000JM8aH": {
+  "amount": 200000,
+  "stage": "Shortlisted",
+  "close_date": "2026-07-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-01T00:04:23.504829+00:00"
+ },
+ "006P700000XzDVB": {
+  "amount": 100000,
+  "stage": "Qualified",
+  "close_date": "2026-12-31",
+  "is_closed": false,
+  "cache_updated": "2026-06-30T00:04:50.423389+00:00"
+ },
+ "006P7000002Fz0Q": {
+  "amount": 250000,
+  "stage": "Qualified",
+  "close_date": "2026-10-30",
+  "is_closed": false,
+  "cache_updated": "2026-06-03T00:04:22.155316+00:00"
+ },
+ "0066700000zriZG": {
+  "amount": 350000,
+  "stage": "Qualified",
+  "close_date": "2027-03-18",
+  "is_closed": false,
+  "cache_updated": "2026-06-27T00:04:40.910303+00:00"
+ },
+ "006P700000OUsd6": {
+  "amount": 200000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-12-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-03T00:04:59.711221+00:00"
+ },
+ "006P700000Xjsm1": {
+  "amount": 200000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-11-27",
+  "is_closed": false,
+  "cache_updated": "2026-07-09T00:06:28.675132+00:00"
+ },
+ "006P700000ZBAXo": {
+  "amount": 250000,
+  "stage": "Qualified",
+  "close_date": "2026-12-24",
+  "is_closed": false,
+  "cache_updated": "2026-07-09T00:06:18.650936+00:00"
+ },
+ "006P700000TCnnR": {
+  "amount": 150000,
+  "stage": "Qualified",
+  "close_date": "2026-10-29",
+  "is_closed": false,
+  "cache_updated": "2026-07-09T00:06:35.099626+00:00"
+ },
+ "006P700000PtQGP": {
+  "amount": 265570,
+  "stage": "Contract In Progress",
+  "close_date": "2026-05-28",
+  "is_closed": false,
+  "cache_updated": "2026-07-02T00:04:36.946435+00:00"
+ },
+ "006P700000Lz9jp": {
+  "amount": 150000,
+  "stage": "Initial Interest",
+  "close_date": "2027-02-26",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:05:15.35537+00:00"
+ },
+ "006P700000Yqf3X": {
+  "amount": 0,
+  "stage": "Qualified",
+  "close_date": "2027-05-29",
+  "is_closed": false,
+  "cache_updated": "2026-06-03T00:04:23.920282+00:00"
+ },
+ "006P700000PqJMk": {
+  "amount": 100000,
+  "stage": "Qualified",
+  "close_date": "2026-11-14",
+  "is_closed": null,
+  "cache_updated": "2026-05-28T10:55:49.561031+00:00"
+ },
+ "006P700000X68O7": {
+  "amount": 200000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-09-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-07T00:04:09.756722+00:00"
+ },
+ "006P700000OJGBK": {
+  "amount": 300000,
+  "stage": "Qualified",
+  "close_date": "2026-11-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:04:19.941819+00:00"
+ },
+ "006P700000YPin8": {
+  "amount": 200000,
+  "stage": "Formal Evaluation",
+  "close_date": "2027-05-18",
+  "is_closed": false,
+  "cache_updated": "2026-07-01T00:04:09.967486+00:00"
+ },
+ "006P700000VTaRN": {
+  "amount": 250000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-10-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-06T00:00:06.990523+00:00"
+ },
+ "006P700000OyJOX": {
+  "amount": 500000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-12-27",
+  "is_closed": false,
+  "cache_updated": "2026-06-08T01:47:02.529382+00:00"
+ },
+ "006P700000ZguJN": {
+  "amount": 120000,
+  "stage": "Qualified",
+  "close_date": "2026-12-17",
+  "is_closed": false,
+  "cache_updated": "2026-07-04T00:03:18.843995+00:00"
+ },
+ "006P700000Kpq14": {
+  "amount": 250000,
+  "stage": "Formal Evaluation",
+  "close_date": "2027-06-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:04:41.948633+00:00"
+ },
+ "006P700000VVQve": {
+  "amount": 146000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-12-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-02T00:05:50.627247+00:00"
+ },
+ "006P700000ZR7MD": {
+  "amount": 200000,
+  "stage": "Qualified",
+  "close_date": "2027-02-28",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:04:21.83566+00:00"
+ },
+ "006P700000LtIUv": {
+  "amount": 150000,
+  "stage": "Shortlisted",
+  "close_date": "2026-08-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-01T00:04:19.969372+00:00"
+ },
+ "006P700000WQn5t": {
+  "amount": 250000,
+  "stage": "Qualified",
+  "close_date": "2027-04-08",
+  "is_closed": null,
+  "cache_updated": "2026-05-28T10:55:49.560917+00:00"
+ },
+ "006P700000T7y8Q": {
+  "amount": 200000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-12-31",
+  "is_closed": false,
+  "cache_updated": "2026-06-27T00:04:09.322223+00:00"
+ },
+ "006P700000VP3Tu": {
+  "amount": 125000,
+  "stage": "Qualified",
+  "close_date": "2026-10-21",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:05:43.013356+00:00"
+ },
+ "006P700000XzzOa": {
+  "amount": 250000,
+  "stage": "Qualified",
+  "close_date": "2027-05-11",
+  "is_closed": false,
+  "cache_updated": "2026-06-20T00:01:00.179479+00:00"
+ },
+ "006P700000SHPJe": {
+  "amount": 150000,
+  "stage": "Qualified",
+  "close_date": "2026-11-30",
+  "is_closed": false,
+  "cache_updated": "2026-06-02T00:02:55.199421+00:00"
+ },
+ "006P700000WEcMO": {
+  "amount": 250000,
+  "stage": "Qualified",
+  "close_date": "2027-04-30",
+  "is_closed": false,
+  "cache_updated": "2026-06-04T00:04:12.331024+00:00"
+ },
+ "006P700000TSdAc": {
+  "amount": 200000,
+  "stage": "Initial Interest",
+  "close_date": "2026-12-22",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:04:25.064864+00:00"
+ },
+ "006P700000NVEpR": {
+  "amount": 500000,
+  "stage": "Qualified",
+  "close_date": "2027-02-26",
+  "is_closed": false,
+  "cache_updated": "2026-06-18T00:05:55.915691+00:00"
+ },
+ "006P700000Wkphs": {
+  "amount": 200000,
+  "stage": "Qualified",
+  "close_date": "2027-01-30",
+  "is_closed": false,
+  "cache_updated": "2026-06-16T00:04:08.228721+00:00"
+ },
+ "006P700000W1Rer": {
+  "amount": 115000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-12-31",
+  "is_closed": false,
+  "cache_updated": "2026-06-30T00:01:46.83471+00:00"
+ },
+ "006P700000WEf5i": {
+  "amount": 120000,
+  "stage": "Qualified",
+  "close_date": "2027-04-30",
+  "is_closed": null,
+  "cache_updated": "2026-05-28T10:55:49.560717+00:00"
+ },
+ "006P700000BV2eA": {
+  "amount": 325000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-12-18",
+  "is_closed": false,
+  "cache_updated": "2026-07-02T00:04:40.239651+00:00"
+ },
+ "006P700000Q35sD": {
+  "amount": 220000,
+  "stage": "Qualified",
+  "close_date": "2027-01-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-01T00:04:12.897492+00:00"
+ },
+ "006P700000SxJHu": {
+  "amount": 100000,
+  "stage": "Qualified",
+  "close_date": "2026-08-29",
+  "is_closed": false,
+  "cache_updated": "2026-06-03T00:04:23.726672+00:00"
+ },
+ "006P700000VlPdp": {
+  "amount": 300000,
+  "stage": "Shortlisted",
+  "close_date": "2026-08-28",
+  "is_closed": false,
+  "cache_updated": "2026-07-01T00:04:14.998505+00:00"
+ },
+ "006P700000OaMiX": {
+  "amount": 279300,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-08-21",
+  "is_closed": false,
+  "cache_updated": "2026-06-03T00:04:21.516511+00:00"
+ },
+ "006P700000YJlu7": {
+  "amount": 200000,
+  "stage": "Qualified",
+  "close_date": "2026-12-25",
+  "is_closed": false,
+  "cache_updated": "2026-07-07T00:04:23.805648+00:00"
+ },
+ "006P700000VYjNS": {
+  "amount": 275000,
+  "stage": "Qualified",
+  "close_date": "2026-08-21",
+  "is_closed": false,
+  "cache_updated": "2026-07-07T00:04:14.305726+00:00"
+ },
+ "006P700000Ltf02": {
+  "amount": 350000,
+  "stage": "Qualified",
+  "close_date": "2026-10-11",
+  "is_closed": false,
+  "cache_updated": "2026-07-09T00:06:49.592617+00:00"
+ },
+ "006P700000TT6kT": {
+  "amount": 350000,
+  "stage": "Qualified",
+  "close_date": "2026-10-21",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:04:29.199409+00:00"
+ },
+ "006P700000XCmlu": {
+  "amount": 100000,
+  "stage": "Qualified",
+  "close_date": "2026-09-17",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:04:28.279893+00:00"
+ },
+ "006P700000AfJyb": {
+  "amount": 740000,
+  "stage": "Qualified",
+  "close_date": "2027-03-16",
+  "is_closed": false,
+  "cache_updated": "2026-06-17T00:04:38.016426+00:00"
+ },
+ "006P700000VV9pz": {
+  "amount": 120000,
+  "stage": "Qualified",
+  "close_date": "2027-02-26",
+  "is_closed": null,
+  "cache_updated": "2026-05-28T10:55:49.561196+00:00"
+ },
+ "006P700000Pe7fV": {
+  "amount": 100000,
+  "stage": "Shortlisted",
+  "close_date": "2026-07-14",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:04:37.624905+00:00"
+ },
+ "006P700000Wot0T": {
+  "amount": 400000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-10-22",
+  "is_closed": false,
+  "cache_updated": "2026-06-17T00:04:54.82879+00:00"
+ },
+ "006P700000X6W3q": {
+  "amount": 250000,
+  "stage": "Formal Evaluation",
+  "close_date": "2027-04-22",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:05:13.67318+00:00"
+ },
+ "006P700000S0WKk": {
+  "amount": 100000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-07-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:04:31.137383+00:00"
+ },
+ "006P700000YCK7R": {
+  "amount": 100000,
+  "stage": "Qualified",
+  "close_date": "2026-08-21",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:05:39.58707+00:00"
+ },
+ "006P700000T8qdZ": {
+  "amount": 250000,
+  "stage": "Qualified",
+  "close_date": "2027-03-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-09T00:06:40.570673+00:00"
+ },
+ "006P700000Eumuk": {
+  "amount": 300000,
+  "stage": "Shortlisted",
+  "close_date": "2026-11-27",
+  "is_closed": false,
+  "cache_updated": "2026-06-18T00:05:50.728584+00:00"
+ },
+ "006P700000Ze1aj": {
+  "amount": 100000,
+  "stage": "Qualified",
+  "close_date": "2026-08-27",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:06:04.83455+00:00"
+ },
+ "006P700000XIzIA": {
+  "amount": 200000,
+  "stage": "Qualified",
+  "close_date": "2026-12-31",
+  "is_closed": false,
+  "cache_updated": "2026-06-26T00:05:29.797954+00:00"
+ },
+ "006P700000YR8lt": {
+  "amount": 200000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-12-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-02T00:06:09.961078+00:00"
+ },
+ "006P700000VgfD1": {
+  "amount": 350000,
+  "stage": "Qualified",
+  "close_date": "2027-02-26",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:05:27.7454+00:00"
+ },
+ "006P700000OXpig": {
+  "amount": 500000,
+  "stage": "Qualified",
+  "close_date": "2027-01-25",
+  "is_closed": false,
+  "cache_updated": "2026-06-07T00:00:23.974176+00:00"
+ },
+ "006P700000ZfllF": {
+  "amount": 200000,
+  "stage": "Qualified",
+  "close_date": "2026-12-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-03T00:04:39.869733+00:00"
+ },
+ "006P700000Uv4k0": {
+  "amount": 250000,
+  "stage": "Qualified",
+  "close_date": "2027-03-08",
+  "is_closed": null,
+  "cache_updated": "2026-05-28T10:55:49.561016+00:00"
+ },
+ "006P700000YMOks": {
+  "amount": 200000,
+  "stage": "Qualified",
+  "close_date": "2026-10-28",
+  "is_closed": false,
+  "cache_updated": "2026-07-01T00:03:42.461536+00:00"
+ },
+ "006P700000Yp7Ld": {
+  "amount": 150000,
+  "stage": "Initial Interest",
+  "close_date": "2027-02-23",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:04:22.288495+00:00"
+ },
+ "006P700000W5OP3": {
+  "amount": 250000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-08-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-06T00:00:09.440835+00:00"
+ },
+ "006P700000YV6To": {
+  "amount": 200000,
+  "stage": "Qualified",
+  "close_date": "2027-03-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-09T00:03:19.838895+00:00"
+ },
+ "006P700000RFjmx": {
+  "amount": 250000,
+  "stage": "Qualified",
+  "close_date": "2026-12-19",
+  "is_closed": false,
+  "cache_updated": "2026-06-17T00:04:42.039286+00:00"
+ },
+ "006P700000VpGKR": {
+  "amount": 150000,
+  "stage": "Qualified",
+  "close_date": "2026-12-16",
+  "is_closed": false,
+  "cache_updated": "2026-06-16T00:04:06.094153+00:00"
+ },
+ "006P700000VicUN": {
+  "amount": 800000,
+  "stage": "Formal Evaluation",
+  "close_date": "2027-03-03",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:05:14.804526+00:00"
+ },
+ "006P700000UBRoP": {
+  "amount": 300000,
+  "stage": "Initial Interest",
+  "close_date": "2026-12-01",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:05:18.270311+00:00"
+ },
+ "006P700000DtZww": {
+  "amount": 267000,
+  "stage": "Formal Evaluation",
+  "close_date": "2027-01-04",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:04:34.638173+00:00"
+ },
+ "006P700000NSKkw": {
+  "amount": 300000,
+  "stage": "Qualified",
+  "close_date": "2026-09-25",
+  "is_closed": false,
+  "cache_updated": "2026-07-09T00:06:28.186897+00:00"
+ },
+ "006P700000VCKnV": {
+  "amount": 445200,
+  "stage": "Shortlisted",
+  "close_date": "2026-07-30",
+  "is_closed": false,
+  "cache_updated": "2026-06-30T00:04:10.826506+00:00"
+ },
+ "006P700000MHKs5": {
+  "amount": 110000,
+  "stage": "Qualified",
+  "close_date": "2026-12-11",
+  "is_closed": false,
+  "cache_updated": "2026-07-09T00:06:25.254766+00:00"
+ },
+ "006P700000VSLhB": {
+  "amount": 234000,
+  "stage": "Shortlisted",
+  "close_date": "2026-07-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-07T00:02:19.325805+00:00"
+ },
+ "006P700000U0zS6": {
+  "amount": 200000,
+  "stage": "Qualified",
+  "close_date": "2027-02-16",
+  "is_closed": null,
+  "cache_updated": "2026-05-28T10:55:49.560322+00:00"
+ },
+ "006P700000CWvfN": {
+  "amount": 195000,
+  "stage": "Formal Evaluation",
+  "close_date": "2027-08-26",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:04:20.509479+00:00"
+ },
+ "006P7000009T3v1": {
+  "amount": 859260,
+  "stage": "Shortlisted",
+  "close_date": "2026-09-22",
+  "is_closed": false,
+  "cache_updated": "2026-06-18T00:06:00.098209+00:00"
+ },
+ "006P700000WgjhS": {
+  "amount": 70000,
+  "stage": "Qualified",
+  "close_date": "2027-04-14",
+  "is_closed": false,
+  "cache_updated": "2026-07-10T00:04:18.939148+00:00"
+ },
+ "006P700000YPDo6": {
+  "amount": 100000,
+  "stage": "Qualified",
+  "close_date": "2026-10-16",
+  "is_closed": false,
+  "cache_updated": "2026-06-23T00:00:59.294197+00:00"
+ },
+ "006P700000Wqst7": {
+  "amount": 70000,
+  "stage": "Qualified",
+  "close_date": "2026-11-27",
+  "is_closed": null,
+  "cache_updated": "2026-05-28T10:55:49.560791+00:00"
+ },
+ "006P700000Lsixf": {
+  "amount": 300000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-10-09",
+  "is_closed": null,
+  "cache_updated": "2026-05-28T10:55:49.560117+00:00"
+ },
+ "006P700000LQ5ch": {
+  "amount": 150000,
+  "stage": "Qualified",
+  "close_date": "2027-02-28",
+  "is_closed": false,
+  "cache_updated": "2026-07-01T00:03:41.01068+00:00"
+ },
+ "006P700000HgY1u": {
+  "amount": 200000,
+  "stage": "Qualified",
+  "close_date": "2026-09-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-04T00:03:26.643999+00:00"
+ },
+ "006P700000Yb8O2": {
+  "amount": 150000,
+  "stage": "Initial Interest",
+  "close_date": "2026-12-01",
+  "is_closed": false,
+  "cache_updated": "2026-07-08T00:05:53.545138+00:00"
+ },
+ "006P700000XjMpN": {
+  "amount": 120000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-10-01",
+  "is_closed": false,
+  "cache_updated": "2026-06-30T00:04:35.508191+00:00"
+ },
+ "006P700000Zfh3G": {
+  "amount": 300000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-10-24",
+  "is_closed": false,
+  "cache_updated": "2026-07-02T00:05:36.833138+00:00"
+ },
+ "006P700000YNj7L": {
+  "amount": 90000,
+  "stage": "Qualified",
+  "close_date": "2026-09-30",
+  "is_closed": false,
+  "cache_updated": "2026-07-07T00:04:41.517812+00:00"
+ },
+ "006P700000YK67N": {
+  "amount": 200000,
+  "stage": "Qualified",
+  "close_date": "2026-12-31",
+  "is_closed": false,
+  "cache_updated": "2026-07-06T00:00:10.500267+00:00"
+ },
+ "006P700000Xq42w": {
+  "amount": 110000,
+  "stage": "Qualified",
+  "close_date": "2027-05-01",
+  "is_closed": null,
+  "cache_updated": "2026-05-28T10:55:49.56091+00:00"
+ },
+ "006P700000LFvl3": {
+  "amount": 500000,
+  "stage": "Formal Evaluation",
+  "close_date": "2026-09-30",
+  "is_closed": false,
+  "cache_updated": "2026-06-02T00:02:43.04855+00:00"
+ },
+ "006P700000YpFvt": {
+  "amount": 150000,
+  "stage": "Qualified",
+  "close_date": "2027-03-31",
+  "is_closed": false,
+  "cache_updated": "2026-06-26T00:05:11.360193+00:00"
+ }
+}
