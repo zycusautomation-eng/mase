@@ -17,6 +17,7 @@ import { useDashboard } from "@/lib/engine/DashboardContext";
 import { verdictTone, vpOf, vpsList, teamOwners, inScope, isDeadDeal } from "@/lib/engine/helpers";
 import MultiSelect, { type Opt } from "@/components/MultiSelect";
 import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 function fmtM(n: number): string {
@@ -285,8 +286,31 @@ function StatCard({ label, value, sub, subColor, right, onClick }: {
   );
 }
 
+// Skeleton mirror of the stat-card row — same 6-up grid + card frame, pulsing placeholders
+// where the label/number/sub go. Shown while the book loads so the shell is there instantly.
+function StatsSkeleton() {
+  return (
+    <div className="dl-head">
+      <div className="dl-stats">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <Card key={i} className="gap-0 rounded-2xl border-[var(--line)] bg-[var(--surface)] px-[15px] py-[13px] shadow-[var(--shadow-sm)]">
+            <Skeleton className="h-3 w-24" />
+            <div className="mt-3 flex items-end justify-between gap-2">
+              <div className="min-w-0 space-y-2">
+                <Skeleton className="h-6 w-20" />
+                <Skeleton className="h-2.5 w-16" />
+              </div>
+              <Skeleton className="size-11 rounded-full" />
+            </div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function DealsStats() {
-  const { filtered, statsOff } = useDashboard();
+  const { filtered, statsOff, loading } = useDashboard();
   const router = useRouter();
   const [open, setOpen] = useState<null | "forecast" | "pipeline">(null);
   const [drawer, setDrawer] = useState<null | "forecast" | "pipeline">(null);
@@ -356,6 +380,10 @@ export default function DealsStats() {
   const weightedPipePct = openBase ? Math.round((weightedPipe / openBase) * 100) : 0;
 
   const goDeal = (id: string) => { if (!id) return; setOpen(null); setDrawer(null); router.push(`/deals/${id}`); };
+
+  // Skeleton-first: while the book loads, show the card frames with placeholders instead
+  // of flashing real "$0" totals. Hooks above always run first, so this early return is safe.
+  if (loading && !filtered.length) return <StatsSkeleton />;
 
   return (
     <div className="dl-head">

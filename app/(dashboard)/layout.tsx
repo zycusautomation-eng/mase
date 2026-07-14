@@ -17,8 +17,10 @@ import { PageLoader } from "@/components/ui/page-loader";
 function Shell({ children }: { children: React.ReactNode }) {
   const { loading, error, blocked } = useDashboard();
   const pathname = usePathname();
-  const onDealDetail = /^\/deals\/[^/]+$/.test(pathname); // /deals/<id> — full-page detail
-  const onDealsList = pathname === "/deals"; // the deals book (stat cards live here)
+  // Deal detail is now a DRAWER over the board (see deals/layout.tsx), not a full page — so
+  // /deals/<id> keeps the FULL dashboard chrome (stats + scope + nav) with the drawer on top.
+  const onDealDetail = false;
+  const onDealsList = pathname === "/deals" || /^\/deals\/[^/]+$/.test(pathname); // /deals + /deals/<id>
   // The scope + deal filters belong only to the deal-book views (not the detail page).
   const showScope = !pathname.startsWith("/chat") && !pathname.startsWith("/sync-quality")
     && !pathname.startsWith("/admin") && !pathname.startsWith("/omnivision") && !onDealDetail;
@@ -85,13 +87,22 @@ function Shell({ children }: { children: React.ReactNode }) {
           <div className={`wrap ${onDealsList ? "deals-scroll" : ""} ${onEspresso ? "esp-sticky" : ""} ${tabTheme}`}>
             {error ? (
               <div className="empty">Couldn&apos;t load the book.<br /><br /><span className="err">{error}</span></div>
-            ) : loading ? (
-              <PageLoader label="Loading the book…" tone={loaderTone} />
             ) : blocked ? (
               <div className="empty">You don&apos;t have access to MASE.<br /><br /><span className="sub">This account isn&apos;t on the access list. If you believe this is a mistake, contact an admin.</span></div>
+            ) : onDealsList ? (
+              // SKELETON-FIRST: the Deals route paints its shell immediately — stat cards,
+              // filter bar and table all render right away and show skeleton placeholders
+              // while the book loads, then swap to data in place. Never a spinner-gated
+              // blank screen (which made the ~7.5s book load feel like the app was stuck).
+              <>
+                <DealsStats />
+                {showScope ? <ScopeFilterBar /> : null}
+                {children}
+              </>
+            ) : loading ? (
+              <PageLoader label="Loading the book…" tone={loaderTone} />
             ) : (
               <>
-                {onDealsList ? <DealsStats /> : null}
                 {showScope ? <ScopeFilterBar /> : null}
                 {children}
               </>

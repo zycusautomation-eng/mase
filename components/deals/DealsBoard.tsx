@@ -12,7 +12,39 @@ import { prefetchDeal } from "@/lib/engine/dealCache";
 import { ScoreCell } from "@/components/deals/DealScores";
 import { Monogram } from "@/components/ui/Monogram";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { PageLoader } from "@/components/ui/page-loader";
+import { Skeleton } from "@/components/ui/skeleton";
+
+// Skeleton mirror of the book table — the table chrome (border/radius via #grid) with a
+// header row and ~12 placeholder rows, so the table is visibly THERE the instant the route
+// opens and just fills in with data, instead of a centred spinner on a blank canvas.
+function DealsBoardSkeleton() {
+  return (
+    <div id="grid">
+      <table>
+        <thead>
+          <tr>
+            {Array.from({ length: 9 }).map((_, i) => (
+              <th key={i}><Skeleton className="h-3 w-16" /></th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {Array.from({ length: 12 }).map((_, r) => (
+            <tr key={r}>
+              {Array.from({ length: 9 }).map((_, c) => (
+                <td key={c}>
+                  {c === 0
+                    ? <div className="flex items-center gap-2"><Skeleton className="size-7 rounded-lg" /><Skeleton className="h-3 w-28" /></div>
+                    : <Skeleton className="h-3" style={{ width: `${40 + ((r * 7 + c * 13) % 45)}%` }} />}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 const SCORE_COLS: [string, string, string][] = [
   ["win_position", "Zycus win position", "Zycus Win Position Score"],
@@ -60,7 +92,7 @@ export default function DealsBoard() {
   const pageRows = rows.slice(start, start + PAGE_SIZE);
 
   if (loading && !rows.length) {
-    return <PageLoader label="Loading deals…" />;
+    return <DealsBoardSkeleton />;
   }
   if (!rows.length) {
     return <div className="empty">No opportunities match the current scope and filters.</div>;
