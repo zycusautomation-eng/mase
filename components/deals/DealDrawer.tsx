@@ -10,6 +10,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { type Rec } from "@/lib/engine/helpers";
+import { getCachedDeal, prefetchDeal } from "@/lib/engine/dealCache";
 import DealDrawerView from "@/components/deals/DealDrawerView";
 
 export default function DealDrawer({
@@ -25,15 +26,12 @@ export default function DealDrawer({
   useEffect(() => {
     const oid = record?.opp_id;
     if (!oid) { setFull(null); return; }
-    setFull(null);
+    // Instant paint: if the full record is already cached (row was hovered, or the deal was
+    // opened before), show it synchronously — no blank-detail wait. Otherwise fall back to
+    // the slim record while we fetch. Either way, refresh in the background so it stays fresh.
+    setFull(getCachedDeal(oid));
     let off = false;
-    (async () => {
-      try {
-        const r = await fetch(`/api/deal-engine/opportunities/${encodeURIComponent(oid)}`, { cache: "no-store" });
-        const j = await r.json();
-        if (!off && r.ok) setFull(j.record || j);
-      } catch { /* keep the slim record */ }
-    })();
+    prefetchDeal(oid)?.then((rec) => { if (!off && rec) setFull(rec); });
     return () => { off = true; };
   }, [record?.opp_id]);
 
