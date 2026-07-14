@@ -5,7 +5,6 @@
 // scroll + pagination while the URL-driven drawer opens over it. Clicking a row now
 // NAVIGATES to /deals/[id] (a shareable URL) instead of holding the open deal in state.
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { useDashboard } from "@/lib/engine/DashboardContext";
 import { useDealDrawer } from "@/components/deals/DrawerController";
 import { ceoAreaLabel, fmtAmount } from "@/lib/engine/helpers";
@@ -64,7 +63,6 @@ const REST_COLS: [string, string, number][] = [
 const PAGE_SIZE = 20;
 
 export default function DealsBoard() {
-  const router = useRouter();
   const { open: openDeal } = useDealDrawer();
   const { filtered, loading, canSeeScores, realIsAdmin, isAdminView, isFav, toggleFav, statsOff, toggleStats } = useDashboard();
   const [sortKey, setSortKey] = useState("days_to_close");
@@ -195,14 +193,10 @@ export default function DealsBoard() {
                 <tr
                   key={r.opp_id}
                   onClick={() => openDeal(r.opp_id)}
-                  onMouseEnter={() => {
-                    // Warm BOTH on hover so the click is instant: the full record (data) AND
-                    // the /deals/<id> route (RSC payload). These rows are onClick handlers, not
-                    // <Link>s, so Next never auto-prefetches the route — without this every open
-                    // pays a cold navigation, which is the main "drawer opens slowly" cause.
-                    prefetchDeal(r.opp_id);
-                    router.prefetch(`/deals/${encodeURIComponent(r.opp_id)}`);
-                  }}
+                  // Warm the full record on hover so the drawer's detail is already loaded by
+                  // the time you click. (Opening is now a ?deal=<id> query-param change on the
+                  // same /deals route — no route navigation to prefetch.)
+                  onMouseEnter={() => prefetchDeal(r.opp_id)}
                   style={{ cursor: "pointer" }}
                 >
                   <td className="statscell" style={{ textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
