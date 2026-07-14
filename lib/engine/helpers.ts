@@ -405,8 +405,17 @@ export function isDeadDeal(r: any): boolean {
   const headDead = (((r && r.ai && r.ai.deal_scores) || {}).headline || {}).dead === true;
   return isDeadStage(h.stage) || deadFc || headDead;
 }
+// An UNPOPULATED STUB — in the book but its Salesforce hard facts haven't landed yet
+// (no stage). Every real SF opportunity has a StageName, so an empty stage ALWAYS means
+// the deal was made visible (membership/discovery) before its facts were populated. These
+// render as $0/blank rows and, when a whole rep's book is freshly tracked, make MASE look
+// empty ("not connected"). Hide them until a hard-refresh fills them in — they reappear
+// automatically once stage/amount land. (Root cause of the recurring "$0 pipeline".)
+export function isUnpopulatedStub(r: any): boolean {
+  return String(((r && r.hard) || {}).stage || "").trim() === "";
+}
 export function keepRecord(r: Rec): boolean {
-  return vpOf(r) != null && !isDeadDeal(r) && !isHiddenStage((r.hard || {}).stage);
+  return vpOf(r) != null && !isUnpopulatedStub(r) && !isDeadDeal(r) && !isHiddenStage((r.hard || {}).stage);
 }
 
 export function teamsMap(records: Rec[]): Record<string, string[]> {
