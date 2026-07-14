@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useDashboard } from "@/lib/engine/DashboardContext";
 import { useSfdc } from "@/components/sfdc/SfdcProvider";
 import { EMAIL_TO_OWNER, resolveAccess } from "@/lib/engine/helpers";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 
 // Whether Supabase is configured on this deploy. When the env vars are missing
 // (local dev or an unconfigured host), constructing the browser client throws —
@@ -23,7 +24,6 @@ type SimOpt = { email: string; name: string; role: "VP" | "Rep" };
 export default function AuthButton() {
   const [email, setEmail] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const { realIsAdmin, simEmail, simulateAs, scopeName, blocked } = useDashboard();
   const sf = useSfdc();
@@ -49,22 +49,7 @@ export default function AuthButton() {
     }).catch(() => {});
   }, []);
 
-  // Close on outside click / Escape.
-  useEffect(() => {
-    if (!open) return;
-    function onDown(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
+  // Outside-click + Escape close are handled by the Popover (Radix) below.
 
   if (!SUPABASE_CONFIGURED) return null;
 
@@ -89,24 +74,33 @@ export default function AuthButton() {
       : `${scopeName ?? simEmail}${simOpts.find((o) => o.email === simEmail)?.role === "VP" ? " — whole team" : " — own deals"}`;
 
   return (
-    <div className="authmenu" ref={ref}>
-      <button
-        type="button"
-        className={`authmenu-avatar ${simulating ? "simulating" : ""}`}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label={email ? `Account: ${email}` : "Account"}
-        title={simulating ? `Simulating ${scopeName ?? simEmail}` : (email || "Account")}
-        onClick={() => setOpen((o) => !o)}
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-          <circle cx="12" cy="8" r="3.6" />
-          <path d="M5 19.2c0-3.4 3.2-5.6 7-5.6s7 2.2 7 5.6c0 .6-.5 1-1.1 1H6.1c-.6 0-1.1-.4-1.1-1Z" />
-        </svg>
-        {simulating && <span className="authmenu-simdot" aria-hidden="true" />}
-      </button>
-      {open && (
-        <div className="authmenu-pop" role="menu">
+    <div className="authmenu">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className={`authmenu-avatar ${simulating ? "simulating" : ""}`}
+            aria-label={email ? `Account: ${email}` : "Account"}
+            title={simulating ? `Simulating ${scopeName ?? simEmail}` : (email || "Account")}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <circle cx="12" cy="8" r="3.6" />
+              <path d="M5 19.2c0-3.4 3.2-5.6 7-5.6s7 2.2 7 5.6c0 .6-.5 1-1.1 1H6.1c-.6 0-1.1-.4-1.1-1Z" />
+            </svg>
+            {simulating && <span className="authmenu-simdot" aria-hidden="true" />}
+          </button>
+        </PopoverTrigger>
+        {/* Portaled to <body> (escapes the sidebar's fixed/z-index:40 stacking context that
+            trapped the old absolute menu) and collision-aware: side="top" opens it UPWARD from
+            the bottom-of-sidebar avatar, auto-flipping/shifting to stay on screen. z-[70] sits
+            above the sidebar + main content. The .authmenu-* content classes are unchanged. */}
+        <PopoverContent
+          side="top"
+          align="start"
+          sideOffset={10}
+          className="authmenu-pop-content z-[70] w-[272px] rounded-xl border-[var(--line)] bg-[var(--surface)] p-1.5 shadow-[0_16px_40px_-8px_rgba(15,23,42,.28)]"
+          role="menu"
+        >
           <div className="authmenu-id">
             <div className="authmenu-id-label">Signed in as</div>
             <div className="authmenu-id-email" title={email || ""}>
@@ -181,8 +175,8 @@ export default function AuthButton() {
           <button type="button" className="authmenu-signout" role="menuitem" onClick={signOut}>
             Sign out
           </button>
-        </div>
-      )}
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }
