@@ -16,6 +16,8 @@ import { useRouter } from "next/navigation";
 import { useDashboard } from "@/lib/engine/DashboardContext";
 import { verdictTone, vpOf, vpsList, teamOwners, inScope, isDeadDeal } from "@/lib/engine/helpers";
 import MultiSelect, { type Opt } from "@/components/MultiSelect";
+import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 function fmtM(n: number): string {
   if (n >= 1e6) return "$" + (n / 1e6).toFixed(1).replace(/\.0$/, "") + "M";
@@ -241,6 +243,48 @@ function WeightedDrawer({ title, basisCol, base, weightOf, basisOf, onClose, onD
   );
 }
 
+// One stat tile, built on shadcn Card but tokenised to the app theme (--surface / --ink /
+// --muted / --accent) so it matches the book and follows the route accent. `onClick` makes
+// it a keyboard-accessible button (the two weighted cards open their breakdown dialog).
+function StatCard({ label, value, sub, subColor, right, onClick }: {
+  label: string;
+  value: React.ReactNode;
+  sub?: React.ReactNode;
+  subColor?: string;
+  right?: React.ReactNode;
+  onClick?: () => void;
+}) {
+  const interactive = !!onClick;
+  return (
+    <Card
+      role={interactive ? "button" : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      aria-haspopup={interactive ? "dialog" : undefined}
+      onClick={onClick}
+      onKeyDown={interactive ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } } : undefined}
+      className={cn(
+        "gap-0 rounded-2xl border-[var(--line)] bg-[var(--surface)] px-[15px] py-[13px] shadow-[var(--shadow-sm)]",
+        "transition-[box-shadow,border-color] duration-150 hover:shadow-[var(--shadow)]",
+        interactive
+          ? "cursor-pointer hover:border-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/40"
+          : "hover:border-[#dfe5ef]"
+      )}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="truncate text-[12px] font-semibold text-[var(--muted)]">{label}</span>
+        {interactive ? <span className="shrink-0 text-[10.5px] font-semibold text-[var(--accent)]">view ↗</span> : null}
+      </div>
+      <div className="mt-2 flex items-end justify-between gap-2">
+        <div className="min-w-0">
+          <div className="truncate text-[22px] font-extrabold leading-[1.05] tracking-[-0.02em] tabular-nums text-[var(--ink)]">{value}</div>
+          {sub != null ? <div className="mt-1.5 truncate text-[11px] font-semibold" style={{ color: subColor || "var(--muted)" }}>{sub}</div> : null}
+        </div>
+        {right}
+      </div>
+    </Card>
+  );
+}
+
 export default function DealsStats() {
   const { filtered, statsOff } = useDashboard();
   const router = useRouter();
@@ -312,37 +356,22 @@ export default function DealsStats() {
   const weightedPipePct = openBase ? Math.round((weightedPipe / openBase) * 100) : 0;
 
   const goDeal = (id: string) => { if (!id) return; setOpen(null); setDrawer(null); router.push(`/deals/${id}`); };
-  const cardKeydown = (which: "forecast" | "pipeline") => (e: any) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen(which); } };
 
   return (
     <div className="dl-head">
       <div className="dl-stats">
-        <div className="dl-card">
-          <div className="dl-top">Total Pipeline</div>
-          <div className="dl-row"><div><div className="dl-big">{fmtM(pipeline)}</div><div className="dl-sub">{recs.length} of {recs.length} deals</div></div><div className="dl-spark"><Spark color="#1f9d57" up /></div></div>
-        </div>
-        <div className="dl-card">
-          <div className="dl-top">Commit</div>
-          <div className="dl-row"><div><div className="dl-big">{fmtM(commit)}</div><div className="dl-sub">{commitRecs.length} deals</div></div><div className="dl-spark"><Spark color="#5b8cff" up /></div></div>
-        </div>
-        <div className="dl-card">
-          <div className="dl-top">At Risk</div>
-          <div className="dl-row"><div><div className="dl-big">{fmtM(atRisk)}</div><div className="dl-sub">{atRiskRecs.length} deals</div></div><div className="dl-spark"><Spark color="#d6453b" up={false} /></div></div>
-        </div>
-        <div className="dl-card">
-          <div className="dl-top">AI Score</div>
-          <div className="dl-row"><div><div className="dl-big">{aiScore}</div><div className="dl-sub" style={{ color: aiColor }}>● {aiLabel}</div></div>
-            <div className="dl-donut" style={{ ["--p" as any]: aiScore, ["--c" as any]: aiColor }}><span /></div>
-          </div>
-        </div>
-        <div className="dl-card clickable" role="button" tabIndex={0} aria-haspopup="dialog" onClick={() => setOpen("forecast")} onKeyDown={cardKeydown("forecast")}>
-          <div className="dl-top">Weighted Forecast <span className="dl-hint">view ↗</span></div>
-          <div className="dl-row"><div><div className="dl-big">{fmtM(weighted)}</div><div className="dl-sub">{weightedPct}% of open pipeline</div></div><div className="dl-spark"><Spark color="#7c4dff" up /></div></div>
-        </div>
-        <div className="dl-card clickable" role="button" tabIndex={0} aria-haspopup="dialog" onClick={() => setOpen("pipeline")} onKeyDown={cardKeydown("pipeline")}>
-          <div className="dl-top">Weighted Pipeline <span className="dl-hint">view ↗</span></div>
-          <div className="dl-row"><div><div className="dl-big">{fmtM(weightedPipe)}</div><div className="dl-sub">{weightedPipePct}% of open pipeline</div></div><div className="dl-spark"><Spark color="#0ea5a3" up /></div></div>
-        </div>
+        <StatCard label="Total Pipeline" value={fmtM(pipeline)} sub={`${recs.length} of ${recs.length} deals`}
+          right={<div className="dl-spark"><Spark color="#1f9d57" up /></div>} />
+        <StatCard label="Commit" value={fmtM(commit)} sub={`${commitRecs.length} deals`}
+          right={<div className="dl-spark"><Spark color="#5b8cff" up /></div>} />
+        <StatCard label="At Risk" value={fmtM(atRisk)} sub={`${atRiskRecs.length} deals`}
+          right={<div className="dl-spark"><Spark color="#d6453b" up={false} /></div>} />
+        <StatCard label="AI Score" value={aiScore} sub={`● ${aiLabel}`} subColor={aiColor}
+          right={<div className="dl-donut" style={{ ["--p" as any]: aiScore, ["--c" as any]: aiColor }}><span /></div>} />
+        <StatCard label="Weighted Forecast" value={fmtM(weighted)} sub={`${weightedPct}% of open pipeline`}
+          right={<div className="dl-spark"><Spark color="#7c4dff" up /></div>} onClick={() => setOpen("forecast")} />
+        <StatCard label="Weighted Pipeline" value={fmtM(weightedPipe)} sub={`${weightedPipePct}% of open pipeline`}
+          right={<div className="dl-spark"><Spark color="#0ea5a3" up /></div>} onClick={() => setOpen("pipeline")} />
       </div>
 
       {open === "forecast" ? (

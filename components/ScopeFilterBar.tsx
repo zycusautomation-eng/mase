@@ -4,6 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { useDashboard, type DealFilters } from "@/lib/engine/DashboardContext";
 import { vpsList, teamOwners, ownersForVpsStatic, uniqSorted, fyq, STAGE_ORDER, SCORE_BANDS, normCountry, type Rec } from "@/lib/engine/helpers";
 import MultiSelect, { type Opt } from "@/components/MultiSelect";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import { Star, Crown, SlidersHorizontal, X, ChevronDown } from "lucide-react";
 
 const SIZE_OPTS: Opt[] = [
   { value: "lt250", label: "< $250K" },
@@ -114,43 +118,41 @@ export default function ScopeFilterBar() {
       <span className="fdivider" />
 
       {/* favourites — personal starred deals (localStorage). Toggles the book to favs only. */}
-      <button
-        type="button"
+      <Button
+        type="button" variant="outline" size="sm"
+        aria-pressed={favsOnly}
         onClick={() => setFavsOnly(!favsOnly)}
         title={favsOnly ? "Showing only your favourites — click to show all" : "Show only your favourite deals"}
-        style={{
-          display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 11px",
-          borderRadius: 8, border: "1px solid", cursor: "pointer", fontWeight: 600, fontSize: 12,
-          whiteSpace: "nowrap",
-          borderColor: favsOnly ? "#f0b400" : "var(--line, #e2e2ea)",
-          background: favsOnly ? "#fff7e0" : "transparent",
-          color: favsOnly ? "#8a6100" : "inherit",
-        }}
+        className={cn(
+          "h-8 gap-1.5 whitespace-nowrap rounded-lg px-2.5 text-[12px] font-semibold",
+          favsOnly
+            ? "border-[#f0b400] bg-[#fff7e0] text-[#8a6100] hover:bg-[#fbe9bf] hover:text-[#8a6100]"
+            : "border-[var(--line)] text-[var(--ink2)] hover:border-[var(--accent)] hover:text-[var(--ink)]"
+        )}
       >
-        <span style={{ color: "#f0b400", fontSize: 14, lineHeight: 1 }}>{favsOnly ? "★" : "☆"}</span>
+        <Star className={cn("size-3.5", favsOnly ? "fill-[#f0b400] text-[#f0b400]" : "text-[#f0b400]")} />
         Favourites{favs.size ? ` (${favs.size})` : ""}
-      </button>
+      </Button>
 
       {/* CEO help — quick toggle beside Favourites: filters the book to deals that need
           CEO intervention. ADMIN-ONLY: hidden entirely for non-admins (and for an admin
           simulating a non-admin view). */}
       {isAdminView && (
-      <button
-        type="button"
+      <Button
+        type="button" variant="outline" size="sm"
+        aria-pressed={ceoOn}
         onClick={() => setFilter("ceo", ceoOn ? [] : ["CEO help needed"])}
         title={ceoOn ? "Showing only deals needing CEO help — click to show all" : "Show only deals needing CEO help"}
-        style={{
-          display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 11px",
-          borderRadius: 8, border: "1px solid", cursor: "pointer", fontWeight: 600, fontSize: 12,
-          whiteSpace: "nowrap",
-          borderColor: ceoOn ? "#e0443e" : "var(--line, #e2e2ea)",
-          background: ceoOn ? "#fdecea" : "transparent",
-          color: ceoOn ? "#a12622" : "inherit",
-        }}
+        className={cn(
+          "h-8 gap-1.5 whitespace-nowrap rounded-lg px-2.5 text-[12px] font-semibold",
+          ceoOn
+            ? "border-[#e0443e] bg-[#fdecea] text-[#a12622] hover:bg-[#f9dad6] hover:text-[#a12622]"
+            : "border-[var(--line)] text-[var(--ink2)] hover:border-[var(--accent)] hover:text-[var(--ink)]"
+        )}
       >
-        <span style={{ fontSize: 13, lineHeight: 1 }}>👔</span>
+        <Crown className={cn("size-3.5", ceoOn ? "text-[#e0443e]" : "text-[var(--muted)]")} />
         CEO help
-      </button>
+      </Button>
       )}
 
       <span className="fdivider" />
@@ -161,11 +163,23 @@ export default function ScopeFilterBar() {
 
       {/* Filters — single entry point (progressive disclosure) */}
       <div className="fpop" ref={fref}>
-        <button type="button" className={`fpop-btn ${activeFacets.length ? "on" : ""}`} onClick={() => setFopen((o) => !o)} title="Filters">
-          <span className="fpop-ic" aria-hidden>⛃</span> Filters
-          {activeFacets.length ? <span className="fbadge">{activeFacets.length}</span> : null}
-          <span className="fpop-caret" aria-hidden>▾</span>
-        </button>
+        <Button
+          type="button" variant="outline" size="sm"
+          onClick={() => setFopen((o) => !o)}
+          aria-expanded={fopen} title="Filters"
+          className={cn(
+            "h-8 gap-1.5 rounded-lg px-2.5 text-[12px] font-semibold",
+            activeFacets.length
+              ? "border-[var(--accent)] text-[var(--accent)] hover:text-[var(--accent)]"
+              : "border-[var(--line)] text-[var(--ink2)] hover:border-[var(--accent)] hover:text-[var(--ink)]"
+          )}
+        >
+          <SlidersHorizontal className="size-3.5" /> Filters
+          {activeFacets.length ? (
+            <Badge className="ml-0.5 h-4 min-w-4 justify-center rounded-full bg-[var(--accent)] px-1 text-[10px] tabular-nums text-white">{activeFacets.length}</Badge>
+          ) : null}
+          <ChevronDown className={cn("size-3 text-[var(--muted)] transition-transform", fopen && "rotate-180")} />
+        </Button>
         {fopen ? (
           <div className="fpop-panel">
             <div className="fpop-grid">
@@ -183,14 +197,30 @@ export default function ScopeFilterBar() {
 
       {/* active-filter chips — only applied facets take space */}
       {activeFacets.map((fa) => (
-        <span className="fchip" key={fa.key as string}>
-          <span className="fchip-k">{fa.label}</span>
-          <span className="fchip-v">{((filters[fa.key] || []) as string[]).map((v) => labelOf(fa.opts, v)).join(", ")}</span>
-          <button type="button" className="fchip-x" onClick={() => f(fa.key)([])} aria-label={`Clear ${fa.label}`}>✕</button>
-        </span>
+        <Badge
+          key={fa.key as string}
+          variant="secondary"
+          className="max-w-[280px] gap-1.5 rounded-full border-transparent bg-[var(--accent-soft)] py-1 pl-2.5 pr-1 text-[12px] font-normal text-[var(--ink2)]"
+        >
+          <span className="font-semibold text-[var(--accent)]">{fa.label}</span>
+          <span className="truncate">{((filters[fa.key] || []) as string[]).map((v) => labelOf(fa.opts, v)).join(", ")}</span>
+          <button
+            type="button"
+            onClick={() => f(fa.key)([])}
+            aria-label={`Clear ${fa.label}`}
+            className="inline-flex size-4 shrink-0 items-center justify-center rounded-full text-[var(--muted)] transition-colors hover:bg-black/10 hover:text-[var(--ink)]"
+          >
+            <X className="size-3" />
+          </button>
+        </Badge>
       ))}
 
-      {dirty ? <button className="fclear" onClick={clearFilters}>Clear all</button> : null}
+      {dirty ? (
+        <Button type="button" variant="ghost" size="sm" onClick={clearFilters}
+          className="h-8 rounded-lg px-2.5 text-[12px] font-semibold text-[var(--muted)] hover:bg-[var(--surface2)] hover:text-[var(--ink)]">
+          Clear all
+        </Button>
+      ) : null}
       <span className="fcount" id="f-count">{filtered.length} of {scoped.length} deal{scoped.length === 1 ? "" : "s"}</span>
     </div>
   );
