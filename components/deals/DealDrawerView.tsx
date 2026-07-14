@@ -8,7 +8,8 @@ import { useMemo, useState } from "react";
 import { fmtAmount, fmtRevenueM, normCountry, daysSince, healthLabel, verdictTone, clipWords, clipWordsClean, getEbOverride, sfLinkFor, ceoAreaLabel, type Rec } from "@/lib/engine/helpers";
 import { useDealAi } from "@/components/deals/DealAiProvider";
 import { Monogram } from "@/components/ui/Monogram";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/dialog";
+import { X } from "lucide-react";
 import { useBackendTodos } from "@/lib/engine/useBackendTodos";
 import { AddUpdateForm } from "@/components/deals/DealDetailView";
 import { useTodoDone } from "@/lib/engine/useTodoDone";
@@ -881,17 +882,28 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
       {scoresClickable ? (
         <Dialog open={scoresOpen} onOpenChange={setScoresOpen}>
           {/* z-[200] on BOTH overlay and content so the modal sits above the deal drawer
-              (z-91) it's opened from — matches the old sfm-overlay modal's z-index. */}
-          <DialogContent overlayClassName="z-[200]" className="z-[200] flex max-h-[86vh] max-w-xl flex-col gap-0 overflow-hidden rounded-2xl border-[var(--line)] bg-[var(--surface)] p-0 shadow-2xl">
-            <DialogHeader className="shrink-0 space-y-1.5 border-b border-[var(--line)] px-6 pb-4 pt-6 text-left">
-              <DialogTitle className="text-[17px] font-bold tracking-[-0.01em] text-[var(--ink)]">
+              (z-91) it's opened from. Wider (max-w-3xl) so the reasons have room; the built-in
+              close button is disabled in favour of a clean custom one (top-right). */}
+          <DialogContent
+            showCloseButton={false}
+            overlayClassName="z-[200]"
+            className="z-[200] flex max-h-[88vh] w-[calc(100vw-2rem)] max-w-3xl sm:max-w-3xl flex-col gap-0 overflow-hidden rounded-2xl border-[var(--line)] bg-[var(--surface)] p-0 shadow-2xl"
+          >
+            <DialogClose
+              aria-label="Close"
+              className="absolute right-4 top-4 z-10 inline-flex size-8 items-center justify-center rounded-full text-[var(--muted)] outline-none transition-colors hover:bg-[var(--surface2)] hover:text-[var(--ink)] focus-visible:ring-2 focus-visible:ring-[var(--accent)]/40"
+            >
+              <X className="size-[18px]" />
+            </DialogClose>
+            <DialogHeader className="shrink-0 space-y-1.5 border-b border-[var(--line)] px-7 pb-4 pt-6 pr-14 text-left">
+              <DialogTitle className="text-[18px] font-bold tracking-[-0.01em] text-[var(--ink)]">
                 Scores &amp; reasons — <span className="text-[var(--accent)]">{h.account_name || rec.opp_id}</span>
               </DialogTitle>
               <DialogDescription className="text-[12.5px] leading-relaxed text-[var(--muted)]">
                 A plain-English read on each score, the honest downside, and what moves the deal — grounded in the latest Salesforce and call evidence.
               </DialogDescription>
             </DialogHeader>
-            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+            <div className="min-h-0 flex-1 overflow-y-auto px-7 py-5">
               <DealReasonsPanel ds={ai.deal_scores} />
             </div>
           </DialogContent>

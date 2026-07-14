@@ -10,7 +10,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { type Rec } from "@/lib/engine/helpers";
-import { getCachedDeal, prefetchDeal } from "@/lib/engine/dealCache";
+import { getCachedDeal, refetchDeal } from "@/lib/engine/dealCache";
 import DealDrawerView from "@/components/deals/DealDrawerView";
 
 export default function DealDrawer({
@@ -28,11 +28,21 @@ export default function DealDrawer({
     if (!oid) { setFull(null); return; }
     // Instant paint: if the full record is already cached (row was hovered, or the deal was
     // opened before), show it synchronously — no blank-detail wait. Otherwise fall back to
-    // the slim record while we fetch. Either way, refresh in the background so it stays fresh.
+    // the slim record while we fetch.
     setFull(getCachedDeal(oid));
     let off = false;
-    prefetchDeal(oid)?.then((rec) => { if (!off && rec) setFull(rec); });
-    return () => { off = true; };
+    const pull = () => { refetchDeal(oid)?.then((rec) => { if (!off && rec) setFull(rec); }); };
+    // Always fetch FRESH on open (ignore the cache TTL) so the drawer shows the latest — not a
+    // stale copy from a hover 4 minutes ago.
+    pull();
+    // Keep it LIVE while open: re-pull on the same ~20s cadence as the book poll, so a re-sweep
+    // / CDC update surfaces in the open drawer — including the Scores & reasons modal — with no
+    // reopen. Paused while the tab is hidden (no background churn).
+    const poll = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      pull();
+    }, 20000);
+    return () => { off = true; clearInterval(poll); };
   }, [record?.opp_id]);
 
   // Close on Escape whenever the drawer is open (belt-and-suspenders alongside the backdrop click).

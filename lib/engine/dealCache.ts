@@ -26,13 +26,13 @@ export function getCachedDeal(oid: string): any | null {
   return e && Date.now() - e.at < TTL ? e.rec : null;
 }
 
-// Fetch the full record into the cache (deduped). Returns the in-flight/next promise, or
-// undefined when a fresh copy is already cached (nothing to do). Never throws.
-export function prefetchDeal(oid: string): Promise<any> | undefined {
+// Force a live fetch of the full record, update the cache, return it (deduped). Unlike
+// prefetchDeal this IGNORES the freshness TTL — used by the open drawer to always show the
+// latest on open and to poll for updates while open. Never throws.
+export function refetchDeal(oid: string): Promise<any> | undefined {
   const id = String(oid || "").trim();
   if (!id) return;
   const k = keyOf(id);
-  if (getCachedDeal(id)) return; // already fresh
   const existing = INFLIGHT.get(k);
   if (existing) return existing;
   const p = fetch(`/api/deal-engine/opportunities/${encodeURIComponent(id)}`, { cache: "no-store" })
@@ -46,4 +46,11 @@ export function prefetchDeal(oid: string): Promise<any> | undefined {
     .finally(() => { INFLIGHT.delete(k); });
   INFLIGHT.set(k, p);
   return p;
+}
+
+// Warm the cache in the background (deduped). Returns undefined when a fresh copy is already
+// cached (nothing to do). Called on row hover so a click opens with the record already loaded.
+export function prefetchDeal(oid: string): Promise<any> | undefined {
+  if (getCachedDeal(oid)) return; // already fresh
+  return refetchDeal(oid);
 }
