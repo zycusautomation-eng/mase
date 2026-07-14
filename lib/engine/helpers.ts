@@ -12,8 +12,6 @@ export type Hard = any;
 // connects. (Not a VIBE project — those were the old "Bite Size" leftovers.)
 export const MASE_KNOWLEDGE_PROJECT_ID = "7e9b2f48-3c1a-4d6e-8b05-9a2c4f1d7e30";
 
-export const TODAY = new Date("2026-06-03");
-
 export const AI_ORDER: [string, string][] = [
   ["north_star_verdict", "North Star Verdict"],
   ["recommended_moves", "Recommended Moves"],
@@ -143,11 +141,15 @@ export function sizeBand(a: any): string {
 // Days since a date, or null when the date is missing/invalid. Returns null
 // (NOT a sentinel like 9999) so callers must explicitly decide how to present
 // "no date" — preventing magic numbers from leaking into the UI.
+// Whole days between `d` and NOW. Anchored to the real current date via Date.now() —
+// previously anchored to a hardcoded TODAY (2026-06-03) that had gone ~6 weeks stale, which
+// made every "N days ago" wrong (e.g. an activity on Jul 13 read as "40d ago" because it was
+// |Jun 3 − Jul 13|). Fresh per call so it never drifts within a long session.
 export function daysSince(d: any): number | null {
   if (!d) return null;
   const t = new Date(d).getTime();
   if (Number.isNaN(t)) return null;
-  return Math.round((TODAY.getTime() - t) / 86400000);
+  return Math.round((Date.now() - t) / 86400000);
 }
 
 // A deal is "stalled" (Matcha's domain — kept OUT of Espresso so the two tabs never
