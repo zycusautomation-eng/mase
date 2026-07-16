@@ -71,6 +71,13 @@ function isKnowledgePath(path?: string[]): boolean {
   return !!path && path.length >= 1 && path[0] === "knowledge";
 }
 
+// MASE Skills (Admin -> Skills): admin-authored, load-on-demand procedures for the
+// chat agent. Admin-only on every verb (create/list/get/enable/delete). /skills and
+// /skills/{id} and /skills/{id}/enabled.
+function isSkillsPath(path?: string[]): boolean {
+  return !!path && path.length >= 1 && path[0] === "skills";
+}
+
 // The RevOps chat itself is ADMIN-ONLY: the sync /chat, the streaming /chat/async,
 // and the /chat/prompt editor (prompt is also covered by isPromptPath). Anything
 // under `chat`. The backend trusts the shared token, so this proxy is the real gate.
@@ -91,6 +98,13 @@ function isSweepRerunPath(path?: string[]): boolean {
 // instructions encode the entire scoring strategy.
 function isScoringStudioPath(path?: string[]): boolean {
   return !!path && path.length >= 1 && path[0] === "scoring-studio";
+}
+
+// Database backup (Admin -> Database Backup): POST /backup/sync triggers a mirror of the
+// main DB into the mase-backup project; GET /backup/status reports the last run. Admin-only
+// on every verb — it moves production data.
+function isBackupPath(path?: string[]): boolean {
+  return !!path && path.length >= 1 && path[0] === "backup";
 }
 
 async function callerEmail(): Promise<string | null> {
@@ -188,7 +202,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
   // Admin-only reads: the team-wide chat/sweep system prompts (may encode strategy
   // / guardrails) and the todo-runner runs feed (shows what reps ran). The
   // todo-runner PROMPT GET stays open (reps' runs fetch it). Other GETs stay open.
-  if ((isPromptPath(path) || isTodoRunnerRunsPath(path) || isKnowledgePath(path)) && !(await callerIsAdmin())) {
+  if ((isPromptPath(path) || isTodoRunnerRunsPath(path) || isKnowledgePath(path) || isSkillsPath(path) || isBackupPath(path)) && !(await callerIsAdmin())) {
     return NextResponse.json({ error: "Admin only." }, { status: 403 });
   }
   if (isScoringStudioPath(path) && !(await callerIsSuperAdmin())) {
@@ -204,8 +218,8 @@ export async function GET(req: NextRequest, ctx: Ctx) {
 
 export async function DELETE(req: NextRequest, ctx: Ctx) {
   const { path } = await ctx.params;
-  // Knowledge doc deletion is admin-only.
-  if (isKnowledgePath(path) && !(await callerIsAdmin())) {
+  // Knowledge doc + skill deletion is admin-only.
+  if ((isKnowledgePath(path) || isSkillsPath(path)) && !(await callerIsAdmin())) {
     return NextResponse.json({ error: "Admin only." }, { status: 403 });
   }
   if (isScoringStudioPath(path) && !(await callerIsSuperAdmin())) {
@@ -219,7 +233,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   // Admin-only writes: the team-wide system prompts (chat/sweep + the todo-runner),
   // Learning Observatory mutations, and knowledge uploads. The backend trusts the
   // shared token, so this proxy is the real gate.
-  if ((isPromptPath(path) || isTodoRunnerPromptPath(path) || isLearningsWritePath(path) || isKnowledgePath(path) || isSweepRerunPath(path))
+  if ((isPromptPath(path) || isTodoRunnerPromptPath(path) || isLearningsWritePath(path) || isKnowledgePath(path) || isSkillsPath(path) || isSweepRerunPath(path) || isBackupPath(path))
       && !(await callerIsAdmin())) {
     return NextResponse.json({ error: "Admin only." }, { status: 403 });
   }

@@ -5,6 +5,7 @@ import { useDashboard } from "@/lib/engine/DashboardContext";
 import { ADMIN_EMAILS, EMAIL_TO_OWNER, uniqSorted, type Rec } from "@/lib/engine/helpers";
 import { DatalakeSyncCard } from "@/components/admin/DatalakeSyncCard";
 import RunSweepSection from "@/components/admin/RunSweepSection";
+import BackupSection from "@/components/admin/BackupSection";
 import MultiSelect, { type Opt } from "@/components/MultiSelect";
 
 // Admin → Agent Control. The single place admins manage MASE's agents: KNOWLEDGE
@@ -52,7 +53,7 @@ export default function AdminPage() {
 }
 
 function AdminInner() {
-  const [tab, setTab] = useState<"docs" | "todorunner" | "sweep" | "runsweep" | "chat" | "calls" | "execution" | "access">("docs");
+  const [tab, setTab] = useState<"docs" | "skills" | "todorunner" | "sweep" | "runsweep" | "chat" | "calls" | "execution" | "access" | "chats" | "backup">("docs");
   const [dealCount, setDealCount] = useState<number | null>(null);
   useEffect(() => {
     let off = false;
@@ -74,12 +75,13 @@ function AdminInner() {
         </div>
       </div>
       <div className="admin-tabs">
-        {([["docs", "Knowledge"], ["todorunner", "Todo Runner"], ["sweep", "Deal Sweep"], ["runsweep", "Run Sweep"], ["chat", "Chat Agent"], ["calls", "Calls"], ["execution", "Execution"], ["access", "Access & Config"]] as const).map(([k, label]) => (
+        {([["docs", "Knowledge"], ["skills", "Skills"], ["todorunner", "Todo Runner"], ["sweep", "Deal Sweep"], ["runsweep", "Run Sweep"], ["chat", "Chat Agent"], ["calls", "Calls"], ["execution", "Execution"], ["access", "Access & Config"], ["chats", "Chats"], ["backup", "Database Backup"]] as const).map(([k, label]) => (
           <button key={k} className={`admin-tab ${tab === k ? "active" : ""}`} onClick={() => setTab(k)}>{label}</button>
         ))}
       </div>
       <div className="admin-body">
         {tab === "docs" && <DocumentsSection />}
+        {tab === "skills" && <SkillsSection />}
         {tab === "todorunner" && <TodoRunnerSection />}
         {tab === "sweep" && <SweepPromptSection />}
         {tab === "runsweep" && <RunSweepSection />}
@@ -87,6 +89,8 @@ function AdminInner() {
         {tab === "calls" && <CallsSection />}
         {tab === "execution" && <ExecutionSection />}
         {tab === "access" && <AccessSection />}
+        {tab === "chats" && <ChatsSection />}
+        {tab === "backup" && <BackupSection />}
       </div>
     </div>
   );
@@ -352,6 +356,204 @@ function DocumentsSection() {
                 <pre className="kn-view-pre">{viewing.content || "(empty)"}</pre>
               )}
             </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── 1b. Skills — admin-authored, load-on-demand procedures for the chat agent ──
+// A skill is a named PROCEDURE (name + "when to use" description + Markdown body).
+// The chat agent always sees the name+description index and pulls the full body via
+// the load_skill tool only when a request matches. Distinct from Knowledge (data
+// retrieved by similarity) — a skill is an instruction the agent follows. Admin-only
+// on every verb (gated in the /api/deal-engine proxy). Backend: /api/deal-engine/skills.
+const SKILL_EXT = [".skill", ".md", ".markdown", ".txt"];
+
+function SkillsSection() {
+  const [skills, setSkills] = useState<any[]>([]);
+  const [listLoading, setListLoading] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  const [noteErr, setNoteErr] = useState(false);
+  const say = (m: string, e = false) => { setNote(m); setNoteErr(e); };
+
+  const [files, setFiles] = useState<File[]>([]);
+  const [dragActive, setDragActive] = useState(false);
+  const [pName, setPName] = useState("");
+  const [pDesc, setPDesc] = useState("");
+  const [pBody, setPBody] = useState("");
+
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [viewing, setViewing] = useState<any | null>(null);
+  const [viewLoading, setViewLoading] = useState(false);
+
+  const load = useCallback(async () => {
+    setListLoading(true);
+    try {
+      const r = await fetch(`/api/deal-engine/skills`, { cache: "no-store" });
+      const j = await r.json();
+      setSkills(Array.isArray(j) ? j : j.skills || []);
+    } catch { setSkills([]); }
+    setListLoading(false);
+  }, []);
+  useEffect(() => { void load(); }, [load]);
+
+  function addFiles(list: FileList | File[]) {
+    const arr = Array.from(list).filter((f) => SKILL_EXT.some((x) => f.name.toLowerCase().endsWith(x)));
+    if (!arr.length) { say("Only .skill / .md / .txt files.", true); return; }
+    setFiles((f) => [...f, ...arr]); say("");
+  }
+  function onDrop(e: React.DragEvent) { e.preventDefault(); setDragActive(false); if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files); }
+  const readText = (file: File) => new Promise<string>((res, rej) => {
+    const fr = new FileReader(); fr.onload = () => res(String(fr.result || "")); fr.onerror = () => rej(fr.error); fr.readAsText(file);
+  });
+
+  async function save() {
+    const hasFiles = files.length > 0;
+    const hasPaste = !!pName.trim() && !!pBody.trim();
+    if (!hasFiles && !hasPaste) { say("Add a .skill/.md file, or fill in name + instructions.", true); return; }
+    setBusy(true); say(""); let ok = 0, fail = 0;
+    for (const f of files) {
+      try {
+        const text = await readText(f);
+        const r = await fetch("/api/deal-engine/skills", {
+          method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ content: text, filename: f.name }),
+        });
+        const j = await r.json().catch(() => ({} as any));
+        if (!r.ok || j.error) { fail++; say(`${f.name}: ${j.error || `failed (${r.status})`}`, true); }
+        else ok++;
+      } catch (e: any) { fail++; say(e?.message || String(e), true); }
+    }
+    if (hasPaste) {
+      try {
+        const r = await fetch("/api/deal-engine/skills", {
+          method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ name: pName.trim(), description: pDesc.trim(), content: pBody }),
+        });
+        const j = await r.json().catch(() => ({} as any));
+        if (!r.ok || j.error) { fail++; say(j.error || `Save failed (${r.status})`, true); }
+        else { ok++; setPName(""); setPDesc(""); setPBody(""); }
+      } catch (e: any) { fail++; say(e?.message || String(e), true); }
+    }
+    setBusy(false); setFiles([]); void load();
+    if (fail === 0) setModalOpen(false);
+  }
+
+  async function toggle(s: any) {
+    setTogglingId(s.id);
+    try {
+      await fetch(`/api/deal-engine/skills/${encodeURIComponent(s.id)}/enabled`, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ enabled: !s.enabled }),
+      });
+      await load();
+    } catch { /* ignore */ }
+    setTogglingId(null);
+  }
+
+  async function del(s: any) {
+    if (!window.confirm(`Delete skill "${s.name}"? The chat agent will no longer be able to load it.`)) return;
+    setDeletingId(s.id);
+    try { const r = await fetch(`/api/deal-engine/skills/${encodeURIComponent(s.id)}`, { method: "DELETE" }); if (r.ok) await load(); } catch { /* ignore */ }
+    setDeletingId(null);
+  }
+
+  async function view(s: any) {
+    setViewing({ ...s, body: undefined }); setViewLoading(true);
+    try {
+      const r = await fetch(`/api/deal-engine/skills/${encodeURIComponent(s.id)}`, { cache: "no-store" });
+      const j = await r.json();
+      setViewing(r.ok && !j.error ? j : { ...s, body: `Couldn't load (${j.error || r.status}).` });
+    } catch (e: any) { setViewing({ ...s, body: `Couldn't load (${e?.message || e}).` }); }
+    setViewLoading(false);
+  }
+
+  return (
+    <div className="admin-card">
+      <div className="kn-head">
+        <div>
+          <h3>Skills</h3>
+          <p className="admin-desc" style={{ marginBottom: 0 }}>Reusable procedures the chat agent loads on demand. Upload a <b>.skill</b> or <b>.md</b> file (with an optional <code>name</code> / <code>description</code> frontmatter) or write one below. The agent sees each skill&rsquo;s name + &ldquo;when to use&rdquo; and loads the full instructions via <code>load_skill</code> when a request matches.</p>
+        </div>
+        <button className="admin-btn primary kn-add" onClick={() => { setFiles([]); say(""); setModalOpen(true); }}>+ Add skill</button>
+      </div>
+
+      <div className="kn-list-head">
+        <h4 style={{ margin: 0, fontSize: 13.5 }}>Skills <span className="admin-meta">({listLoading ? "…" : skills.length})</span></h4>
+        <button className="admin-btn kn-refresh" onClick={() => void load()} disabled={listLoading} title="Refresh">↻</button>
+      </div>
+      <div className="admin-doclist">
+        {skills.length === 0 && !listLoading ? (
+          <div className="admin-meta" style={{ padding: "18px 14px" }}>No skills yet. Click <b>+ Add skill</b> to upload a .skill/.md file or write one.</div>
+        ) : skills.map((s, i) => (
+          <div key={s.id || i} className="admin-docrow kn-docrow-click" onClick={() => void view(s)} title="View instructions">
+            <span className="admin-docname">
+              {s.name}
+              {s.description && <span className="admin-meta" style={{ display: "block", fontWeight: 400, marginTop: 2 }}>{s.description}</span>}
+            </span>
+            <span className="kn-row-meta">
+              <label className="kn-badge" onClick={(e) => e.stopPropagation()} style={{ cursor: "pointer", opacity: togglingId === s.id ? 0.5 : 1 }} title={s.enabled ? "Enabled — the agent can load this skill" : "Disabled — hidden from the agent"}>
+                <input type="checkbox" checked={!!s.enabled} onChange={() => void toggle(s)} disabled={togglingId === s.id} style={{ marginRight: 4, verticalAlign: "middle" }} />
+                {s.enabled ? "on" : "off"}
+              </label>
+              <button className="kn-del" onClick={(e) => { e.stopPropagation(); void del(s); }} disabled={deletingId === s.id} title="Delete skill" aria-label="Delete skill">
+                {deletingId === s.id ? "…" : "Delete"}
+              </button>
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {modalOpen && (
+        <div className="kn-modal-overlay" onClick={() => { if (!busy) setModalOpen(false); }}>
+          <div className="kn-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="kn-modal-head">
+              <h3>Add skill</h3>
+              <button className="kn-file-x" onClick={() => { if (!busy) setModalOpen(false); }} aria-label="Close">✕</button>
+            </div>
+            <p className="admin-desc">Upload <b>.skill</b> / <b>.md</b> file(s) — a leading <code>--- name / description ---</code> frontmatter is honoured, otherwise the first heading + line are used. Or write one directly below.</p>
+
+            <label
+              className={`kn-drop ${dragActive ? "drag" : ""}`}
+              onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
+              onDragLeave={() => setDragActive(false)}
+              onDrop={onDrop}
+            >
+              <input type="file" accept={SKILL_EXT.join(",")} multiple hidden onChange={(e) => { if (e.target.files?.length) addFiles(e.target.files); e.target.value = ""; }} />
+              <div className="kn-drop-main">Drag &amp; drop .skill / .md files, or <span className="kn-link">browse</span></div>
+              <div className="kn-drop-sub">{files.length ? `${files.length} file(s) staged: ${files.map((f) => f.name).join(", ")}` : "an optional name / description frontmatter is honoured"}</div>
+            </label>
+
+            <div style={{ margin: "14px 0 8px", fontSize: 12.5, fontWeight: 600, opacity: 0.6, textAlign: "center" }}>— or write one —</div>
+            <label className="kn-field"><span>Name</span><input value={pName} onChange={(e) => setPName(e.target.value)} placeholder="e.g. RFP Response" /></label>
+            <label className="kn-field"><span>When to use (description)</span><input value={pDesc} onChange={(e) => setPDesc(e.target.value)} placeholder="e.g. When a user asks how to respond to or submit an RFP" /></label>
+            <label className="kn-field"><span>Instructions (Markdown)</span>
+              <textarea value={pBody} onChange={(e) => setPBody(e.target.value)} rows={8} placeholder="The step-by-step procedure the agent should follow…" style={{ width: "100%", fontFamily: "inherit", resize: "vertical" }} />
+            </label>
+
+            {note && <div style={{ marginTop: 8, fontSize: 12.5, color: noteErr ? "#c0392b" : "inherit" }}>{note}</div>}
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 14 }}>
+              <button className="admin-btn" onClick={() => { if (!busy) setModalOpen(false); }} disabled={busy}>Cancel</button>
+              <button className="admin-btn primary" onClick={() => void save()} disabled={busy}>{busy ? "Saving…" : "Save skill"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {viewing && (
+        <div className="kn-modal-overlay" onClick={() => setViewing(null)}>
+          <div className="kn-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="kn-modal-head">
+              <h3>{viewing.name}</h3>
+              <button className="kn-file-x" onClick={() => setViewing(null)} aria-label="Close">✕</button>
+            </div>
+            {viewing.description && <p className="admin-desc">{viewing.description}</p>}
+            {viewLoading ? <div className="admin-meta">Loading…</div> : <pre className="kn-view-pre">{viewing.body || "(empty)"}</pre>}
           </div>
         </div>
       )}
@@ -993,5 +1195,146 @@ function AccessSection() {
       <p className="admin-desc">Runs on <code>claude-opus-4-8</code> (server-configured). Model/tool configuration is managed in the backend; surfacing it here is a planned upgrade.</p>
     </div>
     </>
+  );
+}
+
+// ── 5. Chats — every user's saved conversations, grouped by user ─────────────
+// Both chat types live in mase_chats: general RevOps chats (sidebar) and per-deal
+// "Ask AI" chats (title marked "[deal:<oid>]"). RLS scopes rows to their owner, so
+// this reads via the admin service-role route /api/admin/chats. Each user is an
+// accordion; a chat opens a read-only transcript (fetched on demand).
+type AdminChat = { id: string; type: "deal" | "general"; oid: string | null; title: string; created_at: string | null; updated_at: string | null };
+type AdminChatUserRow = { user_id: string; email: string | null; name: string | null; chatCount: number; lastActivity: string | null; chats: AdminChat[] };
+
+function ChatsSection() {
+  const [users, setUsers] = useState<AdminChatUserRow[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [viewing, setViewing] = useState<any | null>(null);
+  const [viewLoading, setViewLoading] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true); setErr(null);
+    try {
+      const r = await fetch("/api/admin/chats", { cache: "no-store" });
+      const j = await r.json();
+      if (!r.ok || j.error) { setErr(j.error || `Error ${r.status}`); setUsers([]); }
+      else setUsers(Array.isArray(j.users) ? j.users : []);
+    } catch (e: any) { setErr(e?.message || String(e)); setUsers([]); }
+    setLoading(false);
+  }, []);
+  useEffect(() => { void load(); }, [load]);
+
+  const toggleUser = (uid: string) => setExpanded((p) => { const n = new Set(p); if (n.has(uid)) n.delete(uid); else n.add(uid); return n; });
+
+  async function openChat(c: AdminChat) {
+    setViewing({ ...c, messages: undefined }); setViewLoading(true);
+    try {
+      const r = await fetch(`/api/admin/chats/${encodeURIComponent(c.id)}`, { cache: "no-store" });
+      const j = await r.json();
+      if (r.ok && !j.error) setViewing(j);
+      else setViewing({ ...c, messages: [], _err: j.error || `Error ${r.status}` });
+    } catch (e: any) { setViewing({ ...c, messages: [], _err: e?.message || String(e) }); }
+    setViewLoading(false);
+  }
+
+  const totalChats = (users || []).reduce((n, u) => n + u.chatCount, 0);
+  const TypeBadge = ({ t }: { t: "deal" | "general" }) => <span className={`chat-type ${t}`}>{t === "deal" ? "Deal" : "Chat"}</span>;
+
+  return (
+    <div className="admin-card">
+      <div className="kn-head">
+        <div>
+          <h3>Chats</h3>
+          <p className="admin-desc" style={{ marginBottom: 0 }}>Every user&rsquo;s saved conversations — both the RevOps <b>Chat</b> (sidebar) and per-<b>Deal</b> &ldquo;Ask AI&rdquo; chats. Expand a user, then click a chat to read the full transcript.</p>
+        </div>
+        <button className="admin-btn kn-refresh" onClick={() => void load()} disabled={loading} title="Refresh">↻</button>
+      </div>
+
+      <div className="kn-list-head">
+        <h4 style={{ margin: 0, fontSize: 13.5 }}>Users <span className="admin-meta">({loading && !users ? "…" : (users?.length || 0)})</span></h4>
+        <span className="admin-meta">{totalChats} chat{totalChats === 1 ? "" : "s"}</span>
+      </div>
+      {err && <div className="admin-note err" style={{ marginBottom: 8 }}>{err}</div>}
+
+      <div className="admin-doclist">
+        {(!users || users.length === 0) && !loading ? (
+          <div className="admin-meta" style={{ padding: "18px 14px" }}>No chats found.</div>
+        ) : (users || []).map((u) => {
+          const open = expanded.has(u.user_id);
+          const label = u.name || u.email || u.user_id;
+          return (
+            <div key={u.user_id} className="chat-acc">
+              <div className="admin-docrow chat-acc-head" onClick={() => toggleUser(u.user_id)} title={open ? "Collapse" : "Expand"}>
+                <span className="admin-docname">
+                  <span className="chat-chev" style={{ transform: open ? "rotate(90deg)" : "none" }}>›</span>
+                  <b>{label}</b>
+                  {u.name && u.email ? <span className="admin-meta" style={{ marginLeft: 8 }}>{u.email}</span> : null}
+                </span>
+                <span className="admin-meta">{u.chatCount} chat{u.chatCount === 1 ? "" : "s"}{u.lastActivity ? ` · ${String(u.lastActivity).slice(0, 10)}` : ""}</span>
+              </div>
+              {open ? (
+                <div className="chat-acc-body">
+                  {u.chats.length === 0 ? <div className="admin-meta" style={{ padding: "8px 14px" }}>No chats.</div> : u.chats.map((c) => (
+                    <div key={c.id} className="admin-docrow kn-docrow-click chat-row" onClick={() => void openChat(c)} title="View transcript">
+                      <span className="admin-docname"><TypeBadge t={c.type} /> {c.title}</span>
+                      <span className="kn-row-meta">
+                        {c.type === "deal" && c.oid ? <a href={`/deals/${encodeURIComponent(c.oid)}`} className="admin-meta chat-deal-link" onClick={(e) => e.stopPropagation()} title="Open the deal">deal ↗</a> : null}
+                        {c.updated_at ? <span className="admin-meta">{String(c.updated_at).slice(0, 10)}</span> : null}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Transcript viewer */}
+      {viewing && (
+        <div className="kn-modal-overlay" onClick={() => setViewing(null)}>
+          <div className="kn-modal kn-view" onClick={(e) => e.stopPropagation()}>
+            <div className="kn-modal-head">
+              <div className="kn-view-title">
+                <h3>{viewing.title || "Chat"}</h3>
+                <div className="kn-view-sub">
+                  <TypeBadge t={viewing.type === "deal" ? "deal" : "general"} />
+                  {(viewing.name || viewing.email) && <span className="admin-meta">{viewing.name || viewing.email}</span>}
+                  {Array.isArray(viewing.messages) && <span className="admin-meta">{viewing.messages.length} message{viewing.messages.length === 1 ? "" : "s"}</span>}
+                  {viewing.updated_at && <span className="admin-meta">{String(viewing.updated_at).slice(0, 10)}</span>}
+                  {viewing.type === "deal" && viewing.oid ? <a href={`/deals/${encodeURIComponent(viewing.oid)}`} className="admin-meta chat-deal-link">open deal ↗</a> : null}
+                </div>
+              </div>
+              <button className="kn-file-x" onClick={() => setViewing(null)} aria-label="Close">✕</button>
+            </div>
+            <div className="kn-view-body">
+              {viewLoading ? (
+                <div className="admin-meta" style={{ padding: "20px 4px" }}>Loading transcript…</div>
+              ) : viewing._err ? (
+                <div className="admin-note err">Couldn&rsquo;t load transcript ({viewing._err}).</div>
+              ) : !Array.isArray(viewing.messages) || viewing.messages.length === 0 ? (
+                <div className="admin-meta" style={{ padding: "16px 4px" }}>(empty conversation)</div>
+              ) : (
+                <div className="chat-transcript">
+                  {viewing.messages.map((m: any, i: number) => {
+                    const role = String(m?.role || "").toLowerCase() === "user" ? "user" : "assistant";
+                    const content = typeof m?.content === "string" ? m.content : (m?.content == null ? "" : JSON.stringify(m.content));
+                    if (!content.trim()) return null;
+                    return (
+                      <div key={i} className={`ct-msg ct-${role}`}>
+                        <div className="ct-role">{role === "user" ? "User" : "Assistant"}</div>
+                        <div className="ct-content">{content}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
