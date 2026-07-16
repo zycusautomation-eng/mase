@@ -412,7 +412,7 @@ export function vpOf(r: Rec): string | null {
 // Stages whose opps are terminal — won, lost, disqualified, or dropped. Substring
 // match so numbered SF stage names ("8. Closed Lost") and a bare "Lost" are caught;
 // "lost" subsumes "closed lost".
-const DEAD_STAGES = ["qualified out", "closed won", "omitted", "lost"];
+const DEAD_STAGES = ["qualified out", "closed won", "omitted", "lost", "no decision"];
 export function isDeadStage(stage: any): boolean {
   const k = String(stage || "").trim().toLowerCase();
   return DEAD_STAGES.some((d) => k.includes(d));
