@@ -11,7 +11,7 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { ChevronDown, ChevronUp, X, Sparkles, ArrowUp, ArrowLeft, Mic } from "lucide-react";
+import { ChevronDown, ChevronUp, X, Sparkles, ArrowUp, ArrowLeft, Mic, Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { setRunning, clearRunning } from "@/lib/engine/dealAiBus";
 import { useDictation } from "@/lib/engine/useDictation";
@@ -354,7 +354,7 @@ function DealChatWelcome({ deal, onPick }: { deal: DealForAgent; onPick: (p: str
   );
 }
 
-export default function DealAgentPanel({ deal, onClose, onBack, convoKey, initialMessages, resumeChatId, seed }: { deal: DealForAgent; onClose: () => void; onBack?: () => void; convoKey?: string; initialMessages?: Msg[]; resumeChatId?: string; seed?: string }) {
+export default function DealAgentPanel({ deal, onClose, onBack, onNewChat, convoKey, initialMessages, resumeChatId, seed }: { deal: DealForAgent; onClose: () => void; onBack?: () => void; onNewChat?: () => void; convoKey?: string; initialMessages?: Msg[]; resumeChatId?: string; seed?: string }) {
   const supabaseRef = useRef(createClient());
   const supabase = supabaseRef.current;
   // Resume target: an explicit running-registry chat_id, OR (durability) the chat_id
@@ -545,7 +545,14 @@ export default function DealAgentPanel({ deal, onClose, onBack, convoKey, initia
             <div className="truncate text-[11px] text-muted-foreground">{deal.oppName || "Deal AI"}</div>
           </div>
         </div>
-        <Button variant="ghost" size="icon" className="size-8" onClick={onClose}><X className="size-4" /></Button>
+        <div className="flex shrink-0 items-center gap-1">
+          {onNewChat ? (
+            <Button variant="ghost" size="sm" className="h-8 gap-1 px-2 text-[12.5px] font-medium text-[#5277F0] hover:bg-[#5277F0]/10" onClick={onNewChat} title="Start a new chat for this deal" aria-label="New chat">
+              <Plus className="size-3.5" /> New chat
+            </Button>
+          ) : null}
+          <Button variant="ghost" size="icon" className="size-8" onClick={onClose}><X className="size-4" /></Button>
+        </div>
       </div>
 
       <div className="relative flex min-h-0 flex-1 flex-col">

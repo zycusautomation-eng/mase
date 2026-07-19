@@ -347,7 +347,7 @@ function ClampMore({ text, words = 16, cls = "donow-more" }: { text: string; wor
 // gate header in place of the owner ("Deal team") label.
 
 export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: () => void }) {
-  const { openNewDeal } = useDealAi();
+  const { openNewDeal, openDeal } = useDealAi();
   const { canSeeScores, isAdminView, isSuperAdminView } = useDashboard();
   const backend = useBackendTodos();
   const { done: doneSet, toggle } = useTodoDone();
@@ -574,7 +574,7 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
                 {running ? "⏳ Running…" : "✦ Run Omnivision"}
               </button>
             ) : null}
-            <button className="btn ai" onClick={() => openNewDeal(dealForAi)}>✦ Ask AI</button>
+            <button className="btn ai" onClick={() => openDeal(dealForAi)}>✦ Ask Mase</button>
             <div className="iconbtn" onClick={onClose}>✕</div>
           </div>
         </div>
@@ -703,7 +703,7 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
         {/* DO NOW — the single highest-leverage next move (path-to-win detail lives in the Action tab) */}
         {doNow ? (
           <div className="donow">
-            <div className="donow-h"><span className="donow-ic">▷</span> Do now{doNow.act_by ? ` · by ${fmtDate(doNow.act_by)}` : ""}<button className="donow-ai" onClick={() => openNewDeal(dealForAi)}>Work this with AI →</button></div>
+            <div className="donow-h"><span className="donow-ic">▷</span> Do now{doNow.act_by ? ` · by ${fmtDate(doNow.act_by)}` : ""}<button className="donow-ai" onClick={() => openDeal(dealForAi)}>Work this with Mase →</button></div>
             {/* full action must always be reachable — clamp with an expander, never a dead "…" */}
             <div className="donow-text"><ClampMore text={String(doNow.action || "")} words={34} /></div>
             {spof ? <div className="donow-foot"><b>⚠ Single point of failure.</b> <ClampMore text={spof} words={16} /></div>

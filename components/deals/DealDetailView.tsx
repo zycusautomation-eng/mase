@@ -107,7 +107,7 @@ export default function DealDetailView({ rec, variant = "page", onClose }: { rec
   const { done, toggle } = useTodoDone();
   const sync = useTodoSync();
   const backend = useBackendTodos();
-  const { openNewDeal } = useDealAi();
+  const { openNewDeal, openDeal } = useDealAi();
   const { canSeeScores } = useDashboard();
 
   const h = rec.hard || {}, ai = rec.ai || {};
@@ -181,7 +181,7 @@ export default function DealDetailView({ rec, variant = "page", onClose }: { rec
           ) : null}
           {variant === "drawer" ? <Link href={`/deals/${encodeURIComponent(rec.opp_id)}`} className="dp-action">Full page →</Link> : null}
           {(() => { const sf = sfLinkFor(h, rec.opp_id); return sf ? <a className="dp-action" href={sf} target="_blank" rel="noreferrer">Salesforce ↗</a> : null; })()}
-          <button type="button" className="dp-action primary" onClick={() => openNewDeal(dealForAi)} title="Complete this deal's tasks with AI">✦ Ask AI</button>
+          <button type="button" className="dp-action primary" onClick={() => openDeal(dealForAi)} title="Ask Mase about this deal (resumes your last chat)">✦ Ask Mase</button>
         </div>
       </div>
 
@@ -204,7 +204,7 @@ export default function DealDetailView({ rec, variant = "page", onClose }: { rec
         </div>
       </div>
 
-      <DealFold rec={rec} canSeeScores={canSeeScores} onAskAi={() => openNewDeal(dealForAi)} />
+      <DealFold rec={rec} canSeeScores={canSeeScores} onAskAi={() => openDeal(dealForAi)} />
 
       <div className={`dp-grid ${variant === "drawer" ? "dp-grid-compact" : ""}`}>
         <div className="dp-main">
