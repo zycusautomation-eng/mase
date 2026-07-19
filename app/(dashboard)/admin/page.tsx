@@ -408,8 +408,14 @@ function SkillsSection() {
     setFiles((f) => [...f, ...arr]); say("");
   }
   function onDrop(e: React.DragEvent) { e.preventDefault(); setDragActive(false); if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files); }
-  const readText = (file: File) => new Promise<string>((res, rej) => {
-    const fr = new FileReader(); fr.onload = () => res(String(fr.result || "")); fr.onerror = () => rej(fr.error); fr.readAsText(file);
+  // Send the file as BYTES (base64), never readAsText: a .skill is a ZIP bundle
+  // (Anthropic layout: SKILL.md + references/*.md) and reading it as text produces
+  // NUL bytes that Postgres rejects (22P05). The backend detects zip-vs-markdown.
+  const readB64 = (file: File) => new Promise<string>((res, rej) => {
+    const fr = new FileReader();
+    fr.onload = () => { const s = String(fr.result || ""); res(s.slice(s.indexOf(",") + 1)); };
+    fr.onerror = () => rej(fr.error);
+    fr.readAsDataURL(file);
   });
 
   async function save() {
@@ -419,10 +425,10 @@ function SkillsSection() {
     setBusy(true); say(""); let ok = 0, fail = 0;
     for (const f of files) {
       try {
-        const text = await readText(f);
+        const b64 = await readB64(f);
         const r = await fetch("/api/deal-engine/skills", {
           method: "POST", headers: { "content-type": "application/json" },
-          body: JSON.stringify({ content: text, filename: f.name }),
+          body: JSON.stringify({ file_b64: b64, filename: f.name }),
         });
         const j = await r.json().catch(() => ({} as any));
         if (!r.ok || j.error) { fail++; say(`${f.name}: ${j.error || `failed (${r.status})`}`, true); }
