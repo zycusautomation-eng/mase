@@ -297,7 +297,8 @@ export function clipWordsClean(s: any, n: number): string {
 // sitting above the territory VPs (161 deals), and some deals carry a blank
 // manager or "Brijesh Kumar". We re-attribute every deal to its territory VP,
 // keyed by its owner, per the org chart below. Notes:
-//   - VP East Open is its own book (Alexa manages it, but it is NOT her West team).
+//   - David Buck (US East) is its own book (Alexa has region-admin sight of it, but it
+//     is NOT her West team).
 //   - Mohamad Alhakim is an RVP (UAE) under Carl, and Dan Quinn reports to Mohamad;
 //     both still roll up to Carl Kimball's book.
 //   - Arthur Raguette runs a solo territory and owns his deals himself.
@@ -320,9 +321,15 @@ export const OWNER_VP: Record<string, string> = {
   // Alexa Bradley — VP (West)
   "Alexa Bradley": "Alexa Bradley", "Karson Keogh": "Alexa Bradley", "Mario Castro": "Alexa Bradley",
   "Rick Taranek": "Alexa Bradley", "Kevin Cipollaro": "Alexa Bradley",
-  // VP East Open — separate book, managed by Alexa
-  "Edward Dlugosz": "VP East Open", "Marc Quessenberry": "VP East Open",
-  "Richard Hunsinger": "VP East Open", "Mike Flowers": "VP East Open",
+  // David Buck — VP (US East). Joined 2026-07-17, filling the previously-vacant
+  // "VP East Open" seat; the East book now rolls up to him (Alexa keeps region-admin
+  // visibility of it via EAST_VPS). NOTE: he has no Salesforce User yet, so he owns 0
+  // opportunities — his book is his team's until deals are assigned. Re-verify the exact
+  // SFDC display name ("David Buck") once IT provisions him, or deals he personally owns
+  // won't map here (same check done for Graeme Yates above).
+  "David Buck": "David Buck",
+  "Edward Dlugosz": "David Buck", "Marc Quessenberry": "David Buck",
+  "Richard Hunsinger": "David Buck", "Mike Flowers": "David Buck",
   // Arthur Raguette — VP, US Strategic Accounts (solo)
   "Arthur Raguette": "Arthur Raguette",
   // Michael McCarthy — VP, US Mid-Markets
@@ -529,7 +536,8 @@ export const EMAIL_TO_OWNER: Record<string, string> = {
   "karson.keogh@zycus.com": "Karson Keogh",
   "marioj.castro@zycus.com": "Mario Castro", // note: marioj, NOT mario.castro
   "rick.taranek@zycus.com": "Rick Taranek",
-  // VP East (open/vacant) — owners only
+  // David Buck — VP (US East), joined 2026-07-17
+  "david.buck@zycus.com": "David Buck",
   "edward.dlugosz@zycus.com": "Edward Dlugosz",
   "marc.quessenberry@zycus.com": "Marc Quessenberry",
   "richard.hunsinger@zycus.com": "Richard Hunsinger",
@@ -602,20 +610,20 @@ export function isSuperAdminEmail(email: string | null | undefined): boolean {
 // filter. US = the four US VP books (West, East, US Strategic, US Mid-Markets). Europe =
 // the two EMEA VP books (Anthony Gray — EU/UK, John Woodcock — Continental); Carl Kimball
 // (APAC/MEA) is NOT Europe and is excluded.
-export const US_VPS = ["Alexa Bradley", "VP East Open", "Arthur Raguette", "Michael McCarthy"];
+export const US_VPS = ["Alexa Bradley", "David Buck", "Arthur Raguette", "Michael McCarthy"];
 export const EUROPE_VPS = ["John Woodcock", "Anthony Gray"];
 // APAC/MEA = Carl Kimball's book (his whole team rolls up to him in OWNER_VP).
 export const APAC_VPS = ["Carl Kimball"];
-// East Admin = Alexa Bradley's three books: her own West team, the VP East Open book she
-// manages (see OWNER_VP), and Michael McCarthy (US Mid-Markets). A SUBSET of US_VPS — it
+// East Admin = Alexa Bradley's three books: her own West team, David Buck's US East book
+// (see OWNER_VP), and Michael McCarthy (US Mid-Markets). A SUBSET of US_VPS — it
 // excludes Arthur Raguette (US Strategic), so she sees these three books, not all of US.
-export const EAST_VPS = ["Alexa Bradley", "VP East Open", "Michael McCarthy"];
+export const EAST_VPS = ["Alexa Bradley", "David Buck", "Michael McCarthy"];
 export const REGION_ADMINS: Record<string, { name: string; vps: string[] }> = {
   "kasturi.talukdar@zycus.com": { name: "US Admin", vps: US_VPS },
   "rashi.varma@zycus.com": { name: "Europe Admin", vps: EUROPE_VPS },
   "chiranjivi.padole@zycus.com": { name: "APAC Admin", vps: APAC_VPS },
   // Alexa Bradley is herself a VP; this region-admin entry overrides her single-team scope
-  // so she ALSO sees the VP East Open book she manages + Michael McCarthy's Mid-Markets.
+  // so she ALSO sees David Buck's US East book + Michael McCarthy's Mid-Markets.
   "alexa.bradley@zycus.com": { name: "East Admin", vps: EAST_VPS },
 };
 
