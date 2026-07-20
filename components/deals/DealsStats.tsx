@@ -12,6 +12,7 @@
 // Each opens a modal that shows the weighting table that totals to the headline
 // number, plus the biggest weighted contributors (each links into its deal page).
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { useDashboard } from "@/lib/engine/DashboardContext";
 import { verdictTone, vpOf, vpsList, teamOwners, inScope, isDeadDeal } from "@/lib/engine/helpers";
@@ -74,7 +75,14 @@ function WeightedModal({ label, big, sub, catCol, rows, totalLabel, totalCount, 
   rows: Row[]; totalLabel: string; totalCount: number; totalRaw: number; totalWtd: number; totalWeightCell: string;
   top: TopDeal[]; onClose: () => void; onDeal: (id: string) => void; onSeeAll?: () => void; seeAllCount?: number;
 }) {
-  return (
+  // PORTAL to <body>. This modal is rendered from inside `.dl-head`, which is
+  // `position:sticky; z-index:30` — a STACKING CONTEXT. Trapped inside it, the modal's
+  // own z-index:96 only ranks it within `.dl-head`, so the sibling `.filterbar` (also
+  // z-index:30 but LATER in the DOM) painted straight over the modal. Portalling to
+  // body escapes that context so z-index:96 is page-level and the overlay covers the
+  // filter bar. Same pattern as DealDrawer.
+  if (typeof document === "undefined") return null;
+  return createPortal(
     <>
       <div className="statmodal-back" onClick={onClose} />
       <div className="statmodal" role="dialog" aria-modal="true" aria-label={`${label} breakdown`}>
@@ -140,7 +148,8 @@ function WeightedModal({ label, big, sub, catCol, rows, totalLabel, totalCount, 
           </div>
         ) : null}
       </div>
-    </>
+    </>,
+    document.body
   );
 }
 
@@ -189,7 +198,11 @@ function WeightedDrawer({ title, basisCol, base, weightOf, basisOf, onClose, onD
   const arrow = (k: typeof sortKey) => (sortKey === k ? (sortDir === "asc" ? " ↑" : " ↓") : "");
   const dirty = dVps.length > 0 || dRsds.length > 0;
 
-  return (
+  // Portalled to <body> for the same reason as WeightedModal: `.dl-head` is a
+  // sticky z-index:30 stacking context, so this drawer's z-index:98 would otherwise
+  // be trapped beneath the later-in-DOM `.filterbar`.
+  if (typeof document === "undefined") return null;
+  return createPortal(
     <>
       <div className="wfd-back" onClick={onClose} />
       <aside className="wfd" role="dialog" aria-modal="true" aria-label={`${title} — all deals`}>
@@ -240,7 +253,8 @@ function WeightedDrawer({ title, basisCol, base, weightOf, basisOf, onClose, onD
           </table>
         </div>
       </aside>
-    </>
+    </>,
+    document.body
   );
 }
 
