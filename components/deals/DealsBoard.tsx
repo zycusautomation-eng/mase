@@ -110,7 +110,7 @@ function ExecF2FCell({ f2f }: { f2f: any }) {
   // same em-dash as any other absent fact; only a real verdict renders a chip.
   if (!f2f || !f2f.status) return <>—</>;
 
-  const { status, date, exec_name, exec_title, days_stale, near_miss, brief } = f2f;
+  const { status, date, exec_name, exec_title, exec_side, days_stale, near_miss, brief } = f2f;
 
   // near_miss carries days_stale too (deal_engine_f2f.py sets it on that branch and leaves it
   // null on a plain "planned"), so a 594-day-old confirmed in-person meeting greys out like a
@@ -137,12 +137,18 @@ function ExecF2FCell({ f2f }: { f2f: any }) {
   // update that matters, summarized from the rep's Next Step notes. That substance — not date
   // or channel metadata — is what the reader wants. A short state line follows for context, and
   // the exec name shows when a C-level was actually in a meeting.
+  // "Done" credits a C-level on EITHER side — the buyer's CPO or our own CMO/CFO. exec_side
+  // says which, so the reader is never left thinking it means the customer when it was Zycus.
   const stateLine = status === "done"
-    ? "A C-level executive has met the team face-to-face."
+    ? (exec_side === "zycus"
+        ? "A Zycus C-level executive met them face-to-face."
+        : "A C-level executive on the buyer side met the team face-to-face.")
     : near_miss ? "Met in person, but no C-level executive was in the room."
       : status === "planned" ? "A C-level face-to-face is planned — not yet held."
         : "No face-to-face executive meeting on record.";
-  const execLine = exec_name ? `${exec_name}${exec_title ? ` — ${exec_title}` : ""}` : null;
+  const execLine = exec_name
+    ? `${exec_side === "zycus" ? "Zycus · " : ""}${exec_name}${exec_title ? ` — ${exec_title}` : ""}`
+    : null;
 
   // Single Radix tooltip only (no native title=, or both fire and stack under the cursor).
   // tabIndex={0} makes the chip focusable, so it opens on keyboard focus as well as hover.
