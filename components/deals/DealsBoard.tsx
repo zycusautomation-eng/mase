@@ -148,18 +148,14 @@ function ExecF2FCell({ f2f }: { f2f: any }) {
   const nearLine = near_miss ? "The in-person meeting is confirmed; no executive attendee was resolvable, so seniority is unproven." : null;
   const buyerLine = "Buyer-side attendance only. Salesforce records zero Zycus-side attendees, so this never asserts who from Zycus was in the room.";
 
-  // The evidence is MANDATORY, so it cannot live in a Radix tooltip alone: under asChild Radix
-  // injects no tabIndex, and it deliberately never opens on touch tap. Keyboard and tablet users
-  // would see "Done · 12 Mar 2026" with no route to the citation. Same fix DealScores.tsx uses —
-  // a native title=, which works on hover, long-press and in the a11y tree — plus tabIndex so
-  // the Radix tooltip opens on focus too. Both paths, same lines.
-  const plain = [evidence ? `“${evidence}”` : F2F_NO_EVIDENCE, dateLine, execLine, staleLine, nearLine, buyerLine]
-    .filter(Boolean).join("\n");
-
+  // Evidence is MANDATORY, and it lives in the Radix tooltip only — do NOT also set a native
+  // title=, or hover fires BOTH and the two tooltips stack (the styled Radix card plus the raw
+  // browser box under the cursor). tabIndex={0} makes the chip focusable, so Radix opens on
+  // keyboard focus as well as hover, which covers the a11y path the native title was there for.
   return (
     <Tooltip delayDuration={0}>
       <TooltipTrigger asChild>
-        <span tabIndex={0} title={plain} style={{ ...F2F_CHIP, ...tone }}>{label}</span>
+        <span tabIndex={0} style={{ ...F2F_CHIP, ...tone }}>{label}</span>
       </TooltipTrigger>
       <TooltipContent className="max-w-xs duration-100">
         <div style={{ display: "grid", gap: 5 }}>
