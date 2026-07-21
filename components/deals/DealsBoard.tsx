@@ -100,11 +100,6 @@ const fmtF2FDate = (s: any) => {
 // at 594 days). Still true, still shown — just greyed, with the age spelled out on hover.
 const F2F_STALE_DAYS = 180;
 
-// Shown in place of the quote when the module returned a verdict with no citable line. The
-// gap is stated OUT LOUD rather than dropped: a confident chip over an empty tooltip is the
-// bare verdict this column exists to prevent.
-const F2F_NO_EVIDENCE = "No citable line captured — open the deal.";
-
 const F2F_CHIP: React.CSSProperties = {
   display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700,
   borderRadius: 999, padding: "3px 9px", whiteSpace: "nowrap", cursor: "help",
@@ -115,7 +110,7 @@ function ExecF2FCell({ f2f }: { f2f: any }) {
   // same em-dash as any other absent fact; only a real "none" verdict says "No evidence".
   if (!f2f || !f2f.status) return <>—</>;
 
-  const { status, date, exec_name, exec_title, evidence, days_stale, near_miss } = f2f;
+  const { status, date, exec_name, exec_title, days_stale, near_miss } = f2f;
 
   // "none" is the one verdict with no tooltip — there is nothing to cite. It is also
   // deliberately NOT phrased as "Not yet": absence of a keyword is not proof a meeting
@@ -142,16 +137,24 @@ function ExecF2FCell({ f2f }: { f2f: any }) {
         ? { background: "#fdf4e3", border: "1px solid #ecd9ad", color: "#8a5a00" }
         : { background: "var(--surface2)", border: "1px solid var(--line)", color: "var(--ink2)" };
 
-  const dateLine = date ? `${status === "done" ? "Met" : "Dated"} ${fmtF2FDate(date)}` : null;
+  // The tooltip is a BRIEF, not a data dump: it states the SITUATION — a meeting happened
+  // without a senior exec, or an exec meeting is only planned — and never how the record was
+  // captured (email / call / Avoma / next-step). The raw subject line is deliberately not
+  // shown; the substance is what happened + who + when, the channel is plumbing.
+  const headline = status === "done"
+    ? "A face-to-face meeting with a senior (C-level) executive has taken place."
+    : near_miss
+      ? "A face-to-face meeting has taken place, but no senior (C-level) executive was in it."
+      : "A senior-executive face-to-face is planned — it has not happened yet.";
+  const dateLine = date
+    ? (status === "planned" && !near_miss ? `Planned for ${fmtF2FDate(date)}` : `Took place ${fmtF2FDate(date)}`)
+    : null;
   const execLine = exec_name ? `${exec_name}${exec_title ? ` — ${exec_title}` : ""}` : null;
-  const staleLine = stale ? `${days_stale} days ago — this is history, not a current signal.` : null;
-  const nearLine = near_miss ? "The in-person meeting is confirmed; no executive attendee was resolvable, so seniority is unproven." : null;
-  const buyerLine = "Buyer-side attendance only. Salesforce records zero Zycus-side attendees, so this never asserts who from Zycus was in the room.";
+  const staleLine = stale ? `${days_stale} days ago — history, not a current signal.` : null;
 
-  // Evidence is MANDATORY, and it lives in the Radix tooltip only — do NOT also set a native
-  // title=, or hover fires BOTH and the two tooltips stack (the styled Radix card plus the raw
-  // browser box under the cursor). tabIndex={0} makes the chip focusable, so Radix opens on
-  // keyboard focus as well as hover, which covers the a11y path the native title was there for.
+  // The tooltip is the ONLY tooltip on the chip — do NOT also set a native title=, or hover
+  // fires both and the styled card and the raw browser box stack under the cursor. tabIndex={0}
+  // makes the chip focusable, so Radix opens on keyboard focus as well as hover.
   return (
     <Tooltip delayDuration={0}>
       <TooltipTrigger asChild>
@@ -159,14 +162,10 @@ function ExecF2FCell({ f2f }: { f2f: any }) {
       </TooltipTrigger>
       <TooltipContent className="max-w-xs duration-100">
         <div style={{ display: "grid", gap: 5 }}>
-          {evidence
-            ? <div style={{ fontStyle: "italic" }}>“{evidence}”</div>
-            : <div style={{ fontWeight: 700 }}>{F2F_NO_EVIDENCE}</div>}
-          {dateLine ? <div>{dateLine}</div> : null}
+          <div style={{ fontWeight: 700 }}>{headline}</div>
           {execLine ? <div>{execLine}</div> : null}
-          {staleLine ? <div style={{ fontWeight: 700 }}>{staleLine}</div> : null}
-          {nearLine ? <div>{nearLine}</div> : null}
-          <div style={{ opacity: 0.75 }}>{buyerLine}</div>
+          {dateLine ? <div>{dateLine}</div> : null}
+          {staleLine ? <div style={{ opacity: 0.85 }}>{staleLine}</div> : null}
         </div>
       </TooltipContent>
     </Tooltip>
