@@ -107,65 +107,55 @@ const F2F_CHIP: React.CSSProperties = {
 
 function ExecF2FCell({ f2f }: { f2f: any }) {
   // NEVER swept for this ≠ no evidence found. A deal the module has not run on gets the
-  // same em-dash as any other absent fact; only a real "none" verdict says "No evidence".
+  // same em-dash as any other absent fact; only a real verdict renders a chip.
   if (!f2f || !f2f.status) return <>—</>;
 
-  const { status, date, exec_name, exec_title, days_stale, near_miss } = f2f;
-
-  // "none" is the one verdict with no tooltip — there is nothing to cite. It is also
-  // deliberately NOT phrased as "Not yet": absence of a keyword is not proof a meeting
-  // did not happen (measured: 20 provable false blanks in the book).
-  if (status === "none") {
-    return <span style={{ color: "var(--ink-faint, #98a1b3)" }}>No evidence</span>;
-  }
+  const { status, date, exec_name, exec_title, days_stale, near_miss, brief } = f2f;
 
   // near_miss carries days_stale too (deal_engine_f2f.py sets it on that branch and leaves it
-  // null on a plain "planned"), so a 594-day-old confirmed in-person meeting must grey out
-  // exactly like a stale "done" — it was landing in the one bucket the guard skipped.
+  // null on a plain "planned"), so a 594-day-old confirmed in-person meeting greys out like a
+  // stale "done". "none" never greys — it has no meeting to age.
   const stale = (status === "done" || near_miss) && typeof days_stale === "number" && days_stale > F2F_STALE_DAYS;
   const label = status === "done"
     ? `Done${date ? " · " + fmtF2FDate(date) : ""}`
-    : near_miss ? "Met, no exec" : "Planned";
-  // done = positive; anything stale is greyed out so a 594-day-old meeting cannot read as
-  // current; near-miss "Met, no exec" gets its own amber — the meeting is CONFIRMED there
-  // and only the seniority is unproven, which is the most valuable distinction here.
+    : near_miss ? "Met, no exec"
+      : status === "planned" ? "Planned"
+        : "No evidence";
+  // Chip colour tracks the F2F verdict; the HOVER tells you what is actually happening on the
+  // deal. "none" is borderless muted text — visually the old plain label, but now hoverable.
   const tone = stale
     ? { background: "#f4f5f7", border: "1px solid #e0e2e8", color: "var(--muted)" }
     : status === "done"
       ? { background: "#f1f8f3", border: "1px solid #b5d4bd", color: "#1b6e3a" }
       : near_miss
         ? { background: "#fdf4e3", border: "1px solid #ecd9ad", color: "#8a5a00" }
-        : { background: "var(--surface2)", border: "1px solid var(--line)", color: "var(--ink2)" };
+        : status === "planned"
+          ? { background: "var(--surface2)", border: "1px solid var(--line)", color: "var(--ink2)" }
+          : { background: "transparent", border: "1px solid transparent", color: "var(--ink-faint, #98a1b3)" };
 
-  // The tooltip is a BRIEF, not a data dump: it states the SITUATION — a meeting happened
-  // without a senior exec, or an exec meeting is only planned — and never how the record was
-  // captured (email / call / Avoma / next-step). The raw subject line is deliberately not
-  // shown; the substance is what happened + who + when, the channel is plumbing.
-  const headline = status === "done"
-    ? "A face-to-face meeting with a senior (C-level) executive has taken place."
-    : near_miss
-      ? "A face-to-face meeting has taken place, but no senior (C-level) executive was in it."
-      : "A senior-executive face-to-face is planned — it has not happened yet.";
-  const dateLine = date
-    ? (status === "planned" && !near_miss ? `Planned for ${fmtF2FDate(date)}` : `Took place ${fmtF2FDate(date)}`)
-    : null;
+  // The tooltip LEADS with the brief: what was discussed on the deal recently and the one
+  // update that matters, summarized from the rep's Next Step notes. That substance — not date
+  // or channel metadata — is what the reader wants. A short state line follows for context, and
+  // the exec name shows when a C-level was actually in a meeting.
+  const stateLine = status === "done"
+    ? "A C-level executive has met the team face-to-face."
+    : near_miss ? "Met in person, but no C-level executive was in the room."
+      : status === "planned" ? "A C-level face-to-face is planned — not yet held."
+        : "No face-to-face executive meeting on record.";
   const execLine = exec_name ? `${exec_name}${exec_title ? ` — ${exec_title}` : ""}` : null;
-  const staleLine = stale ? `${days_stale} days ago — history, not a current signal.` : null;
 
-  // The tooltip is the ONLY tooltip on the chip — do NOT also set a native title=, or hover
-  // fires both and the styled card and the raw browser box stack under the cursor. tabIndex={0}
-  // makes the chip focusable, so Radix opens on keyboard focus as well as hover.
+  // Single Radix tooltip only (no native title=, or both fire and stack under the cursor).
+  // tabIndex={0} makes the chip focusable, so it opens on keyboard focus as well as hover.
   return (
     <Tooltip delayDuration={0}>
       <TooltipTrigger asChild>
         <span tabIndex={0} style={{ ...F2F_CHIP, ...tone }}>{label}</span>
       </TooltipTrigger>
       <TooltipContent className="max-w-xs duration-100">
-        <div style={{ display: "grid", gap: 5 }}>
-          <div style={{ fontWeight: 700 }}>{headline}</div>
-          {execLine ? <div>{execLine}</div> : null}
-          {dateLine ? <div>{dateLine}</div> : null}
-          {staleLine ? <div style={{ opacity: 0.85 }}>{staleLine}</div> : null}
+        <div style={{ display: "grid", gap: 6 }}>
+          <div style={{ fontWeight: 600 }}>{brief || stateLine}</div>
+          {execLine ? <div style={{ opacity: 0.85 }}>{execLine}</div> : null}
+          {brief ? <div style={{ opacity: 0.6, fontSize: 11 }}>{stateLine}</div> : null}
         </div>
       </TooltipContent>
     </Tooltip>
