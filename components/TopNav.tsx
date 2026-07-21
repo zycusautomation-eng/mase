@@ -8,7 +8,7 @@ import { useDashboard } from "@/lib/engine/DashboardContext";
 import { useDealAi } from "@/components/deals/DealAiProvider";
 
 export default function TopNav() {
-  const { query, setQuery, isAdminView } = useDashboard();
+  const { query, setQuery } = useDashboard();
   const { openDock } = useDealAi();
   const router = useRouter();
   const pathname = usePathname();
@@ -42,17 +42,17 @@ export default function TopNav() {
         />
         <span className="kbd">⌘K</span>
       </div>
-      {/* Ask AI opens the deal-conversation dock — the same surface as the
-          admin-only /chat route — so it is shown to admins only (and hidden
-          while an admin simulates a rep/VP, matching the sidebar gate). */}
-      {isAdminView ? (
-        <button type="button" className="mase-nav-ai" onClick={openDock} title="Ask Mase — deal conversations">
-          <svg viewBox="0 0 24 24" fill="currentColor" width={15} height={15} aria-hidden>
-            <path d="M12 3l1.9 4.6L18.5 9.5 13.9 11.4 12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3Z" />
-          </svg>
-          Ask Mase
-        </button>
-      ) : null}
+      {/* Ask Mase opens the deal-conversation dock. Shown to ALL users: the dock
+          (DealChatsDock) is RLS-scoped to the signed-in user, so each person sees only
+          their OWN deal conversations — never anyone else's. (The separate strategist
+          /chat route stays admin-only; reps have no chats there, so the dock only ever
+          opens their per-deal panels.) */}
+      <button type="button" className="mase-nav-ai" onClick={openDock} title="Ask Mase — deal conversations">
+        <svg viewBox="0 0 24 24" fill="currentColor" width={15} height={15} aria-hidden>
+          <path d="M12 3l1.9 4.6L18.5 9.5 13.9 11.4 12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3Z" />
+        </svg>
+        Ask Mase
+      </button>
     </div>
   );
 }
