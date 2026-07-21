@@ -5,11 +5,39 @@
 // the Espresso ✦ AI buttons, and the deal page all drive the SAME panel/dock from
 // any page. The floating dock button is hidden (showButton=false) — the navbar opens it.
 import React, { createContext, useCallback, useContext, useRef, useState } from "react";
+import { Loader2, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { Monogram } from "@/components/ui/Monogram";
 import DealChatsDock, { type OpenConvo } from "./DealChatsDock";
 import DealAgentPanel, { type DealForAgent } from "./DealAgentPanel";
 
-interface PanelState { convoKey?: string; deal: DealForAgent; initialMessages?: any[]; resumeChatId?: string; seed?: string }
+interface PanelState { convoKey?: string; deal: DealForAgent; initialMessages?: any[]; resumeChatId?: string; seed?: string; loading?: boolean }
+
+// Instant-open shell shown while openDeal looks up the deal's saved conversation —
+// same geometry as DealAgentPanel so the swap-in doesn't jump. Keeps the click snappy:
+// the panel appears on the SAME frame as the click; history streams in when ready.
+function PanelLoading({ deal, onClose }: { deal: DealForAgent; onClose: () => void }) {
+  return (
+    <div className="mase-chat-root fixed right-0 top-0 bottom-0 z-[100] flex w-full max-w-[640px] flex-col border-l border-border bg-background shadow-2xl" style={{ fontFamily: "ui-sans-serif, system-ui, sans-serif" }}>
+      <div className="flex items-center justify-between border-b border-border px-3 py-3">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <Monogram name={deal.accountName} kind="account" size={28} className="ml-1 shrink-0" />
+          <div className="min-w-0">
+            <div className="truncate text-[14px] font-semibold text-foreground">{deal.accountName}</div>
+            <div className="truncate text-[11px] text-muted-foreground">{deal.oppName || "Deal AI"}</div>
+          </div>
+        </div>
+        <button type="button" onClick={onClose} className="rounded-md p-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground" aria-label="Close">
+          <X className="size-4" />
+        </button>
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 text-muted-foreground">
+        <Loader2 className="size-5 animate-spin" />
+        <div className="text-[12.5px]">Opening this deal&rsquo;s conversation…</div>
+      </div>
+    </div>
+  );
+}
 
 interface DealAiCtx {
   // ✦ AI on a deal. seed: undefined → default to-do scan; "" → blank chat; else that prompt.
@@ -41,7 +69,15 @@ export function DealAiProvider({ children }: { children: React.ReactNode }) {
   // continues where they left off, instead of a new blank chat every time. Falls back
   // to a fresh chat when the deal has no prior conversation. Resuming passes the row id
   // as convoKey, so the panel appends to that same mase_chats row (see keyRef/persist).
+  // Open INSTANTLY (loading shell on the click frame), then swap in the history.
+  // The token guards the async continuation: if the user closed the panel or clicked
+  // a different deal while the query was in flight, the stale result is dropped —
+  // a slow lookup can never reopen a dismissed panel or clobber a newer one.
+  const openReqRef = useRef(0);
   const openDeal = useCallback(async (deal: DealForAgent) => {
+    const token = ++openReqRef.current;
+    setPanel({ deal, loading: true });
+    let next: PanelState = { deal, seed: "" }; // fresh-chat fallback
     try {
       const { data } = await supabaseRef.current
         .from("mase_chats")
@@ -52,18 +88,20 @@ export function DealAiProvider({ children }: { children: React.ReactNode }) {
       const row = data?.[0];
       if (row?.id) {
         const msgs = Array.isArray(row.messages) ? row.messages : [];
-        setPanel({ convoKey: row.id, deal, initialMessages: msgs });
-        return;
+        next = { convoKey: row.id, deal, initialMessages: msgs };
       }
     } catch { /* fall through to a fresh chat */ }
-    setPanel({ deal, seed: "" });
+    if (openReqRef.current !== token) return; // closed or superseded while loading
+    setPanel((cur) => (cur && cur.loading && cur.deal.oid === deal.oid ? next : cur));
   }, []);
 
   return (
     <Ctx.Provider value={{ openNewDeal, openDeal, openDock }}>
       {children}
       <DealChatsDock onOpen={openExisting} open={dockOpen} onOpenChange={setDockOpen} showButton={false} />
-      {panel ? (
+      {panel && panel.loading ? (
+        <PanelLoading deal={panel.deal} onClose={() => setPanel(null)} />
+      ) : panel ? (
         <DealAgentPanel
           key={panel.convoKey || `new-${panel.deal.oid}-${panel.seed ?? "scan"}`}
           deal={panel.deal}
