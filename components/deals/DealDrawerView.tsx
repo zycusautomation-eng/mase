@@ -223,7 +223,15 @@ const CSS = `
 .ddw .cov-warn{font-size:11.5px;font-weight:800;color:var(--crit);background:var(--crit-bg);border-radius:999px;padding:3px 10px}
 .ddw .cov-lede{font-size:12px;color:var(--ink-mute);line-height:1.55;margin:7px 0 14px}
 .ddw .cov-grid{display:flex;gap:8px;flex-wrap:wrap}
-.ddw .cov{border-radius:11px;padding:9px 12px;min-width:120px}
+.ddw .cov{border-radius:11px;padding:9px 12px;flex:1 1 240px;min-width:210px;max-width:360px}
+.ddw .cov-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.ddw .cov .why{font-size:11px;color:var(--ink-soft);line-height:1.5;margin-top:6px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.ddw .imp{display:inline-flex;align-items:center;gap:5px;font-size:9.5px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;white-space:nowrap;line-height:1.3;align-self:flex-start}
+.ddw .imp .dot{width:7px;height:7px;border-radius:50%;flex:none}
+.ddw .imp.highest{color:var(--crit)} .ddw .imp.highest .dot{background:var(--crit)}
+.ddw .imp.high{color:var(--over)} .ddw .imp.high .dot{background:var(--over)}
+.ddw .imp.med{color:var(--neu)} .ddw .imp.med .dot{background:var(--neu)}
+.ddw .imp.low{color:var(--ink-faint)} .ddw .imp.low .dot{background:var(--ink-faint)}
 .ddw .cov .nm{font-size:12px;font-weight:800}
 .ddw .cov .role{font-size:10.5px;font-weight:600;margin-top:2px}
 .ddw .cov .stat{font-size:9.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;margin-top:6px}
@@ -305,6 +313,21 @@ const sentClass = (s: any) => { const t = String(s || "").toLowerCase(); return 
 // Sentiment is sometimes a full sentence from the model — the pill must show only a
 // short label (the long prose, if any, drops into the read column instead).
 const sentLabel = (s: any) => { const t = String(s || "").toLowerCase(); return /pos/.test(t) ? "Positive" : /neg|risk|concern|unk/.test(t) ? "At risk" : t ? "Neutral" : "Unknown"; };
+// Importance = a stakeholder's influence over THIS deal (Avoma-style Highest/High/Medium).
+// Orthogonal to engagement, which the coverage "stat" already shows. Prefers an explicit
+// `item.importance` if a future sweep emits one, else derives it from the mapped buyer
+// `role` (Champion / Economic Buyer / Coach / …) so it works today on every already-swept deal.
+const impOf = (s: any): { key: "highest" | "high" | "med" | "low"; label: string; rank: number } => {
+  const ex = String(s?.importance || "").toLowerCase();
+  if (/highest|critical/.test(ex)) return { key: "highest", label: "Highest", rank: 3 };
+  if (/\bhigh\b/.test(ex)) return { key: "high", label: "High", rank: 2 };
+  if (/\blow|minor/.test(ex)) return { key: "low", label: "Low", rank: 0 };
+  if (/\bmed/.test(ex)) return { key: "med", label: "Medium", rank: 1 };
+  const r = String(s?.role || "").toLowerCase();
+  if (/economic buyer|^eb$|decision[\s-]?maker|executive|sponsor|cfo|cxo|c-?level|champion/.test(r)) return { key: "highest", label: "Highest", rank: 3 };
+  if (/coach|influenc|buyer|evaluator|technical|advocate/.test(r)) return { key: "high", label: "High", rank: 2 };
+  return { key: "med", label: "Medium", rank: 1 };
+};
 const fmtDate = (s: any) => { if (!s) return ""; const d = new Date(s); return isNaN(d.getTime()) ? String(s) : d.toLocaleDateString(undefined, { day: "numeric", month: "short" }); };
 // A "by date" is past due once its calendar day is strictly before today (a date that
 // falls on today is still on time). Compared on local date parts to ignore time-of-day.
@@ -476,6 +499,13 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
     return { kind: "dark", stat: `Dark ${n}d` };
   };
   const liveCount = stake.filter((s: any) => covOf(s).kind === "live").length;
+  // Rank stakeholders by importance (Highest first), tie-broken by a live relationship —
+  // mirrors Avoma's ranked contact table. Used by both the coverage grid and the list below.
+  const stakeRanked = [...stake].sort((a: any, b: any) => {
+    const d = impOf(b).rank - impOf(a).rank;
+    if (d) return d;
+    return (covOf(b).kind === "live" ? 1 : 0) - (covOf(a).kind === "live" ? 1 : 0);
+  });
 
   const competitors = (ai.competitive_position || {}).competitors || [];
   const compWin = (c: any) => c.how_we_win || c.why || c.recommendation || c.win || c.note || "";
@@ -843,25 +873,30 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
             </div>
             <div className="cov-lede">{stake.length ? `${stake.length} mapped stakeholder${stake.length > 1 ? "s" : ""} — ${liveCount} with a live relationship.` : "No stakeholders mapped yet."}</div>
             <div className="cov-grid">
-              {stake.map((s: any, i: number) => { const cv = covOf(s); return (
-                <div className={`cov ${cv.kind}`} key={i}><div className="nm">{s.name}</div><div className="role">{s.title || s.role || ""}</div><div className="stat">{cv.stat}</div></div>
+              {stakeRanked.map((s: any, i: number) => { const cv = covOf(s); const im = impOf(s); const why = s.why || s.risk || ""; return (
+                <div className={`cov ${cv.kind}`} key={i}>
+                  <div className="cov-top"><div className="nm">{s.name}</div><span className={`imp ${im.key}`}><span className="dot" />{im.label}</span></div>
+                  <div className="role">{s.title || s.role || ""}</div>
+                  {why ? <div className="why">{why}</div> : null}
+                  <div className="stat">{cv.stat}</div>
+                </div>
               ); })}
             </div>
           </div>
 
           <div className="card card-pad mb14">
             <div className="ic-title" style={{ marginBottom: 14 }}>Stakeholders</div>
-            {stake.map((s: any, i: number) => (
+            {stakeRanked.map((s: any, i: number) => { const im = impOf(s); return (
               <div className="sh" key={i}>
                 <Monogram name={s.name || "?"} kind="person" size={32} />
                 <div className="who">
                   <div className="nm">{s.name}</div>
                   <div className="role">{s.title || ""}</div>
-                  <div className="pow"><span className="p">{s.role || ""}</span><span className={`sent ${sentClass(s.sentiment)}`}>{sentLabel(s.sentiment)}</span></div>
+                  <div className="pow"><span className={`imp ${im.key}`}><span className="dot" />{im.label}</span><span className="p">{s.role || ""}</span><span className={`sent ${sentClass(s.sentiment)}`}>{sentLabel(s.sentiment)}</span></div>
                 </div>
-                <div className="read">{s.risk || (String(s.sentiment || "").length > 24 ? s.sentiment : "")}</div>
+                <div className="read">{s.why || s.risk || (String(s.sentiment || "").length > 24 ? s.sentiment : "")}</div>
               </div>
-            ))}
+            ); })}
             {!stake.length ? <div className="ic-body">No stakeholders mapped.</div> : null}
           </div>
 
