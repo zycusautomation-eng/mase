@@ -14,6 +14,13 @@ import { ADMIN_EMAILS } from "@/lib/engine/helpers";
 const MODE_KEY = "flag:chat_access_mode";
 const ALLOW_KEY = "flag:chat_allowed_emails";
 
+// Ask-Mase per-user spend cap (see the SHARED CONTRACT). Both are plain app_config
+// rows (no flag: prefix) so the backend can read the same keys with its own helper.
+const ASK_CAP_KEY = "ask_mase_cap_usd";
+const ASK_WINDOW_HOURS_KEY = "ask_mase_window_hours";
+const ASK_CAP_DEFAULT_USD = 20;
+const ASK_WINDOW_DEFAULT_HOURS = 5;
+
 export type ChatAccessMode = "admins" | "everyone" | "allowlist";
 export type ChatAccess = { mode: ChatAccessMode; emails: string[] };
 
@@ -67,6 +74,40 @@ export async function setChatAccess(a: ChatAccess): Promise<ChatAccess> {
   await setRaw(MODE_KEY, mode);
   await setRaw(ALLOW_KEY, JSON.stringify(normEmails(a.emails)));
   return getChatAccess();
+}
+
+// Ask-Mase cap ($) + rolling window length (hours), read from app_config with the
+// contract defaults. Never throws — a config read hiccup falls back to the defaults
+// so the cap stays enforceable and the pre-check can proceed.
+export async function getAskMaseConfig(): Promise<{ cap: number; hours: number }> {
+  let cap = ASK_CAP_DEFAULT_USD;
+  let hours = ASK_WINDOW_DEFAULT_HOURS;
+  try {
+    const raw = await getRaw(ASK_CAP_KEY);
+    const n = raw == null ? NaN : Number(raw);
+    if (Number.isFinite(n) && n > 0) cap = n;
+  } catch { /* keep default */ }
+  try {
+    const raw = await getRaw(ASK_WINDOW_HOURS_KEY);
+    const n = raw == null ? NaN : Number(raw);
+    if (Number.isFinite(n) && n > 0) hours = n;
+  } catch { /* keep default */ }
+  return { cap, hours };
+}
+
+export type AskWindow = { window_start: string; spend_usd: number };
+
+// Current spend window for a (lower-cased) email via the service-role client, or
+// null when no window row exists. Throws on a DB error so callers can fail open.
+export async function readAskWindow(email: string): Promise<AskWindow | null> {
+  const { data, error } = await svc()
+    .from("mase_ask_window")
+    .select("window_start, spend_usd")
+    .eq("user_email", email)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+  return { window_start: String(data.window_start), spend_usd: Number(data.spend_usd) };
 }
 
 // Caller's lower-cased email from the Supabase session (getUser, then the signed

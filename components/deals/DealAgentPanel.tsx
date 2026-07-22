@@ -14,6 +14,7 @@ import remarkGfm from "remark-gfm";
 import { ChevronDown, ChevronUp, X, Sparkles, ArrowUp, ArrowLeft, Mic, Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { setRunning, clearRunning } from "@/lib/engine/dealAiBus";
+import { useDashboard } from "@/lib/engine/DashboardContext";
 import { useDictation } from "@/lib/engine/useDictation";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -371,6 +372,15 @@ export default function DealAgentPanel({ deal, onClose, onBack, onNewChat, convo
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(!!effResume);
   const [error, setError] = useState<string | null>(null);
+  const { isAdminView } = useDashboard();
+  // Ask-Mase spend cap (Claude-style): while `limited`, the composer is disabled until
+  // the window resets. `resetsAt` is the ISO reset time from the proxy's 429 body.
+  const [limited, setLimited] = useState(false);
+  const [resetsAt, setResetsAt] = useState<string | null>(null);
+  // Approaching-limit soft notice (non-blocking, dismissable). Admins never see it.
+  const [approaching, setApproaching] = useState(false);
+  const [approachingResetsAt, setApproachingResetsAt] = useState<string | null>(null);
+  const [noticeDismissed, setNoticeDismissed] = useState(false);
 
   // Voice dictation: each finalised speech chunk is appended into the composer. The
   // user still reviews the text and presses Enter to send — the send path is unchanged.
@@ -472,7 +482,7 @@ export default function DealAgentPanel({ deal, onClose, onBack, onNewChat, convo
   // Send a turn: append the user message + an assistant placeholder, mint a fresh
   // streaming chat_id, and POST the full conversation scoped to this deal's opp.
   const send = useCallback((text: string) => {
-    const t = text.trim(); if (!t || busy) return;
+    const t = text.trim(); if (!t || busy || limited) return;
     setError(null);
     const history = [...convoRef.current.filter((m) => m.content), { role: "user" as const, content: t }];
     const chatId = crypto.randomUUID();
@@ -490,11 +500,19 @@ export default function DealAgentPanel({ deal, onClose, onBack, onNewChat, convo
           body: JSON.stringify({ chat_id: chatId, opp_ids: [deal.oid], owner: deal.ownerName, messages: history.map((m) => ({ role: m.role, content: m.content })) }),
         });
         const j = await r.json().catch(() => ({}));
-        if (!r.ok || j.error) { failLastTurn(j.error || `Error ${r.status}`); }
+        if (r.status === 429) {
+          // Over the Ask-Mase spend cap. Claude-style: lock the composer until reset and
+          // show a friendly, dollar-free banner with the exact reset time.
+          const reset = typeof j.resets_at === "string" ? j.resets_at : null;
+          setResetsAt(reset); setLimited(true);
+          const when = reset ? new Date(reset).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "";
+          failLastTurn("You've reached your Ask Mase usage limit." + (when ? " Your access resets at " + when + "." : ""));
+        }
+        else if (!r.ok || j.error) { failLastTurn(j.error || `Error ${r.status}`); }
         else if (j.chat_id && j.chat_id !== chatId) setActiveChatId(j.chat_id);
       } catch (e: any) { failLastTurn(e?.message || String(e)); }
     })();
-  }, [busy, deal, persist, failLastTurn]);
+  }, [busy, limited, deal, persist, failLastTurn]);
 
   // New conversation → auto-run the todo scan once. Reopened conversation (initial
   // messages supplied) → just show the saved history, no auto-run.
@@ -527,8 +545,40 @@ export default function DealAgentPanel({ deal, onClose, onBack, onNewChat, convo
     return () => { supabase.removeChannel(channel); clearInterval(interval); clearTimeout(orphan); clearTimeout(watchdog); };
   }, [activeChatId, supabase, reconcile, failLastTurn]);
 
+  // Auto-clear the cap lock exactly at reset so the composer re-enables on its own (a
+  // retry before reset just 429s again and re-shows the banner). NEVER wedge: a missing
+  // or unparseable resetsAt clears the lock immediately rather than disabling the composer
+  // forever — the proxy always sends a valid resets_at, so this is a defensive fallback.
+  useEffect(() => {
+    if (!limited) return;
+    const t = resetsAt ? new Date(resetsAt).getTime() : NaN;
+    const ms = Number.isFinite(t) ? t - Date.now() : 0;
+    if (ms <= 0) { setLimited(false); return; }
+    const id = setTimeout(() => setLimited(false), ms);
+    return () => clearTimeout(id);
+  }, [limited, resetsAt]);
+
+  // Approaching-limit soft notice: on mount and after each completed turn, ask the proxy
+  // where this user stands. Admins are exempt (never fetch/show). Fail-open on any error.
+  const checkCap = useCallback(async () => {
+    if (isAdminView || limited) return;
+    try {
+      const r = await fetch("/api/deal-engine/usage/cap-check");
+      if (!r.ok) return;
+      const j = await r.json().catch(() => ({}));
+      if (j.exempt) return;
+      if (typeof j.spend === "number" && typeof j.cap === "number" && j.cap > 0 && j.spend >= j.cap * 0.8) {
+        setApproaching(true);
+        setApproachingResetsAt(typeof j.resets_at === "string" ? j.resets_at : null);
+      } else {
+        setApproaching(false);
+      }
+    } catch { /* metering hiccup → stay silent */ }
+  }, [isAdminView, limited]);
+  useEffect(() => { if (!busy) void checkCap(); }, [busy, checkCap]);
+
   function onKey(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); const v = input; setInput(""); send(v); }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (busy || limited) return; const v = input; setInput(""); send(v); }
   }
 
   // Right-side drawer — espresso stays visible behind it (no full-screen blackout).
@@ -614,6 +664,23 @@ export default function DealAgentPanel({ deal, onClose, onBack, onNewChat, convo
       ) : null}
       </div>
 
+      {/* Approaching-limit soft notice — non-blocking, dismissable. Never for admins/limited. */}
+      {approaching && !noticeDismissed && !isAdminView && !limited ? (
+        <div className="mx-5 mb-1 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-800">
+          <span className="flex-1">
+            You&apos;re approaching your Ask Mase limit{approachingResetsAt ? " — it resets at " + new Date(approachingResetsAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : ""}.
+          </span>
+          <button
+            type="button"
+            onClick={() => setNoticeDismissed(true)}
+            aria-label="Dismiss"
+            className="shrink-0 rounded p-0.5 text-amber-700 transition hover:text-amber-900"
+          >
+            <X className="size-3.5" />
+          </button>
+        </div>
+      ) : null}
+
       {/* Composer — same input as /chat, plus voice dictation (mic) */}
       <div className="px-5 py-4">
         <div className="rounded-2xl border border-border bg-muted/40 transition focus-within:border-indigo-400 focus-within:bg-card focus-within:ring-2 focus-within:ring-indigo-100">
@@ -621,8 +688,9 @@ export default function DealAgentPanel({ deal, onClose, onBack, onNewChat, convo
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={onKey}
+            disabled={limited}
             rows={2}
-            placeholder={dictation.listening ? "Listening… speak now" : "Ask about this deal, its to-dos, or next steps…"}
+            placeholder={limited ? "Ask Mase usage limit reached" : dictation.listening ? "Listening… speak now" : "Ask about this deal, its to-dos, or next steps…"}
             className="min-h-[52px] resize-none border-0 bg-transparent px-4 py-3 text-[14px] shadow-none focus-visible:ring-0"
           />
           {dictation.listening ? (
@@ -655,7 +723,7 @@ export default function DealAgentPanel({ deal, onClose, onBack, onNewChat, convo
             <Button
               size="icon"
               className="size-9 rounded-full bg-gradient-to-br from-[#6E8BFF] to-[#5277F0] text-white hover:opacity-95 disabled:opacity-40"
-              disabled={busy || !input.trim()}
+              disabled={busy || limited || !input.trim()}
               onClick={() => { const v = input; setInput(""); send(v); }}
             >
               <ArrowUp className="size-4" />

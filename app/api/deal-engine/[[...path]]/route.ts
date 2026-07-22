@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { ADMIN_EMAILS, SUPER_ADMIN_EMAILS } from "@/lib/engine/helpers";
 import { freshAccessToken } from "@/lib/sfdc/server";
-import { chatAllowedForCaller } from "@/lib/config/server";
+import { chatAllowedForCaller, getAskMaseConfig, readAskWindow } from "@/lib/config/server";
 
 // Server-side proxy. The browser calls same-origin /api/deal-engine/* and this
 // handler attaches the Bearer token (kept in a server-side env var) and forwards
@@ -107,6 +107,13 @@ function isBackupPath(path?: string[]): boolean {
   return !!path && path.length >= 1 && path[0] === "backup";
 }
 
+// Ask-Mase usage cap-check: GET /api/deal-engine/usage/cap-check. The proxy answers
+// this itself (reads mase_ask_window via the service role) — it never forwards to the
+// backend. Feeds the "approaching your limit" notice in the chat UI.
+function isCapCheckPath(path?: string[]): boolean {
+  return !!path && path.length === 2 && path[0] === "usage" && path[1] === "cap-check";
+}
+
 async function callerEmail(): Promise<string | null> {
   try {
     const supabase = await createClient();
@@ -199,6 +206,35 @@ type Ctx = { params: Promise<{ path?: string[] }> };
 
 export async function GET(req: NextRequest, ctx: Ctx) {
   const { path } = await ctx.params;
+  // Ask-Mase usage cap-check: answered here, never forwarded. Admins are exempt.
+  // Everyone else gets their current window's spend/remaining. Fail-open: on a read
+  // error report a full allowance so the notice never wrongly blocks/warns.
+  if (isCapCheckPath(path)) {
+    const { cap, hours } = await getAskMaseConfig();
+    if (await callerIsAdmin()) {
+      return NextResponse.json({ exempt: true, spend: 0, cap, remaining: cap, resets_at: null });
+    }
+    try {
+      const email = (await callerEmail() || "").toLowerCase();
+      const win = email ? await readAskWindow(email) : null;
+      let spend = 0;
+      let resets_at: string | null = null;
+      if (win) {
+        const resetMs = new Date(win.window_start).getTime() + hours * 3_600_000;
+        if (Date.now() < resetMs) {
+          spend = Number(win.spend_usd) || 0;
+          resets_at = new Date(resetMs).toISOString();
+        }
+      }
+      return NextResponse.json({
+        spend, cap, remaining: Math.max(0, cap - spend), resets_at, exempt: false,
+      });
+    } catch (e) {
+      console.error("[deal-engine proxy] cap-check read failed (fail-open):",
+        e instanceof Error ? e.message : String(e));
+      return NextResponse.json({ spend: 0, cap, remaining: cap, resets_at: null, exempt: false });
+    }
+  }
   // Admin-only reads: the team-wide chat/sweep system prompts (may encode strategy
   // / guardrails) and the todo-runner runs feed (shows what reps ran). The
   // todo-runner PROMPT GET stays open (reps' runs fetch it). Other GETs stay open.
@@ -244,6 +280,55 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   // "enable chat for users" toggle. The chat/prompt editor stays admin-only above.
   if (isChatPath(path) && !isPromptPath(path) && !(await chatAllowedForCaller())) {
     return NextResponse.json({ error: "Chat is not enabled for your account yet." }, { status: 403 });
+  }
+  // Ask-Mase per-user spend cap. Non-admin chat callers are metered against a rolling
+  // window (fixed length, anchored to first use). Over the cap while the window is
+  // still open -> 429 with the exact reset time. Otherwise we attribute the run by
+  // injecting the lower-cased user_email so the backend records the spend on success.
+  // The pre-check itself NEVER opens/modifies the window. Admins are exempt (no
+  // injection, no metering). Fail-open: any read error still forwards (attributed).
+  if (isChatPath(path) && !isPromptPath(path) && !(await callerIsAdmin())) {
+    const email = (await callerEmail() || "").toLowerCase();
+    try {
+      const { cap, hours } = await getAskMaseConfig();
+      const win = email ? await readAskWindow(email) : null;
+      if (win) {
+        const resetMs = new Date(win.window_start).getTime() + hours * 3_600_000;
+        if (Date.now() < resetMs && (Number(win.spend_usd) || 0) >= cap) {
+          return NextResponse.json(
+            { error: "You've reached your Ask Mase usage limit.", resets_at: new Date(resetMs).toISOString() },
+            { status: 429 }
+          );
+        }
+      }
+    } catch (e) {
+      console.error("[deal-engine proxy] ask-mase pre-check failed (fail-open):",
+        e instanceof Error ? e.message : String(e));
+    }
+    // Attribute the run so the backend meters this window — on the happy path AND
+    // after a fail-open read error. (Admins never reach here, so are never recorded.)
+    if (email) {
+      const raw = await req.text();
+      let body: Record<string, unknown> = {};
+      try { body = raw ? JSON.parse(raw) : {}; } catch { body = {}; }
+      body.user_email = email;
+      return forward(req, path, JSON.stringify(body));
+    }
+  }
+  // Any chat request that reaches here is exempt (an admin) or has no resolvable email.
+  // Neither is metered — but strip any client-supplied user_email so a crafted request
+  // can never attribute spend to an arbitrary user. The panel never sends one; this is
+  // defense-in-depth. (The backend only records when user_email is present, so a stripped
+  // body is a guaranteed no-op there.)
+  if (isChatPath(path) && !isPromptPath(path)) {
+    const raw = await req.text();
+    let body: Record<string, unknown> = {};
+    try { body = raw ? JSON.parse(raw) : {}; } catch { return forward(req, path, raw); }
+    if ("user_email" in body) {
+      delete body.user_email;
+      return forward(req, path, JSON.stringify(body));
+    }
+    return forward(req, path, raw);
   }
   // To-do push / manual update: inject the caller's Salesforce token so the write
   // (Task or Next_Step__c append) is authored as the rep. If they haven't connected,
