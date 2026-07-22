@@ -1212,6 +1212,24 @@ function AccessSection() {
 type AdminChat = { id: string; type: "deal" | "general"; oid: string | null; title: string; created_at: string | null; updated_at: string | null };
 type AdminChatUserRow = { user_id: string; email: string | null; name: string | null; chatCount: number; lastActivity: string | null; chats: AdminChat[] };
 
+// Compact, copyable chat id (the mase_chats UUID) — the chat analog of a deal's opp_id.
+// Shows the first 8 chars; clicking copies the full id (and never triggers the row click).
+function ChatIdChip({ id }: { id: string }) {
+  const [copied, setCopied] = useState(false);
+  if (!id) return null;
+  return (
+    <button
+      type="button"
+      className="admin-meta chat-id-chip"
+      onClick={(e) => { e.stopPropagation(); try { void navigator.clipboard?.writeText(id); setCopied(true); setTimeout(() => setCopied(false), 1200); } catch { /* clipboard blocked — no-op */ } }}
+      title={`Chat id: ${id} — click to copy`}
+      style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", cursor: "pointer", background: "none", border: "none", padding: 0 }}
+    >
+      {copied ? "copied ✓" : `#${id.slice(0, 8)}`}
+    </button>
+  );
+}
+
 function ChatsSection() {
   const [users, setUsers] = useState<AdminChatUserRow[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -1286,6 +1304,7 @@ function ChatsSection() {
                     <div key={c.id} className="admin-docrow kn-docrow-click chat-row" onClick={() => void openChat(c)} title="View transcript">
                       <span className="admin-docname"><TypeBadge t={c.type} /> {c.title}</span>
                       <span className="kn-row-meta">
+                        <ChatIdChip id={c.id} />
                         {c.type === "deal" && c.oid ? <a href={`/deals/${encodeURIComponent(c.oid)}`} className="admin-meta chat-deal-link" onClick={(e) => e.stopPropagation()} title="Open the deal">deal ↗</a> : null}
                         {c.updated_at ? <span className="admin-meta">{String(c.updated_at).slice(0, 10)}</span> : null}
                       </span>
@@ -1307,6 +1326,7 @@ function ChatsSection() {
                 <h3>{viewing.title || "Chat"}</h3>
                 <div className="kn-view-sub">
                   <TypeBadge t={viewing.type === "deal" ? "deal" : "general"} />
+                  {viewing.id ? <ChatIdChip id={String(viewing.id)} /> : null}
                   {(viewing.name || viewing.email) && <span className="admin-meta">{viewing.name || viewing.email}</span>}
                   {Array.isArray(viewing.messages) && <span className="admin-meta">{viewing.messages.length} message{viewing.messages.length === 1 ? "" : "s"}</span>}
                   {viewing.updated_at && <span className="admin-meta">{String(viewing.updated_at).slice(0, 10)}</span>}

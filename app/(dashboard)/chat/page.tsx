@@ -133,6 +133,30 @@ async function deleteChatDb(id: string): Promise<void> {
 }
 function timeLabel(ts: number) { try { return new Date(ts).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }); } catch { return ""; } }
 
+// A compact, copyable chat identifier — the chat analog of a deal's opp_id. mase_chats
+// rows are keyed by a UUID (the only stable id; also the /chat/<id> URL slug). We surface
+// its first 8 chars as a "#xxxxxxxx" chip; clicking copies the FULL id to the clipboard.
+function IdChip({ id, dark = false }: { id: string; dark?: boolean }) {
+  const [copied, setCopied] = useState(false);
+  if (!id) return null;
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        try { void navigator.clipboard?.writeText(id); setCopied(true); setTimeout(() => setCopied(false), 1200); } catch { /* clipboard blocked — no-op */ }
+      }}
+      title={`Chat id: ${id} — click to copy`}
+      className={cn(
+        "rounded px-1 font-mono text-[10px] leading-none tracking-wide transition",
+        dark ? "text-white/55 hover:bg-white/15 hover:text-white" : "text-muted-foreground/60 hover:bg-muted hover:text-indigo-600",
+      )}
+    >
+      {copied ? "copied ✓" : `#${id.slice(0, 8)}`}
+    </button>
+  );
+}
+
 // Group saved chats by relative day header ("Today" / "Yesterday" / a date).
 function dayBucket(ts: number): string {
   const d = new Date(ts); const now = new Date();
@@ -898,7 +922,10 @@ function ChatPageInner() {
                             active ? "bg-gradient-to-br from-[#6E8BFF] to-[#5277F0] text-white shadow-[0_8px_24px_rgba(98,128,240,0.3)]" : "text-foreground hover:bg-muted"
                           )}
                         >
-                          <span className="min-w-0 flex-1 break-words leading-snug" title={c.title}>{c.title}</span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block break-words leading-snug" title={c.title}>{c.title}</span>
+                            <IdChip id={c.id} dark={active} />
+                          </span>
                           <button
                             onClick={(e) => { e.stopPropagation(); deleteChat(c.id); }}
                             className={cn(
