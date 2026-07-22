@@ -225,6 +225,7 @@ const CSS = `
 .ddw .cov-grid{display:flex;gap:8px;flex-wrap:wrap}
 .ddw .cov{border-radius:11px;padding:9px 12px;flex:1 1 240px;min-width:210px;max-width:360px}
 .ddw .cov-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.ddw .nocrm{font-size:9px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;color:var(--over);margin-left:6px;white-space:nowrap}
 .ddw .cov .why{font-size:11px;color:var(--ink-soft);line-height:1.5;margin-top:6px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .ddw .imp{display:inline-flex;align-items:center;gap:5px;font-size:9.5px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;white-space:nowrap;line-height:1.3;align-self:flex-start}
 .ddw .imp .dot{width:7px;height:7px;border-radius:50%;flex:none}
@@ -878,7 +879,7 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
                   <div className="cov-top"><div className="nm">{s.name}</div><span className={`imp ${im.key}`}><span className="dot" />{im.label}</span></div>
                   <div className="role">{s.title || s.role || ""}</div>
                   {why ? <div className="why">{why}</div> : null}
-                  <div className="stat">{cv.stat}</div>
+                  <div className="stat">{cv.stat}{s._not_in_crm ? <span className="nocrm">· not in CRM</span> : null}</div>
                 </div>
               ); })}
             </div>
@@ -892,7 +893,7 @@ export default function DealDrawerView({ rec, onClose }: { rec: Rec; onClose?: (
                 <div className="who">
                   <div className="nm">{s.name}</div>
                   <div className="role">{s.title || ""}</div>
-                  <div className="pow"><span className={`imp ${im.key}`}><span className="dot" />{im.label}</span><span className="p">{s.role || ""}</span><span className={`sent ${sentClass(s.sentiment)}`}>{sentLabel(s.sentiment)}</span></div>
+                  <div className="pow"><span className={`imp ${im.key}`}><span className="dot" />{im.label}</span><span className="p">{s.role || ""}</span><span className={`sent ${sentClass(s.sentiment)}`}>{sentLabel(s.sentiment)}</span>{s._not_in_crm ? <span className="nocrm">not in CRM</span> : null}</div>
                 </div>
                 <div className="read">{s.why || s.risk || (String(s.sentiment || "").length > 24 ? s.sentiment : "")}</div>
               </div>

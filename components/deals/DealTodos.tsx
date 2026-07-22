@@ -442,13 +442,30 @@ export function DealTodoBuckets({
   sync: TodoSync;
   backend: Backend;
 }) {
+  // Completed todos (pushed to Salesforce, or locally checked off) are HIDDEN by default so
+  // a fresh sweep reads as a clean, actionable list — they live on in Salesforce and can be
+  // revealed with the toggle. isDone mirrors TodoRow's own rule (serverPushed || checked).
+  const [showDone, setShowDone] = useState(false);
   const rowProps = { ownerName, done, toggle, sync, backend };
   const grouped = buildActionBuckets(buckets, backend);
+  const isDone = (it: BackendTodoItem) => backend.isPushed(it) || done.has(it.todoKey);
+  const doneCount = ACTION_ORDER.reduce((n, k) => n + grouped[k].filter(isDone).length, 0);
   return (
     <>
-      {ACTION_ORDER.map((key) =>
-        grouped[key].length ? <BucketBlock key={key} bucketKey={key} items={grouped[key]} rowProps={rowProps} /> : null,
-      )}
+      {ACTION_ORDER.map((key) => {
+        const items = showDone ? grouped[key] : grouped[key].filter((it) => !isDone(it));
+        return items.length ? <BucketBlock key={key} bucketKey={key} items={items} rowProps={rowProps} /> : null;
+      })}
+      {doneCount > 0 ? (
+        <button
+          type="button"
+          onClick={() => setShowDone((v) => !v)}
+          className="td-meta"
+          style={{ background: "none", border: "none", cursor: "pointer", padding: "6px 2px", color: "var(--muted,#7E8DA1)", fontWeight: 700 }}
+        >
+          {showDone ? `Hide ${doneCount} completed` : `Show ${doneCount} completed ✓`}
+        </button>
+      ) : null}
     </>
   );
 }
