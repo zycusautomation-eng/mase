@@ -11,7 +11,7 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { ChevronDown, ChevronUp, X, Sparkles, ArrowUp, ArrowLeft, Mic, Plus } from "lucide-react";
+import { ChevronDown, ChevronUp, X, Sparkles, ArrowUp, ArrowLeft, Mic, Plus, Paperclip } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { setRunning, clearRunning } from "@/lib/engine/dealAiBus";
 import { useDashboard } from "@/lib/engine/DashboardContext";
@@ -29,7 +29,16 @@ import {
 export interface DealForAgent { oid: string; accountName: string; oppName?: string; ownerName?: string }
 
 interface Step { type: "thinking" | "tool_call" | "tool_result"; tool?: string; args?: string; content?: string; group?: "todo" }
-interface Msg { role: "user" | "assistant"; content: string; thinkingSteps?: Step[]; isProcessing?: boolean; chatId?: string }
+interface Msg { role: "user" | "assistant"; content: string; thinkingSteps?: Step[]; isProcessing?: boolean; chatId?: string; attachmentNames?: string[] }
+
+// One staged (not yet sent) composer attachment. Images arrive via paste or the
+// picker; documents via the picker. Sent as base64 in the POST body — the backend
+// turns images into vision parts and text-extracts documents. NOT persisted to
+// mase_chats (only the names are), so history rows stay small.
+type StagedFile = { id: string; name: string; mime: string; size: number; dataUrl: string };
+const ATT_MAX_FILES = 6;
+const ATT_MAX_BYTES = 5_000_000; // per file (raw) — backend caps ~7.5MB base64
+const ATT_ACCEPT = "image/*,.pdf,.docx,.xlsx,.xlsm,.pptx,.txt,.md,.csv,.json";
 
 // MASE 4-point sparkle star — the agent mark. Uses currentColor so it inherits the
 // avatar/header text color (white on the blue gradient).
@@ -320,20 +329,28 @@ function ChoiceGroup({ choices, onAnswer, disabled }: { choices: Choice[]; onAns
 
 const SEED = "Which of this deal's open to-dos can the Todo Runner do for me, and which need a human? Group them and explain why.";
 
-// Empty-state for a fresh deal chat — invites the user to let the agent DO the work.
-function DealChatWelcome({ deal, onPick }: { deal: DealForAgent; onPick: (p: string) => void }) {
-  const QUICK = [
+// Empty-state for a fresh chat — invites the user to let the agent DO the work.
+// deal = per-deal quick actions; null = the generic whole-book strategist set.
+function DealChatWelcome({ deal, onPick }: { deal?: DealForAgent | null; onPick: (p: string) => void }) {
+  const QUICK = deal ? [
     { t: "Complete my to-dos", s: SEED, hot: true },
     { t: "Summarize this deal", s: "Summarize this deal: current status, the single biggest risk, and the most important next move. Keep it tight." },
     { t: "Draft a follow-up email", s: "Draft a short follow-up email to the key stakeholder on this deal. Never use em-dashes or double-dashes." },
     { t: "Surface the blocker", s: "What is the single biggest blocker on this deal right now, and exactly how do we clear it?" },
+  ] : [
+    { t: "What needs my attention today?", s: "Across my book, what needs my attention most urgently today? Rank the top 5 with a one-line reason each.", hot: true },
+    { t: "Forecast risk check", s: "Which committed or best-case deals look at risk this quarter, and why? Be specific and dated." },
+    { t: "Where did buyers go quiet?", s: "Which deals have had no two-way buyer engagement in the last 30 days? List them with days since last buyer touch." },
+    { t: "Biggest moves this week", s: "What are the 3 highest-impact moves I should make this week across my book? Name the deal, the move, and who should be in the room." },
   ];
   return (
     <div className="flex flex-col items-center px-6 py-10 text-center">
       <div className="mb-4 grid size-12 place-items-center rounded-2xl bg-gradient-to-br from-[#6E8BFF] to-[#5277F0] text-white shadow-lg"><MaseStar className="size-6" /></div>
-      <h3 className="text-[17px] font-bold text-foreground">Complete tasks with AI</h3>
+      <h3 className="text-[17px] font-bold text-foreground">{deal ? "Complete tasks with AI" : "Ask Mase about your book"}</h3>
       <p className="mt-1.5 max-w-[360px] text-[13px] leading-relaxed text-muted-foreground">
-        Let the agent do the legwork on {deal.accountName} — draft the emails, build the docs, line up references. Pick one to start, or just ask anything below.
+        {deal
+          ? <>Let the agent do the legwork on {deal.accountName} — draft the emails, build the docs, line up references. Pick one to start, or just ask anything below.</>
+          : <>The strategist reasons over your whole book — deals, risks, priorities, next moves. Pick one to start, or just ask anything below.</>}
       </p>
       <div className="mt-5 flex w-full max-w-[420px] flex-col gap-2">
         {QUICK.map((q) => (
@@ -355,7 +372,19 @@ function DealChatWelcome({ deal, onPick }: { deal: DealForAgent; onPick: (p: str
   );
 }
 
-export default function DealAgentPanel({ deal, onClose, onBack, onNewChat, convoKey, initialMessages, resumeChatId, seed }: { deal: DealForAgent; onClose: () => void; onBack?: () => void; onNewChat?: () => void; convoKey?: string; initialMessages?: Msg[]; resumeChatId?: string; seed?: string }) {
+export default function DealAgentPanel({ deal, onClose, onBack, onNewChat, convoKey, initialMessages, resumeChatId, seed, variant = "panel", genericScopeIds }: {
+  // deal: the scoped opportunity — or null/undefined for a GENERIC (whole-book)
+  // strategist chat, which is how the /chat page mounts this same component.
+  deal?: DealForAgent | null;
+  onClose?: () => void; onBack?: () => void; onNewChat?: () => void;
+  convoKey?: string; initialMessages?: Msg[]; resumeChatId?: string; seed?: string;
+  // "panel" = the fixed right-side drawer (default). "page" = fills its parent —
+  // the /chat page embeds the SAME component/logic so both surfaces stay identical.
+  variant?: "panel" | "page";
+  // Generic mode only: locked users must always send their scoped opp ids so the
+  // backend can never answer over deals outside their scope (hermetic scoping).
+  genericScopeIds?: string[];
+}) {
   const supabaseRef = useRef(createClient());
   const supabase = supabaseRef.current;
   // Resume target: an explicit running-registry chat_id, OR (durability) the chat_id
@@ -421,20 +450,29 @@ export default function DealAgentPanel({ deal, onClose, onBack, onNewChat, convo
   // the existing key; a new conversation mints one.
   const keyRef = useRef<string>("");
   if (!keyRef.current) keyRef.current = convoKey || crypto.randomUUID();
+  // Generic-chat title: first user message, frozen once set (so the row's name is
+  // stable across later persists). Deal chats keep the "[deal:<oid>]" marker.
+  const titleRef = useRef<string>("");
 
   // Persist to mase_chats so the conversation shows in the deal-chats list. We tag
-  // the title with a "[deal:<oid>]" marker (mase_chats has no metadata column); the
-  // /chat sidebar filters these out so deal chats don't mix with the strategist chat.
+  // deal chats' title with a "[deal:<oid>]" marker (mase_chats has no metadata
+  // column); generic strategist chats get a plain title from the first user turn.
   const persist = useCallback((msgs: Msg[]) => {
     const clean = msgs.map((m) => {
-      const base: { role: string; content: string; thinkingSteps?: Step[]; isProcessing?: boolean; chatId?: string } = { role: m.role, content: m.content };
+      const base: { role: string; content: string; thinkingSteps?: Step[]; isProcessing?: boolean; chatId?: string; attachmentNames?: string[] } = { role: m.role, content: m.content };
       if (m.thinkingSteps && m.thinkingSteps.length) base.thinkingSteps = m.thinkingSteps;
       if (m.isProcessing) base.isProcessing = true; // unfinished turn — kept so reopen can resume
       if (m.chatId) base.chatId = m.chatId;          // its live chat_id → re-attach on reopen
+      if (m.attachmentNames && m.attachmentNames.length) base.attachmentNames = m.attachmentNames;
       return base;
     });
+    if (!titleRef.current) {
+      const firstUser = msgs.find((m) => m.role === "user" && m.content);
+      titleRef.current = (firstUser?.content || "").replace(/\s+/g, " ").slice(0, 60) || "Strategist chat";
+    }
+    const title = deal ? `[deal:${deal.oid}] ${deal.accountName}` : titleRef.current;
     void supabase.from("mase_chats").upsert(
-      { id: keyRef.current, title: `[deal:${deal.oid}] ${deal.accountName}`, messages: clean, updated_at: new Date().toISOString() },
+      { id: keyRef.current, title, messages: clean, updated_at: new Date().toISOString() },
       { onConflict: "id" }
     ).then(() => {}, () => {});
   }, [supabase, deal]);
@@ -456,7 +494,7 @@ export default function DealAgentPanel({ deal, onClose, onBack, onNewChat, convo
   // Mirror this conversation's busy state into the global running registry so the
   // DealChatsDock "Running" view reflects live agent activity across the page.
   useEffect(() => {
-    if (busy) setRunning({ convoKey: keyRef.current, oid: deal.oid, accountName: deal.accountName, startedAt: Date.now(), streamChatId: activeChatId || undefined });
+    if (busy) setRunning({ convoKey: keyRef.current, oid: deal?.oid || "", accountName: deal?.accountName || titleRef.current || "Strategist chat", startedAt: Date.now(), streamChatId: activeChatId || undefined });
     else clearRunning(keyRef.current);
   }, [busy, activeChatId, deal]);
   useEffect(() => () => clearRunning(keyRef.current), []);
@@ -479,25 +517,66 @@ export default function DealAgentPanel({ deal, onClose, onBack, onNewChat, convo
     if (terminal) { doneRef.current = true; setBusy(false); if (errText) setError(errText); }
   }, [supabase, persist]);
 
+  // Staged composer attachments (paste a screenshot / pick files). Cleared on send.
+  const [staged, setStaged] = useState<StagedFile[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const addFiles = useCallback((files: FileList | File[]) => {
+    const arr = Array.from(files || []);
+    if (!arr.length) return;
+    for (const f of arr) {
+      if (f.size > ATT_MAX_BYTES) { setError(`"${f.name}" is too large (max ${Math.round(ATT_MAX_BYTES / 1_000_000)} MB)`); continue; }
+      const fr = new FileReader();
+      fr.onload = () => setStaged((s) => (s.length >= ATT_MAX_FILES ? s : [...s, {
+        id: `${f.name}-${f.size}-${Math.random().toString(36).slice(2)}`,
+        name: f.name || "pasted-image.png", mime: f.type || "application/octet-stream",
+        size: f.size, dataUrl: String(fr.result || ""),
+      }]));
+      fr.readAsDataURL(f);
+    }
+  }, []);
+  // Paste-to-attach: a clipboard image (screenshot) staged straight from Ctrl+V.
+  const onPaste = useCallback((e: React.ClipboardEvent) => {
+    const files = Array.from(e.clipboardData?.files || []);
+    if (files.length) { e.preventDefault(); addFiles(files); }
+  }, [addFiles]);
+
   // Send a turn: append the user message + an assistant placeholder, mint a fresh
-  // streaming chat_id, and POST the full conversation scoped to this deal's opp.
+  // streaming chat_id, and POST the full conversation — scoped to the deal's opp,
+  // or (generic mode) to genericScopeIds / the whole book.
   const send = useCallback((text: string) => {
-    const t = text.trim(); if (!t || busy || limited) return;
+    const t = text.trim();
+    const atts = staged;
+    if ((!t && !atts.length) || busy || limited) return;
     setError(null);
-    const history = [...convoRef.current.filter((m) => m.content), { role: "user" as const, content: t }];
+    const content = t || "Please review the attached file(s).";
+    const history = [...convoRef.current.filter((m) => m.content), { role: "user" as const, content }];
     const chatId = crypto.randomUUID();
-    const newConvo: Msg[] = [...convoRef.current, { role: "user", content: t }, { role: "assistant", content: "", thinkingSteps: [], isProcessing: true, chatId }];
+    const userMsg: Msg = { role: "user", content, ...(atts.length ? { attachmentNames: atts.map((a) => a.name) } : {}) };
+    const newConvo: Msg[] = [...convoRef.current, userMsg, { role: "assistant", content: "", thinkingSteps: [], isProcessing: true, chatId }];
     convoRef.current = newConvo;
     setConvo(newConvo);
+    setStaged([]);
     atBottomRef.current = true; setHasNew(false); // a user send always jumps to the bottom
     persist(newConvo); // save the user turn + live chat_id NOW (survives a mid-run quit)
     setBusy(true); doneRef.current = false;
     setActiveChatId(chatId);
     (async () => {
       try {
+        // Attachments ride on the FINAL user message only (base64; backend turns
+        // images into vision parts and text-extracts documents).
+        const msgs: any[] = history.map((m) => ({ role: m.role, content: m.content }));
+        if (atts.length) {
+          msgs[msgs.length - 1] = {
+            ...msgs[msgs.length - 1],
+            attachments: atts.map((a) => ({ name: a.name, mime: a.mime, data_b64: a.dataUrl.slice(a.dataUrl.indexOf(",") + 1) })),
+          };
+        }
+        const body: any = { chat_id: chatId, messages: msgs };
+        if (deal) { body.opp_ids = [deal.oid]; body.owner = deal.ownerName; }
+        else if (genericScopeIds && genericScopeIds.length) body.opp_ids = genericScopeIds;
         const r = await fetch("/api/deal-engine/chat/async", {
           method: "POST", headers: { "content-type": "application/json" },
-          body: JSON.stringify({ chat_id: chatId, opp_ids: [deal.oid], owner: deal.ownerName, messages: history.map((m) => ({ role: m.role, content: m.content })) }),
+          body: JSON.stringify(body),
         });
         const j = await r.json().catch(() => ({}));
         if (r.status === 429) {
@@ -512,7 +591,7 @@ export default function DealAgentPanel({ deal, onClose, onBack, onNewChat, convo
         else if (j.chat_id && j.chat_id !== chatId) setActiveChatId(j.chat_id);
       } catch (e: any) { failLastTurn(e?.message || String(e)); }
     })();
-  }, [busy, limited, deal, persist, failLastTurn]);
+  }, [busy, limited, deal, genericScopeIds, staged, persist, failLastTurn]);
 
   // New conversation → auto-run the todo scan once. Reopened conversation (initial
   // messages supplied) → just show the saved history, no auto-run.
@@ -581,18 +660,30 @@ export default function DealAgentPanel({ deal, onClose, onBack, onNewChat, convo
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (busy || limited) return; const v = input; setInput(""); send(v); }
   }
 
-  // Right-side drawer — espresso stays visible behind it (no full-screen blackout).
+  // "panel" = right-side drawer (espresso stays visible behind it, no blackout);
+  // "page" = fills its parent — the /chat page embeds this same component.
   return (
-    <div className="mase-chat-root fixed right-0 top-0 bottom-0 z-[100] flex w-full max-w-[640px] flex-col border-l border-border bg-background shadow-2xl" style={{ fontFamily: "ui-sans-serif, system-ui, sans-serif" }}>
+    <div
+      className={cn(
+        "mase-chat-root flex flex-col bg-background",
+        variant === "page"
+          ? "relative h-full w-full"
+          : "fixed right-0 top-0 bottom-0 z-[100] w-full max-w-[640px] border-l border-border shadow-2xl",
+      )}
+      style={{ fontFamily: "ui-sans-serif, system-ui, sans-serif" }}>
       <div className="flex items-center justify-between border-b border-border px-3 py-3">
         <div className="flex min-w-0 items-center gap-1.5">
           {onBack ? (
             <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={onBack} title="Back to conversations" aria-label="Back to conversations"><ArrowLeft className="size-4" /></Button>
           ) : null}
-          <Monogram name={deal.accountName} kind="account" size={28} className="ml-1 shrink-0" />
+          {deal ? (
+            <Monogram name={deal.accountName} kind="account" size={28} className="ml-1 shrink-0" />
+          ) : (
+            <span className="ml-1 grid size-7 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#6E8BFF] to-[#5277F0] text-white"><MaseStar className="size-3.5" /></span>
+          )}
           <div className="min-w-0">
-            <div className="truncate text-[14px] font-semibold text-foreground">{deal.accountName}</div>
-            <div className="truncate text-[11px] text-muted-foreground">{deal.oppName || "Deal AI"}</div>
+            <div className="truncate text-[14px] font-semibold text-foreground">{deal ? deal.accountName : "Mase Strategist"}</div>
+            <div className="truncate text-[11px] text-muted-foreground">{deal ? (deal.oppName || "Deal AI") : "your whole book"}</div>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1">
@@ -601,7 +692,7 @@ export default function DealAgentPanel({ deal, onClose, onBack, onNewChat, convo
               <Plus className="size-3.5" /> New chat
             </Button>
           ) : null}
-          <Button variant="ghost" size="icon" className="size-8" onClick={onClose}><X className="size-4" /></Button>
+          {onClose ? <Button variant="ghost" size="icon" className="size-8" onClick={onClose}><X className="size-4" /></Button> : null}
         </div>
       </div>
 
@@ -612,7 +703,18 @@ export default function DealAgentPanel({ deal, onClose, onBack, onNewChat, convo
           {convo.map((m, i) => (
             m.role === "user" ? (
               <div key={i} className="flex justify-end">
-                <div className="max-w-[85%] rounded-2xl rounded-tr-sm bg-muted px-3.5 py-2 text-[14px] leading-relaxed text-foreground">{m.content}</div>
+                <div className="max-w-[85%] rounded-2xl rounded-tr-sm bg-muted px-3.5 py-2 text-[14px] leading-relaxed text-foreground">
+                  {m.content}
+                  {m.attachmentNames && m.attachmentNames.length ? (
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      {m.attachmentNames.map((n, ai2) => (
+                        <span key={ai2} className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-0.5 text-[11.5px] text-muted-foreground">
+                          <Paperclip className="size-3" />{n}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
               </div>
             ) : (
               <div key={i} className="flex gap-3">
@@ -684,13 +786,33 @@ export default function DealAgentPanel({ deal, onClose, onBack, onNewChat, convo
       {/* Composer — same input as /chat, plus voice dictation (mic) */}
       <div className="px-5 py-4">
         <div className="rounded-2xl border border-border bg-muted/40 transition focus-within:border-indigo-400 focus-within:bg-card focus-within:ring-2 focus-within:ring-indigo-100">
+          {staged.length ? (
+            <div className="flex flex-wrap gap-2 px-4 pt-3">
+              {staged.map((s) => (
+                <span key={s.id} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2 py-1 text-[12px] text-foreground">
+                  {s.mime.startsWith("image/") ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={s.dataUrl} alt={s.name} className="size-6 rounded object-cover" />
+                  ) : (
+                    <Paperclip className="size-3.5 text-muted-foreground" />
+                  )}
+                  <span className="max-w-[160px] truncate">{s.name}</span>
+                  <button type="button" aria-label={`Remove ${s.name}`} onClick={() => setStaged((prev) => prev.filter((x) => x.id !== s.id))}
+                    className="rounded p-0.5 text-muted-foreground transition hover:text-foreground">
+                    <X className="size-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          ) : null}
           <Textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={onKey}
+            onPaste={onPaste}
             disabled={limited}
             rows={2}
-            placeholder={limited ? "Ask Mase usage limit reached" : dictation.listening ? "Listening… speak now" : "Ask about this deal, its to-dos, or next steps…"}
+            placeholder={limited ? "Ask Mase usage limit reached" : dictation.listening ? "Listening… speak now" : deal ? "Ask about this deal, its to-dos, or next steps… (paste a screenshot to attach)" : "Ask about your book — deals, risks, priorities… (paste a screenshot to attach)"}
             className="min-h-[52px] resize-none border-0 bg-transparent px-4 py-3 text-[14px] shadow-none focus-visible:ring-0"
           />
           {dictation.listening ? (
@@ -703,27 +825,41 @@ export default function DealAgentPanel({ deal, onClose, onBack, onNewChat, convo
             </div>
           ) : null}
           <div className="flex items-center justify-between px-3 pb-2.5">
-            {dictation.supported ? (
+            <div className="flex items-center gap-1.5">
+              <input ref={fileInputRef} type="file" accept={ATT_ACCEPT} multiple hidden
+                onChange={(e) => { if (e.target.files?.length) addFiles(e.target.files); e.target.value = ""; }} />
               <button
                 type="button"
-                onClick={dictation.toggle}
-                aria-pressed={dictation.listening}
-                title={dictation.listening ? "Stop dictation" : "Dictate (voice to text)"}
-                aria-label={dictation.listening ? "Stop dictation" : "Dictate with voice"}
-                className={cn(
-                  "flex size-9 items-center justify-center rounded-full border transition",
-                  dictation.listening
-                    ? "animate-pulse border-red-200 bg-red-50 text-red-600 ring-2 ring-red-100"
-                    : "border-border bg-card text-muted-foreground hover:border-indigo-300 hover:text-foreground",
-                )}
+                onClick={() => fileInputRef.current?.click()}
+                disabled={limited || staged.length >= ATT_MAX_FILES}
+                title="Attach files or images"
+                aria-label="Attach files or images"
+                className="flex size-9 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition hover:border-indigo-300 hover:text-foreground disabled:opacity-40"
               >
-                <Mic className="size-4" />
+                <Paperclip className="size-4" />
               </button>
-            ) : <span />}
+              {dictation.supported ? (
+                <button
+                  type="button"
+                  onClick={dictation.toggle}
+                  aria-pressed={dictation.listening}
+                  title={dictation.listening ? "Stop dictation" : "Dictate (voice to text)"}
+                  aria-label={dictation.listening ? "Stop dictation" : "Dictate with voice"}
+                  className={cn(
+                    "flex size-9 items-center justify-center rounded-full border transition",
+                    dictation.listening
+                      ? "animate-pulse border-red-200 bg-red-50 text-red-600 ring-2 ring-red-100"
+                      : "border-border bg-card text-muted-foreground hover:border-indigo-300 hover:text-foreground",
+                  )}
+                >
+                  <Mic className="size-4" />
+                </button>
+              ) : null}
+            </div>
             <Button
               size="icon"
               className="size-9 rounded-full bg-gradient-to-br from-[#6E8BFF] to-[#5277F0] text-white hover:opacity-95 disabled:opacity-40"
-              disabled={busy || limited || !input.trim()}
+              disabled={busy || limited || (!input.trim() && !staged.length)}
               onClick={() => { const v = input; setInput(""); send(v); }}
             >
               <ArrowUp className="size-4" />
