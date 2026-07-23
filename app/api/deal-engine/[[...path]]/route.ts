@@ -114,6 +114,14 @@ function isCapCheckPath(path?: string[]): boolean {
   return !!path && path.length === 2 && path[0] === "usage" && path[1] === "cap-check";
 }
 
+// Ask-Mase downloadable documents (the chat agent's create_document deliverables):
+// GET /api/deal-engine/documents/{id} streams a .md back with Content-Disposition.
+// Gated by the same chat-access policy as the chat itself — the links are minted in
+// chat, so whoever can chat can download.
+function isDocumentsPath(path?: string[]): boolean {
+  return !!path && path.length === 2 && path[0] === "documents";
+}
+
 async function callerEmail(): Promise<string | null> {
   try {
     const supabase = await createClient();
@@ -192,10 +200,14 @@ async function forward(req: NextRequest, path?: string[], bodyOverride?: string)
   try {
     const upstream = await fetch(url, init);
     const text = await upstream.text();
-    return new NextResponse(text, {
-      status: upstream.status,
-      headers: { "content-type": upstream.headers.get("content-type") || "application/json" },
-    });
+    const headers: Record<string, string> = {
+      "content-type": upstream.headers.get("content-type") || "application/json",
+    };
+    // Downloads (Ask-Mase create_document deliverables): without this passthrough the
+    // browser renders the .md inline as text instead of saving it as a file.
+    const disp = upstream.headers.get("content-disposition");
+    if (disp) headers["content-disposition"] = disp;
+    return new NextResponse(text, { status: upstream.status, headers });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return NextResponse.json({ error: `Failed to reach Deal Engine backend: ${msg}` }, { status: 502 });
@@ -247,6 +259,10 @@ export async function GET(req: NextRequest, ctx: Ctx) {
   // Chat conversational endpoints: admin OR the admin-set "enable chat for users"
   // toggle. The chat/prompt EDITOR stays admin-only (caught by isPromptPath above).
   if (isChatPath(path) && !isPromptPath(path) && !(await chatAllowedForCaller())) {
+    return NextResponse.json({ error: "Chat is not enabled for your account yet." }, { status: 403 });
+  }
+  // Agent-authored document downloads: same policy as the chat that minted the link.
+  if (isDocumentsPath(path) && !(await chatAllowedForCaller())) {
     return NextResponse.json({ error: "Chat is not enabled for your account yet." }, { status: 403 });
   }
   return forward(req, path);
