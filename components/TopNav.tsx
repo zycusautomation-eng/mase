@@ -6,8 +6,12 @@ import { useEffect, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useDashboard } from "@/lib/engine/DashboardContext";
 import { useDealAi } from "@/components/deals/DealAiProvider";
+import ScopeFilterBar from "@/components/ScopeFilterBar";
 
-export default function TopNav() {
+// `showFilters` is decided by the layout (same `showScope` rule as before) — the deal-book
+// filter bar now lives INSIDE the navbar as a second row, so it's a fixed part of the header
+// on every book view (Deals / Espresso / Matcha …) instead of scrolling away with the list.
+export default function TopNav({ showFilters = false }: { showFilters?: boolean }) {
   const { query, setQuery } = useDashboard();
   const { openDock } = useDealAi();
   const router = useRouter();
@@ -27,6 +31,7 @@ export default function TopNav() {
 
   return (
     <div className="mase-nav">
+      <div className="mase-nav-row">
       <div className="mase-nav-search">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden>
           <circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" />
@@ -53,6 +58,12 @@ export default function TopNav() {
         </svg>
         Ask Mase
       </button>
+      </div>
+      {showFilters ? (
+        <div className="mase-nav-fbrow">
+          <ScopeFilterBar />
+        </div>
+      ) : null}
     </div>
   );
 }

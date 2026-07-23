@@ -4,10 +4,10 @@ import { useEffect } from "react";
 import "./dashboard.css";
 import "../tailwind.css"; // global so the deal AI dock/panel (Tailwind UI) render on every page
 import { DashboardProvider, useDashboard } from "@/lib/engine/DashboardContext";
-import ScopeFilterBar from "@/components/ScopeFilterBar";
 import AppSidebar from "@/components/AppSidebar";
 import TopNav from "@/components/TopNav";
 import DealsStats from "@/components/deals/DealsStats";
+import DealInsights from "@/components/deals/DealInsights";
 import { DealAiProvider } from "@/components/deals/DealAiProvider";
 import { AgentRunProvider } from "@/components/agent/AgentRun";
 import { SfdcProvider } from "@/components/sfdc/SfdcProvider";
@@ -74,7 +74,7 @@ function Shell({ children }: { children: React.ReactNode }) {
     <DealAiProvider>
       <AppSidebar />
       <div className={`mase-shell ${onDealsList ? "deals-shell" : ""} ${tabTheme}`}>
-        {!onDealDetail && !blocked ? <TopNav /> : null}
+        {!onDealDetail && !blocked ? <TopNav showFilters={showScope} /> : null}
         {onDealDetail ? (
           // The deal-detail page owns its own width/padding (.dp-wrap) — no .wrap
           // double-wrapper. It handles its own loading state internally.
@@ -95,15 +95,16 @@ function Shell({ children }: { children: React.ReactNode }) {
               // while the book loads, then swap to data in place. Never a spinner-gated
               // blank screen (which made the ~7.5s book load feel like the app was stuck).
               <>
+                {/* Filters now live in the navbar (TopNav). The hero summary sits at the top of
+                    the scroll area; the rep's "what to focus on" insights sit above the list. */}
                 <DealsStats />
-                {showScope ? <ScopeFilterBar /> : null}
+                <DealInsights />
                 {children}
               </>
             ) : loading ? (
               <PageLoader label="Loading the book…" tone={loaderTone} />
             ) : (
               <>
-                {showScope ? <ScopeFilterBar /> : null}
                 {children}
               </>
             )}

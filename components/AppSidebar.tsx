@@ -19,7 +19,7 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import {
   Handshake, Coffee, Leaf, MessageSquare, RefreshCw, ListChecks,
-  GraduationCap, Bot, Users, Eye, Loader2, type LucideIcon,
+  GraduationCap, Bot, Users, Eye, Loader2, PanelLeftClose, PanelLeftOpen, type LucideIcon,
 } from "lucide-react";
 
 type NavItem = { href: string; label: string; icon: LucideIcon; adminOnly?: boolean; superOnly?: boolean };
@@ -61,6 +61,7 @@ export default function AppSidebar() {
   const pathname = usePathname();
   const { isAdminView, isSuperAdminView, realIsAdmin, simEmail, scopeName, chatAllowed } = useDashboard();
   const [userName, setUserName] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
     const sb = createClient();
@@ -68,6 +69,16 @@ export default function AppSidebar() {
       .then(({ data }) => setUserName((data.user?.user_metadata?.name as string) || data.user?.email || null))
       .catch(() => {});
   }, []);
+
+  // Collapse state persists per browser; a root class drives the sidebar width AND the shell's
+  // left offset together (the shell is a sibling of this component, not a child).
+  useEffect(() => {
+    try { setCollapsed(localStorage.getItem("mase.side.collapsed") === "1"); } catch {}
+  }, []);
+  useEffect(() => {
+    document.documentElement.classList.toggle("side-collapsed", collapsed);
+    try { localStorage.setItem("mase.side.collapsed", collapsed ? "1" : "0"); } catch {}
+  }, [collapsed]);
 
   const items = NAV.filter((n) =>
     n.superOnly ? isSuperAdminView
@@ -92,32 +103,47 @@ export default function AppSidebar() {
       <Link
         href={n.href}
         aria-current={active ? "page" : undefined}
+        title={collapsed ? n.label : undefined}
         className={cn(
-          "group relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium outline-none transition-colors",
+          "group relative flex items-center gap-2.5 rounded-lg py-2 text-[13px] font-medium outline-none transition-colors",
+          collapsed ? "justify-center px-0" : "px-3",
           "focus-visible:ring-2 focus-visible:ring-[var(--accent)]/40",
           active
             ? "bg-[var(--accent-soft)] text-[var(--accent)]"
             : "text-[var(--muted)] hover:bg-[var(--surface2)] hover:text-[var(--ink)]"
         )}
       >
-        {/* active indicator — a short accent bar on the left edge */}
+        {/* active indicator — a short accent bar on the left edge (hidden when collapsed) */}
         <span
           aria-hidden
           className={cn(
             "absolute left-0 top-1/2 h-5 -translate-y-1/2 rounded-r-full bg-[var(--accent)] transition-all",
-            active ? "w-[3px] opacity-100" : "w-0 opacity-0"
+            active && !collapsed ? "w-[3px] opacity-100" : "w-0 opacity-0"
           )}
         />
         <NavIcon Icon={Icon} active={active} />
-        <span className="truncate">{n.label}</span>
+        {!collapsed && <span className="truncate">{n.label}</span>}
       </Link>
     );
   };
 
   return (
     <aside className={cn("mase-side", tabTheme)}>
-      <div className="px-4 pb-3 pt-4">
-        {/* Inline SVG so the brand gradient follows the route theme via --logo-c* vars. */}
+      <div className={cn("flex pb-3 pt-4", collapsed ? "flex-col items-center gap-2.5 px-2" : "items-center justify-between px-4")}>
+        {collapsed ? (
+          /* Star-only mark when collapsed. */
+          <svg viewBox="0 0 144 164" fill="none" role="img" aria-label="MASE" className="block h-7 w-7">
+            <defs>
+              <linearGradient id="maseBrandMini" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stopColor="var(--logo-c1)" />
+                <stop offset="0.55" stopColor="var(--logo-c2)" />
+                <stop offset="1" stopColor="var(--logo-c3)" />
+              </linearGradient>
+            </defs>
+            <path d="M72,20 L87,67 L134,82 L87,97 L72,144 L57,97 L10,82 L57,67 Z" fill="url(#maseBrandMini)" />
+          </svg>
+        ) : (
+        /* Inline SVG so the brand gradient follows the route theme via --logo-c* vars. */
         <svg viewBox="0 0 520 158" fill="none" role="img" aria-label="MASE — Agents that close with you" className="block h-9 w-auto">
           <defs>
             <linearGradient id="maseBrand" x1="0" y1="0" x2="1" y2="1">
@@ -125,19 +151,35 @@ export default function AppSidebar() {
               <stop offset="0.55" stopColor="var(--logo-c2)" />
               <stop offset="1" stopColor="var(--logo-c3)" />
             </linearGradient>
+            <clipPath id="maseStar">
+              <path d="M72,20 L87,67 L134,82 L87,97 L72,144 L57,97 L10,82 L57,67 Z" />
+            </clipPath>
           </defs>
-          <path d="M72,20 Q72,82 126,80 Q72,82 72,144 Q72,82 18,80 Q72,82 72,20 Z" fill="url(#maseBrand)" />
-          <path d="M128,30 Q128,48 146,48 Q128,48 128,66 Q128,48 110,48 Q128,48 128,30 Z" fill="url(#maseBrand)" />
+          {/* Crisp 4-point brand star (sharp concave rays). The diagonal brand gradient gives
+              the top-left→bottom-right sheen; a faint upper-left facet (clipped to the star)
+              adds the bevel. */}
+          <path d="M72,20 L87,67 L134,82 L87,97 L72,144 L57,97 L10,82 L57,67 Z" fill="url(#maseBrand)" />
+          <path d="M72,20 L57,67 L10,82 L72,82 Z" fill="#ffffff" opacity="0.2" clipPath="url(#maseStar)" />
           <text x="182" y="112" fontFamily="'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif"
             fontWeight="800" fontSize="104" letterSpacing="-1" fill="url(#maseBrand)">MASE</text>
           <text x="322" y="146" textAnchor="middle" fontFamily="'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif"
             fontWeight="600" fontSize="17" letterSpacing="3" fill="#5b6b7e">AGENTS THAT CLOSE WITH YOU</text>
         </svg>
+        )}
+        <button
+          type="button"
+          onClick={() => setCollapsed((v) => !v)}
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          className="side-toggle"
+        >
+          {collapsed ? <PanelLeftOpen className="size-[18px]" /> : <PanelLeftClose className="size-[18px]" />}
+        </button>
       </div>
 
       <nav className="flex flex-col gap-0.5 overflow-y-auto px-2">
         {primary.map((n) => <NavLink key={n.href} n={n} />)}
-        {adminItems.length ? (
+        {adminItems.length && !collapsed ? (
           <div className="px-3 pb-1 pt-4 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--muted)] opacity-70">
             Admin
           </div>
@@ -148,17 +190,21 @@ export default function AppSidebar() {
 
       <div className="mt-auto px-3 pt-2">
         <Separator className="bg-[var(--line)]" />
-        <div className="flex items-center gap-2.5 py-3">
+        <div className={cn("flex items-center gap-2.5 py-3", collapsed && "justify-center")}>
           <Avatar className="size-9 shrink-0">
             <AvatarFallback className="bg-[var(--accent-soft)] text-[11px] font-bold text-[var(--accent)]">
               {initials(userName || scopeName)}
             </AvatarFallback>
           </Avatar>
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-[12.5px] font-semibold text-[var(--ink)]">{userName || scopeName || "Account"}</div>
-            <div className="truncate text-[11px] text-[var(--muted)]">{role}</div>
-          </div>
-          <AuthButton />
+          {!collapsed && (
+            <>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[12.5px] font-semibold text-[var(--ink)]">{userName || scopeName || "Account"}</div>
+                <div className="truncate text-[11px] text-[var(--muted)]">{role}</div>
+              </div>
+              <AuthButton />
+            </>
+          )}
         </div>
       </div>
     </aside>

@@ -14,12 +14,12 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
+import { prefetchDeal } from "@/lib/engine/dealCache";
 import { useDashboard } from "@/lib/engine/DashboardContext";
 import { verdictTone, vpOf, vpsList, teamOwners, inScope, isDeadDeal } from "@/lib/engine/helpers";
 import MultiSelect, { type Opt } from "@/components/MultiSelect";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
 
 function fmtM(n: number): string {
   if (n >= 1e6) return "$" + (n / 1e6).toFixed(1).replace(/\.0$/, "") + "M";
@@ -55,13 +55,19 @@ function stageBucket(stage: any): { key: string; label: string; weight: number; 
   return { key: "other", label: "Other (open)", weight: 0, order: 8 };
 }
 
-function Spark({ color, up }: { color: string; up: boolean }) {
-  const pts = up ? [5, 8, 6, 10, 8, 12, 9, 14, 13] : [13, 10, 12, 8, 10, 6, 9, 5, 6];
-  const w = 92, h = 30, max = 16;
-  const d = pts.map((p, i) => `${((i / (pts.length - 1)) * w).toFixed(1)},${(h - (p / max) * h).toFixed(1)}`).join(" ");
+// Circular gauge for the AI-score card — a grey track ring + an arc filled to `value`%
+// in the score's colour. Center is intentionally empty (the number sits beside it, big).
+function ScoreRing({ value, color }: { value: number; color: string }) {
+  const r = 27, c = 2 * Math.PI * r;
+  const pct = Math.max(0, Math.min(100, value || 0));
   return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ display: "block" }} aria-hidden>
-      <polyline points={d} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    <svg width={64} height={64} viewBox="0 0 64 64" className="dl-ring" aria-hidden>
+      <circle cx="32" cy="32" r={r} fill="none" stroke="var(--line2)" strokeWidth={6} />
+      <circle
+        cx="32" cy="32" r={r} fill="none" stroke={color} strokeWidth={6} strokeLinecap="round"
+        strokeDasharray={c} strokeDashoffset={c * (1 - pct / 100)}
+        transform="rotate(-90 32 32)"
+      />
     </svg>
   );
 }
@@ -70,10 +76,11 @@ type Row = { label: string; count: number; raw: number; weight: number; wtd: num
 type TopDeal = { id: string; account: string; label: string; weight: number; raw: number; wtd: number };
 
 // Shared breakdown modal for the two weighted cards.
-function WeightedModal({ label, big, sub, catCol, rows, totalLabel, totalCount, totalRaw, totalWtd, totalWeightCell, top, onClose, onDeal, onSeeAll, seeAllCount }: {
+function WeightedModal({ label, big, sub, catCol, rows, totalLabel, totalCount, totalRaw, totalWtd, totalWeightCell, top, onClose, onDeal, onSeeAll, seeAllCount, activeTab, onTab }: {
   label: string; big: string; sub: string; catCol: string;
   rows: Row[]; totalLabel: string; totalCount: number; totalRaw: number; totalWtd: number; totalWeightCell: string;
   top: TopDeal[]; onClose: () => void; onDeal: (id: string) => void; onSeeAll?: () => void; seeAllCount?: number;
+  activeTab?: "forecast" | "pipeline"; onTab?: (t: "forecast" | "pipeline") => void;
 }) {
   // PORTAL to <body>. This modal is rendered from inside `.dl-head`, which is
   // `position:sticky; z-index:30` — a STACKING CONTEXT. Trapped inside it, the modal's
@@ -94,6 +101,19 @@ function WeightedModal({ label, big, sub, catCol, rows, totalLabel, totalCount, 
           </div>
           <button className="wf-x" onClick={onClose} aria-label="Close">×</button>
         </div>
+
+        {onTab ? (
+          <div className="wf-tabs" role="tablist">
+            <button type="button" role="tab" aria-selected={activeTab === "forecast"}
+              className={`wf-tab ${activeTab === "forecast" ? "active" : ""}`} onClick={() => onTab("forecast")}>
+              Weighted forecast
+            </button>
+            <button type="button" role="tab" aria-selected={activeTab === "pipeline"}
+              className={`wf-tab ${activeTab === "pipeline" ? "active" : ""}`} onClick={() => onTab("pipeline")}>
+              Weighted pipeline
+            </button>
+          </div>
+        ) : null}
 
         <div className="wf-sec">
           <h4>How the number is built</h4>
@@ -130,7 +150,7 @@ function WeightedModal({ label, big, sub, catCol, rows, totalLabel, totalCount, 
             </thead>
             <tbody>
               {top.map((d) => (
-                <tr key={d.id} className="wf-deal" onClick={() => onDeal(d.id)} title="Open deal">
+                <tr key={d.id} className="wf-deal" onClick={() => onDeal(d.id)} onMouseEnter={() => prefetchDeal(d.id)} title="Open deal">
                   <td>{d.account}</td>
                   <td>{d.label}</td>
                   <td>{fmtM(d.raw)}</td>
@@ -239,7 +259,7 @@ function WeightedDrawer({ title, basisCol, base, weightOf, basisOf, onClose, onD
             </thead>
             <tbody>
               {sorted.map((d) => (
-                <tr key={d.id} className="wf-deal" onClick={() => onDeal(d.id)} title="Open deal">
+                <tr key={d.id} className="wf-deal" onClick={() => onDeal(d.id)} onMouseEnter={() => prefetchDeal(d.id)} title="Open deal">
                   <td>{d.account}</td>
                   <td className="lft">{d.owner}</td>
                   <td className="lft">{d.vp}</td>
@@ -258,66 +278,35 @@ function WeightedDrawer({ title, basisCol, base, weightOf, basisOf, onClose, onD
   );
 }
 
-// One stat tile, built on shadcn Card but tokenised to the app theme (--surface / --ink /
-// --muted / --accent) so it matches the book and follows the route accent. `onClick` makes
-// it a keyboard-accessible button (the two weighted cards open their breakdown dialog).
-function StatCard({ label, value, sub, subColor, right, onClick }: {
-  label: string;
-  value: React.ReactNode;
-  sub?: React.ReactNode;
-  subColor?: string;
-  right?: React.ReactNode;
-  onClick?: () => void;
-}) {
-  const interactive = !!onClick;
-  return (
-    <Card
-      role={interactive ? "button" : undefined}
-      tabIndex={interactive ? 0 : undefined}
-      aria-haspopup={interactive ? "dialog" : undefined}
-      onClick={onClick}
-      onKeyDown={interactive ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } } : undefined}
-      className={cn(
-        "gap-0 rounded-2xl border-[var(--line)] bg-[var(--surface)] px-[15px] py-[13px] shadow-[var(--shadow-sm)]",
-        "transition-[box-shadow,border-color] duration-150 hover:shadow-[var(--shadow)]",
-        interactive
-          ? "cursor-pointer hover:border-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/40"
-          : "hover:border-[#dfe5ef]"
-      )}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <span className="truncate text-[12px] font-semibold text-[var(--muted)]">{label}</span>
-        {interactive ? <span className="shrink-0 text-[10.5px] font-semibold text-[var(--accent)]">view ↗</span> : null}
-      </div>
-      <div className="mt-2 flex items-end justify-between gap-2">
-        <div className="min-w-0">
-          <div className="truncate text-[22px] font-extrabold leading-[1.05] tracking-[-0.02em] tabular-nums text-[var(--ink)]">{value}</div>
-          {sub != null ? <div className="mt-1.5 truncate text-[11px] font-semibold" style={{ color: subColor || "var(--muted)" }}>{sub}</div> : null}
-        </div>
-        {right}
-      </div>
-    </Card>
-  );
-}
-
-// Skeleton mirror of the stat-card row — same 6-up grid + card frame, pulsing placeholders
-// where the label/number/sub go. Shown while the book loads so the shell is there instantly.
+// Skeleton mirror of the hero — the big pipeline card on the left + AI-score / at-risk cards
+// on the right, so the shell paints instantly while the book loads (no spinner-gated blank).
 function StatsSkeleton() {
   return (
     <div className="dl-head">
-      <div className="dl-stats">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <Card key={i} className="gap-0 rounded-2xl border-[var(--line)] bg-[var(--surface)] px-[15px] py-[13px] shadow-[var(--shadow-sm)]">
-            <Skeleton className="h-3 w-24" />
-            <div className="mt-3 flex items-end justify-between gap-2">
-              <div className="min-w-0 space-y-2">
-                <Skeleton className="h-6 w-20" />
-                <Skeleton className="h-2.5 w-16" />
-              </div>
-              <Skeleton className="size-11 rounded-full" />
+      <div className="dl-hero">
+        <Card className="dl-bigcard">
+          <Skeleton className="h-3 w-28" />
+          <Skeleton className="mt-4 h-9 w-40" />
+          <Skeleton className="mt-2 h-3 w-32" />
+          <Skeleton className="mt-4 h-3.5 w-full rounded-full" />
+          <div className="mt-3 flex gap-4">
+            <Skeleton className="h-3 w-20" /><Skeleton className="h-3 w-24" /><Skeleton className="h-3 w-20" />
+          </div>
+        </Card>
+        <div className="dl-hero-right">
+          <Card className="dl-aicard">
+            <Skeleton className="h-3 w-16" />
+            <div className="mt-3 flex items-center gap-3">
+              <Skeleton className="size-16 rounded-full" />
+              <div className="space-y-2"><Skeleton className="h-7 w-12" /><Skeleton className="h-3 w-16" /></div>
             </div>
           </Card>
-        ))}
+          <Card className="dl-riskcard">
+            <Skeleton className="h-3 w-16" />
+            <Skeleton className="mt-3 h-8 w-32" />
+            <Skeleton className="mt-2 h-3 w-40" />
+          </Card>
+        </div>
       </div>
     </div>
   );
@@ -393,7 +382,31 @@ export default function DealsStats() {
   const stTop = stTopSrc.filter((d) => d.raw > 0).sort((a, b) => b.wtd - a.wtd).slice(0, 8);
   const weightedPipePct = openBase ? Math.round((weightedPipe / openBase) * 100) : 0;
 
-  const goDeal = (id: string) => { if (!id) return; setOpen(null); setDrawer(null); router.push(`/deals/${id}`); };
+  // ── Hero: pipeline-composition bar (a layered forecast-confidence view of the total) ──
+  // Commit (raw) → Weighted forecast ($-weighted) → Best case (raw best/upside) → Remaining
+  // (the long tail). Widths are normalised to their own sum so the bar always fills exactly.
+  const bestCase = openRecs
+    .filter((r: any) => ["best", "upside"].includes(fcBucket(r.hard?.forecast_category).key))
+    .reduce((n, r) => n + amt(r), 0);
+  const remaining = Math.max(0, pipeline - commit - weighted - bestCase);
+  const segs = [
+    { key: "commit", label: "Commit", value: commit, color: "#3448d6" },
+    { key: "weighted", label: "Weighted forecast", value: weighted, color: "#7c4dff" },
+    { key: "best", label: "Best case", value: bestCase, color: "#1f9d57" },
+    { key: "remaining", label: "Remaining", value: remaining, color: "var(--line2)" },
+  ];
+  const segTotal = segs.reduce((n, s) => n + s.value, 0) || 1;
+  // "X of Y in view": Y = deals in the book (dead already excluded), X = those still counted
+  // (a per-row toggle can switch a deal out of the totals without hiding it from the list).
+  const inBook = filtered.filter((r: any) => !isDeadDeal(r)).length;
+
+  // "triage now" jumps the user down to the deal table so they can start working the at-risk list.
+  const triage = () => document.getElementById("grid")?.scrollIntoView({ behavior: "smooth", block: "start" });
+
+  // Fast open, same as the deals list: a ?deal=<id> QUERY change on the same /deals segment
+  // (the deals layout's URL-sync opens the drawer instantly) — NOT a /deals/<id> segment change,
+  // which mounts a whole route and is what made this laggy.
+  const goDeal = (id: string) => { if (!id) return; setOpen(null); setDrawer(null); router.push(`/deals?deal=${id}`, { scroll: false }); };
 
   // Skeleton-first: while the book loads, show the card frames with placeholders instead
   // of flashing real "$0" totals. Hooks above always run first, so this early return is safe.
@@ -401,40 +414,81 @@ export default function DealsStats() {
 
   return (
     <div className="dl-head">
-      <div className="dl-stats">
-        <StatCard label="Total Pipeline" value={fmtM(pipeline)} sub={`${recs.length} of ${recs.length} deals`}
-          right={<div className="dl-spark"><Spark color="#1f9d57" up /></div>} />
-        <StatCard label="Commit" value={fmtM(commit)} sub={`${commitRecs.length} deals`}
-          right={<div className="dl-spark"><Spark color="#5b8cff" up /></div>} />
-        <StatCard label="At Risk" value={fmtM(atRisk)} sub={`${atRiskRecs.length} deals`}
-          right={<div className="dl-spark"><Spark color="#d6453b" up={false} /></div>} />
-        <StatCard label="AI Score" value={aiScore} sub={`● ${aiLabel}`} subColor={aiColor}
-          right={<div className="dl-donut" style={{ ["--p" as any]: aiScore, ["--c" as any]: aiColor }}><span /></div>} />
-        <StatCard label="Weighted Forecast" value={fmtM(weighted)} sub={`${weightedPct}% of open pipeline`}
-          right={<div className="dl-spark"><Spark color="#7c4dff" up /></div>} onClick={() => setOpen("forecast")} />
-        <StatCard label="Weighted Pipeline" value={fmtM(weightedPipe)} sub={`${weightedPipePct}% of open pipeline`}
-          right={<div className="dl-spark"><Spark color="#0ea5a3" up /></div>} onClick={() => setOpen("pipeline")} />
+      <div className="dl-hero">
+        {/* Total pipeline — the big card. The weighted-forecast callout stays click-to-open
+            (the existing breakdown modal), so the drill-down survives the redesign. */}
+        <Card
+          role="button" tabIndex={0} aria-haspopup="dialog"
+          onClick={() => setOpen("forecast")}
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen("forecast"); } }}
+          title="See the full pipeline breakdown"
+          className="dl-bigcard dl-bigcard--click"
+        >
+          <div className="dl-big-top">
+            <span className="dl-eyebrow">Total Pipeline</span>
+            <div className="dl-wf">
+              <span className="dl-wf-label">Weighted forecast</span>
+              <span className="dl-wf-val">{fmtM(weighted)}</span>
+              <span className="dl-wf-sub">{weightedPct}% of open pipeline</span>
+            </div>
+          </div>
+          <div className="dl-bignum">{fmtM(pipeline)}</div>
+          <div className="dl-big-deals">{recs.length} of {inBook} deals in view · <span className="dl-big-more">view breakdown ↗</span></div>
+          <div className="dl-bar" role="img" aria-label="Pipeline composition by forecast confidence">
+            {segs.map((s) => s.value > 0 ? (
+              <span key={s.key} className="dl-seg" title={`${s.label} · ${fmtM(s.value)}`}
+                style={{ width: `${(s.value / segTotal) * 100}%`, background: s.color }} />
+            ) : null)}
+          </div>
+          <div className="dl-legend">
+            {segs.map((s) => (
+              <span key={s.key} className="dl-leg">
+                <i style={{ background: s.color }} />{s.label} <b>{fmtM(s.value)}</b>
+              </span>
+            ))}
+          </div>
+        </Card>
+
+        {/* Right column: AI score (ring) + At risk */}
+        <div className="dl-hero-right">
+          <Card className="dl-aicard">
+            <span className="dl-eyebrow">AI Score</span>
+            <div className="dl-ai-row">
+              <ScoreRing value={aiScore} color={aiColor} />
+              <div className="dl-ai-meta">
+                <span className="dl-ai-num" style={{ color: aiColor }}>{aiScore}</span>
+                <span className="dl-ai-badge" style={{ color: aiColor, background: `${aiColor}1a` }}>{aiLabel}</span>
+              </div>
+            </div>
+            <div className="dl-ai-cap">Forecast confidence across book</div>
+          </Card>
+
+          <Card className="dl-riskcard">
+            <span className="dl-risk-h">⚠ At Risk</span>
+            <div className="dl-risk-num">{fmtM(atRisk)}</div>
+            <button type="button" className="dl-risk-cta" onClick={triage}>
+              {atRiskRecs.length} deals need review · <span>triage now →</span>
+            </button>
+          </Card>
+        </div>
       </div>
 
-      {open === "forecast" ? (
+      {open ? (
         <WeightedModal
-          label="Weighted forecast" big={fmtM(weighted)}
-          sub={`${weightedPct}% of ${fmtM(openBase)} open pipeline · ${openCount} open deals weighted by forecast category${excluded > 0 ? ` · ${excluded} closed/excluded` : ""}`}
-          catCol="Forecast category" rows={fcRows}
-          totalLabel="Open pipeline" totalCount={openCount} totalRaw={openBase} totalWtd={weighted} totalWeightCell={`${weightedPct}%`}
-          top={fcTop} onClose={() => setOpen(null)} onDeal={goDeal}
-          onSeeAll={() => { setOpen(null); setDrawer("forecast"); }} seeAllCount={openCount}
-        />
-      ) : null}
-
-      {open === "pipeline" ? (
-        <WeightedModal
-          label="Weighted pipeline" big={fmtM(weightedPipe)}
-          sub={`${weightedPipePct}% of ${fmtM(openBase)} open pipeline · ${openCount} open deals weighted by stage${excluded > 0 ? ` · ${excluded} closed/excluded` : ""}`}
-          catCol="Stage" rows={stRows}
-          totalLabel="Open pipeline" totalCount={openCount} totalRaw={openBase} totalWtd={weightedPipe} totalWeightCell={`${weightedPipePct}%`}
-          top={stTop} onClose={() => setOpen(null)} onDeal={goDeal}
-          onSeeAll={() => { setOpen(null); setDrawer("pipeline"); }} seeAllCount={openCount}
+          activeTab={open} onTab={setOpen}
+          label={open === "forecast" ? "Weighted forecast" : "Weighted pipeline"}
+          big={fmtM(open === "forecast" ? weighted : weightedPipe)}
+          sub={open === "forecast"
+            ? `${weightedPct}% of ${fmtM(openBase)} open pipeline · ${openCount} open deals weighted by forecast category${excluded > 0 ? ` · ${excluded} closed/excluded` : ""}`
+            : `${weightedPipePct}% of ${fmtM(openBase)} open pipeline · ${openCount} open deals weighted by stage${excluded > 0 ? ` · ${excluded} closed/excluded` : ""}`}
+          catCol={open === "forecast" ? "Forecast category" : "Stage"}
+          rows={open === "forecast" ? fcRows : stRows}
+          totalLabel="Open pipeline" totalCount={openCount} totalRaw={openBase}
+          totalWtd={open === "forecast" ? weighted : weightedPipe}
+          totalWeightCell={`${open === "forecast" ? weightedPct : weightedPipePct}%`}
+          top={open === "forecast" ? fcTop : stTop}
+          onClose={() => setOpen(null)} onDeal={goDeal}
+          onSeeAll={() => { setDrawer(open); setOpen(null); }} seeAllCount={openCount}
         />
       ) : null}
 

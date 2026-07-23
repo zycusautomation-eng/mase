@@ -98,14 +98,16 @@
      filter dropdowns (.msel-menu) must out-rank the table's sticky header (th z-index:3)
      — otherwise the whole menu paints BEHIND the table below it. */
   .wrap.deals-scroll>.dl-head,
-  .wrap.deals-scroll>.filterbar{position:sticky;left:0;z-index:30;width:var(--dl-w,calc(100vw - 300px));background:var(--bg)}
+  .wrap.deals-scroll>.filterbar,
+  .wrap.deals-scroll>.book-ai{position:sticky;left:0;z-index:30;width:var(--dl-w,calc(100vw - 300px));background:var(--bg)}
   /* Short viewports (mobile landscape / tiny windows): the stat cards + filters would squeeze
      the table to nothing, so fall back to normal full-page scroll (header just isn't pinned). */
   @media (max-height:620px){
     .mase-shell.deals-shell{display:block;height:auto}
     .wrap.deals-scroll{overflow:visible;padding:0 28px 60px}
     .wrap.deals-scroll>.dl-head,
-    .wrap.deals-scroll>.filterbar{position:static;width:auto}
+    .wrap.deals-scroll>.filterbar,
+    .wrap.deals-scroll>.book-ai{position:static;width:auto}
     .wrap.deals-scroll #grid{overflow-x:auto}
   }
   th:hover{color:var(--ink)}
@@ -654,7 +656,7 @@
 
   /* Espresso: pin the filter bar + forecast ribbon while scrolling the to-do list */
   .wrap.esp-sticky .filterbar{position:sticky;top:var(--hdr-h,86px);z-index:4;background:var(--bg);margin-bottom:0;padding:8px 0 10px}
-  .wrap.esp-sticky .tiertabs-bar{position:sticky;top:calc(var(--hdr-h,86px) + var(--fb-h,47px));z-index:3;background:var(--bg);padding:6px 0 10px;margin:0}
+  .wrap.esp-sticky .tiertabs-bar{position:sticky;top:var(--nav-h,116px);z-index:3;background:var(--bg);padding:6px 0 10px;margin:0}
   .wrap.esp-sticky .todo-top{background:var(--bg)}
 
   /* Per-tab hues — recolor the accent + faint card wash; background stays white */
@@ -846,7 +848,7 @@
   .ct-content{font-size:13px;line-height:1.6;color:var(--ink);white-space:pre-wrap;word-break:break-word}
 
   /* ── Global left sidebar (primary nav; replaces the old top header) ──────── */
-  .mase-side{position:fixed;left:0;top:0;bottom:0;width:230px;z-index:40;display:flex;flex-direction:column;background:var(--surface);border-right:1px solid var(--line);--logo-c1:#173083;--logo-c2:#2348b8;--logo-c3:#3a6cf0}
+  .mase-side{position:fixed;left:0;top:0;bottom:0;width:230px;z-index:40;display:flex;flex-direction:column;background:var(--surface);border-right:1px solid var(--line);--logo-c1:#173083;--logo-c2:#2348b8;--logo-c3:#3a6cf0;transition:width .18s ease}
   .mase-side-logo{padding:16px 16px 12px}
   .mase-side-logo img,.mase-side-logo svg{height:36px;width:auto;display:block}
   .mase-side-nav{display:flex;flex-direction:column;gap:2px;padding:4px 8px}
@@ -871,7 +873,12 @@
   .mase-side-foot .authmenu-pop{top:auto;bottom:44px;left:0;right:auto}
 
   /* Page surface shifted right of the fixed sidebar; deals search relocated here. */
-  .mase-shell{margin-left:230px;min-height:100vh}
+  .mase-shell{margin-left:230px;min-height:100vh;transition:margin-left .18s ease}
+  /* Collapsible sidebar: a root class narrows the fixed rail AND shifts the shell together. */
+  .side-collapsed .mase-side{width:68px}
+  .side-collapsed .mase-shell{margin-left:68px}
+  .mase-side .side-toggle{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;flex:0 0 auto;border:1px solid var(--line);background:var(--surface);border-radius:8px;color:var(--muted);cursor:pointer;transition:color .12s,border-color .12s,background .12s}
+  .mase-side .side-toggle:hover{color:var(--ink);border-color:var(--accent);background:var(--surface2)}
   /* Per-tab warm/cool canvas so the whole content area is one consistent tone
      (no white-block seam under the sticky bars). Cards lift off it. */
   .mase-shell.theme-espresso{background:#f3ebdd}
@@ -880,7 +887,11 @@
 
   /* Universal top navbar (global search + Ask AI). Theme-adaptive bg so it blends
      into the cool/warm/green canvas instead of forming a white block. */
-  .mase-nav{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:14px;padding:11px 26px;background:rgba(246,248,251,.82);backdrop-filter:saturate(180%) blur(12px);-webkit-backdrop-filter:saturate(180%) blur(12px);border-bottom:1px solid var(--line)}
+  .mase-nav{position:sticky;top:0;z-index:20;display:flex;flex-direction:column;background:rgba(246,248,251,.82);backdrop-filter:saturate(180%) blur(12px);-webkit-backdrop-filter:saturate(180%) blur(12px);border-bottom:1px solid var(--line)}
+  .mase-nav-row{display:flex;align-items:center;gap:14px;padding:11px 26px}
+  /* filter bar as the navbar's second row — fixed with the header, not scrolling with the list */
+  .mase-nav-fbrow{padding:0 26px 11px}
+  .mase-nav-fbrow .filterbar{margin:0}
   .mase-shell.theme-espresso .mase-nav{background:rgba(243,235,221,.84);border-bottom-color:#e8ddc9}
   .mase-shell.theme-matcha .mase-nav{background:rgba(237,243,228,.84);border-bottom-color:#dde7cd}
   .mase-nav-search{flex:1;max-width:780px;display:flex;align-items:center;gap:9px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 13px;box-shadow:var(--shadow-sm);transition:border-color .14s,box-shadow .14s}
@@ -1025,12 +1036,132 @@
   /* Weighted Forecast card is click-to-open */
   .dl-card.clickable{cursor:pointer}
   .dl-card.clickable:hover{border-color:var(--accent)}
+
+  /* ════════ Deals hero (redesigned header): big pipeline card + AI-score + at-risk ════════ */
+  .dl-hero{display:grid;grid-template-columns:minmax(0,1.9fr) minmax(0,1fr);gap:14px;align-items:stretch}
+  @media (max-width:980px){.dl-hero{grid-template-columns:1fr}}
+  .dl-hero .dl-bigcard,.dl-hero .dl-aicard,.dl-hero .dl-riskcard{
+    border:1px solid var(--line);border-radius:18px;background:var(--surface);box-shadow:var(--shadow-sm);gap:0;overflow:hidden}
+  .dl-eyebrow{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+
+  /* big card — total pipeline + weighted-forecast callout + composition bar */
+  .dl-bigcard{padding:18px 20px;display:flex;flex-direction:column}
+  .dl-big-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+  .dl-wf{display:flex;flex-direction:column;align-items:flex-end;text-align:right;gap:1px;border:0;background:transparent;cursor:pointer;padding:0}
+  .dl-wf-label{font-size:11px;font-weight:600;color:var(--muted)}
+  .dl-wf-val{font-size:16px;font-weight:800;color:var(--ink);letter-spacing:-.01em}
+  .dl-wf-sub{font-size:11px;font-weight:600;color:var(--accent)}
+  .dl-wf .dl-wf-val{transition:color .14s}
+  /* whole Total-Pipeline card opens the breakdown */
+  .dl-bigcard--click{cursor:pointer;transition:box-shadow .16s,border-color .16s}
+  .dl-bigcard--click:hover{border-color:var(--accent);box-shadow:var(--shadow)}
+  .dl-bigcard--click:hover .dl-wf-val,.dl-bigcard--click:hover .dl-big-more{color:var(--accent)}
+  .dl-bigcard--click:focus-visible{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .dl-big-more{color:var(--accent);font-weight:700}
+  /* breakdown modal tabs — Weighted forecast / Weighted pipeline */
+  .wf-tabs{display:flex;gap:6px;padding:2px 22px 10px}
+  .wf-tab{border:1px solid var(--line);background:var(--surface2);color:var(--muted);border-radius:9px;padding:7px 14px;font-size:12.5px;font-weight:700;cursor:pointer;transition:color .12s,border-color .12s,background .12s}
+  .wf-tab:hover{color:var(--ink);border-color:var(--accent)}
+  .wf-tab.active{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+  .dl-bignum{margin-top:10px;font-size:38px;line-height:1;font-weight:800;letter-spacing:-.02em;color:var(--ink);font-variant-numeric:tabular-nums}
+  .dl-big-deals{margin-top:7px;font-size:12px;font-weight:600;color:var(--muted)}
+  .dl-bar{display:flex;gap:2px;height:14px;width:100%;margin-top:auto;padding-top:16px;box-sizing:content-box}
+  .dl-seg{height:14px;min-width:3px;border-radius:3px}
+  .dl-legend{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:11px}
+  .dl-leg{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--muted)}
+  .dl-leg i{width:9px;height:9px;border-radius:3px;display:inline-block;flex:0 0 auto}
+  .dl-leg b{color:var(--ink);font-weight:700}
+
+  /* right column: AI score (ring) + at-risk */
+  .dl-hero-right{display:grid;grid-template-rows:auto auto;gap:14px;min-width:0}
+  .dl-aicard{padding:15px 18px;display:flex;flex-direction:column}
+  .dl-ai-row{display:flex;align-items:center;gap:14px;margin-top:8px}
+  .dl-ring{flex:0 0 auto}
+  .dl-ai-meta{display:flex;flex-direction:column;gap:5px}
+  .dl-ai-num{font-size:30px;font-weight:800;line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+  .dl-ai-badge{align-self:flex-start;font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px}
+  .dl-ai-cap{margin-top:11px;font-size:11.5px;font-weight:600;color:var(--muted)}
+  .dl-riskcard{padding:15px 18px;display:flex;flex-direction:column;background:linear-gradient(180deg,#fff6f5,var(--surface));border-color:#f6d6d2!important}
+  .dl-risk-h{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#c23b30}
+  .dl-risk-num{margin-top:8px;font-size:26px;font-weight:800;line-height:1;letter-spacing:-.02em;color:#a92c22;font-variant-numeric:tabular-nums}
+  .dl-risk-cta{margin-top:9px;text-align:left;border:0;background:transparent;padding:0;cursor:pointer;font-size:12px;font-weight:600;color:var(--muted)}
+  .dl-risk-cta span{color:#c23b30;font-weight:700}
+  .dl-risk-cta:hover span{text-decoration:underline}
+
+  /* filters sit directly under the navbar (above the hero): give the first bar a top gap
+     and out-rank the hero so its dropdowns overlay it. */
+  .wrap.deals-scroll>.dl-head{margin-top:16px}
+
+  /* breadcrumbs slot in the top navbar */
+  .mase-nav-crumbs{flex:0 0 auto;min-width:0;display:flex;align-items:center}
+  @media (max-width:1100px){.mase-nav-crumbs{display:none}}
+
+  /* ════════ Rep insights band: "what to focus on" (above the deal list) ════════ */
+  .book-ai{margin:0 0 16px;border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow-sm);
+    background:linear-gradient(135deg,var(--accent-soft),var(--surface) 58%);padding:15px 18px;
+    display:grid;grid-template-columns:minmax(220px,1fr) auto;grid-template-areas:"head chips" "focus focus";gap:14px 18px;align-items:start}
+  @media (max-width:900px){.book-ai{grid-template-columns:1fr;grid-template-areas:"head" "chips" "focus"}}
+  .book-ai-head{grid-area:head;display:flex;gap:11px;align-items:flex-start;min-width:0}
+  .book-ai-badge{flex:0 0 auto;display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--accent);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px 9px;box-shadow:var(--shadow-sm)}
+  .book-ai-title{font-size:15px;font-weight:800;color:var(--ink);letter-spacing:-.01em}
+  .book-ai-sum{margin-top:2px;font-size:12.5px;font-weight:600;color:var(--ink2)}
+  .book-ai-chips{grid-area:chips;display:flex;gap:10px;flex-wrap:wrap}
+  .book-ai-chip{display:inline-flex;align-items:center;gap:9px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 12px;min-width:120px}
+  .book-ai-chip-n{font-size:16px;font-weight:800;color:var(--ink);line-height:1}
+  .book-ai-chip-n span{font-size:11px;font-weight:700;color:var(--muted)}
+  .book-ai-chip-l{font-size:10.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);margin-top:3px}
+  .book-ai-chip.tone-amber svg{color:#d99a00}
+  .book-ai-chip.tone-red svg{color:#d6453b}
+  .book-ai-chip.tone-slate svg{color:#7c8ba0}
+  .book-ai-focus{grid-area:focus;border-top:1px solid var(--line);padding-top:12px}
+  .book-ai-focus-h{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+  .book-ai-list{display:grid;gap:7px}
+  .book-ai-item{display:flex;align-items:center;gap:12px;width:100%;text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:11px;padding:9px 12px;cursor:pointer;transition:border-color .14s,box-shadow .14s}
+  .book-ai-item:hover{border-color:var(--accent);box-shadow:var(--shadow-sm)}
+  .book-ai-rank{flex:0 0 auto;width:20px;height:20px;border-radius:6px;background:var(--accent-soft);color:var(--accent);font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center}
+  .book-ai-item-main{flex:1;min-width:0}
+  .book-ai-acct{font-size:13px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .book-ai-why{font-size:11.5px;font-weight:600;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .book-ai-item-meta{flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-end;gap:1px}
+  .book-ai-amt{font-size:12.5px;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums}
+  .book-ai-close{font-size:11px;font-weight:600;color:var(--muted)}
+  .book-ai-go{flex:0 0 auto;color:var(--muted)}
+  .book-ai-item:hover .book-ai-go{color:var(--accent)}
+  .book-ai-clear{grid-area:focus;font-size:12.5px;font-weight:600;color:var(--muted)}
+
+  /* AI version of the insights band (curated per-rep focus with "how MASE can help") */
+  .book-ai-focus-h{display:inline-flex;align-items:center;gap:6px}
+  .book-ai-focus-h svg{color:var(--accent)}
+  .ai-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  @media (max-width:1200px){.ai-cards{grid-template-columns:1fr}}
+  .ai-card{border:1px solid var(--line);background:var(--surface);border-radius:13px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+  .ai-card-top{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+  .ai-card-acct{border:0;background:transparent;padding:0;cursor:pointer;font-size:13.5px;font-weight:800;color:var(--ink);letter-spacing:-.01em}
+  .ai-card-acct:hover{color:var(--accent);text-decoration:underline}
+  .ai-card-meta{font-size:11px;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums}
+  .ai-card-hl{font-size:12.5px;font-weight:700;color:var(--ink)}
+  .ai-card-why{font-size:12px;font-weight:500;color:var(--ink2);line-height:1.5}
+  .ai-card-do{font-size:12px;font-weight:600;color:var(--ink);background:var(--surface2);border:1px solid var(--line);border-radius:9px;padding:7px 10px;display:flex;gap:7px;align-items:baseline}
+  .ai-do-ic{color:var(--accent);font-weight:800;flex:0 0 auto}
+  .ai-card-help{margin-top:2px;align-self:flex-start;display:inline-flex;align-items:center;gap:7px;border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent);border-radius:9px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;transition:background .14s,filter .14s,color .14s}
+  .ai-card-help:hover{background:var(--accent);color:#fff}
+  .ai-card-help:hover svg{color:#fff}
+  .ai-watch{margin-top:10px;font-size:12px;font-weight:500;color:var(--ink2);background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:9px 12px;line-height:1.5}
+  .ai-watch b{color:#b7791f;font-weight:800;text-transform:uppercase;font-size:10.5px;letter-spacing:.05em}
   .dl-card.clickable:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .dl-hint{font-weight:600;color:var(--accent);opacity:0;transition:opacity .16s;margin-left:4px}
   .dl-card.clickable:hover .dl-hint,.dl-card.clickable:focus-visible .dl-hint{opacity:1}
   /* Stat detail modal (centered dialog) */
   .statmodal-back{position:fixed;inset:0;background:rgba(15,27,46,.40);backdrop-filter:blur(2px);z-index:95}
-  .statmodal{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:96;background:var(--surface);border:1px solid var(--line);border-radius:16px;width:min(680px,96vw);max-height:86vh;overflow-y:auto;box-shadow:0 30px 80px -20px rgba(16,30,54,.42)}
+  .statmodal{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:96;background:var(--surface);border:1px solid var(--line);border-radius:16px;width:min(680px,96vw);max-height:86vh;overflow-y:auto;box-shadow:0 30px 80px -20px rgba(16,30,54,.42);scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
+  /* Thin rounded scrollbar with a TRANSPARENT track so the modal's rounded corners show
+     through (a native track squared off the right edge). The border+background-clip trick
+     insets the thumb into a slim pill. */
+  .statmodal::-webkit-scrollbar,.wfd-body::-webkit-scrollbar{width:12px}
+  .statmodal::-webkit-scrollbar-track,.wfd-body::-webkit-scrollbar-track{background:transparent;margin:8px 0}
+  .statmodal::-webkit-scrollbar-thumb,.wfd-body::-webkit-scrollbar-thumb{background:var(--line2);border-radius:999px;border:3px solid transparent;background-clip:content-box}
+  .statmodal::-webkit-scrollbar-thumb:hover,.wfd-body::-webkit-scrollbar-thumb:hover{background:var(--muted);background-clip:content-box}
+  .wfd-body{scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
   .wf-h{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:18px 22px;border-bottom:1px solid var(--line)}
   .wf-title{font-size:12px;font-weight:600;color:var(--muted)}
   .wf-big{font-size:28px;font-weight:800;letter-spacing:-.6px;color:var(--ink);line-height:1.1;margin-top:3px;font-variant-numeric:tabular-nums}
